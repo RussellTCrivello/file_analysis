@@ -1,0 +1,72 @@
+﻿# Flask and Flask extensions
+Flask
+flask-babel
+flask-limiter
+flask-wtf
+flask-compress
+python-dateutil
+python-dotenv
+
+psutil
+
+# Logging
+logging
+
+# Internationalization
+Babel
+
+# Additional utilities
+Werkzeug
+Jinja2
+MarkupSafe
+
+# E-book processing
+ebooklib
+beautifulsoup4
+mobi
+
+# Audio processing
+mutagen
+
+# Internationalization
+Babel
+
+# Additional utilities
+Werkzeug
+Jinja2
+MarkupSafe
+
+#- for extracting email files
+# libratom 
+
+
+
+
+#- for extracting msg files
+extract-msg
+
+#- for extracting html files
+html2text
+
+#- for extracting rar files
+rarfile
+
+#- for extracting 7z files
+py7zr
+
+
+#- for extracting pdf files
+pdfplumber
+
+#- for extracting yaml files
+PyYAML
+
+#- for extracting ics files
+icalendar
+
+
+#- for extracting video files
+moviepy
+
+#- for extracting video files
+opencv-python

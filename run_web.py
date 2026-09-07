@@ -1,0 +1,85 @@
+"""
+Entry point for the web application.
+
+This script initializes the Flask web application and starts the development server.
+For production deployment, use a WSGI server like Gunicorn or uWSGI.
+
+Usage:
+    python run_web.py
+"""
+
+import sys
+import os
+from pathlib import Path
+
+# Auto-install check: Only run if AUTO_INSTALL is not disabled
+if os.environ.get('AUTO_INSTALL', '1') == '1':
+    try:
+        try:
+            import flask
+            import psycopg2
+        except ImportError:
+            print("=" * 60)
+            print("Dependencies not found. Attempting auto-install...")
+            print("=" * 60)
+            
+            in_venv = hasattr(sys, 'real_prefix') or (
+                hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+            )
+            
+            if not in_venv:
+                print("WARNING: Not in virtual environment.")
+                print("Please run: setup.bat or start.bat")
+                print("=" * 60)
+            else:
+                wheels_dir = Path("wheels")
+                if wheels_dir.exists():
+                    import subprocess
+                    print("Installing missing dependencies from local wheels...")
+                    result = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "--no-index", 
+                         "--find-links=wheels", "flask", "psycopg2-binary", "sqlalchemy"],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        print("Dependencies installed successfully!")
+                        print("=" * 60)
+                        import importlib
+                        importlib.invalidate_caches()
+                    else:
+                        print("WARNING: Auto-install failed. Please run setup.bat manually")
+                        print("=" * 60)
+                else:
+                    print("ERROR: wheels\\ directory not found!")
+                    print("Please run download_dependencies.bat first (with internet)")
+                    print("=" * 60)
+    except Exception as e:
+        print(f"Auto-install check failed: {e}")
+        print("Continuing with startup...")
+
+# Simplified initialization
+from core.init import (
+    setup_project_path,
+    initialize_settings,
+    initialize_database_config,
+    initialize_system
+)
+
+# Set up project path
+project_root = setup_project_path(__file__)
+
+# Initialize settings
+initialize_settings(project_root)
+
+# Load database configuration
+initialize_database_config()
+
+# Initialize system
+initialize_system()
+
+# Import and run the web app
+from apps.web.app import app
+
+if __name__ == '__main__':
+    app.run(debug=True, host='127.0.0.1', port=5000)

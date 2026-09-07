@@ -1,0 +1,361 @@
+<!-- templates/search_advanced.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ _('Advanced Search') }}{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/search-advanced.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Google-like Search Header -->
+<div class="search-header">
+    <div class="search-header-content">
+        <h1 class="search-logo">
+            <i class="bi bi-search-heart me-2"></i>
+            {{ _('Advanced Search') }}
+        </h1>
+        <p class="search-subtitle">{{ _('Find exactly what you need with powerful filters and intelligent algorithms') }}</p>
+    </div>
+</div>
+
+<!-- Page Tips -->
+{% from 'components/page_tips.html' import page_tips %}
+{% call page_tips(enabled=is_interface_enabled('page_tips') if is_interface_enabled is defined else (user_settings.is_interface_enabled('page_tips') if user_settings else False)) %}
+<div class="tips-section">
+    <div class="tips-section-title">
+        <i class="bi bi-funnel"></i>
+        {{ _('Advanced Search Overview') }}
+    </div>
+    <ul class="tips-list">
+        <li>{{ _('Use quotes for exact phrases: "exact phrase"') }}</li>
+        <li>{{ _('Use AND, OR, NOT operators: term1 AND term2 OR term3 NOT term4') }}</li>
+        <li>{{ _('Filters work together to narrow results precisely') }}</li>
+        <li>{{ _('Search suggestions appear as you type') }}</li>
+    </ul>
+</div>
+{% endcall %}
+
+<!-- Search View Navigation -->
+<div class="search-view-navigation section-card">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('search_page') }}" class="btn btn-outline-primary search-view-btn {% if request.endpoint == 'search_page' %}active{% endif %}" data-view="search">
+            <i class="bi bi-search"></i> {{ _('Search') }}
+        </a>
+        <a href="{{ url_for('search_advanced') }}" class="btn btn-outline-primary search-view-btn {% if request.endpoint == 'search_advanced' %}active{% endif %}" data-view="advanced">
+            <i class="bi bi-funnel"></i> {{ _('Advanced Search') }}
+        </a>
+        <a href="{{ url_for('search_enhanced_page') }}" class="btn btn-outline-primary search-view-btn {% if request.endpoint == 'search_enhanced_page' %}active{% endif %}" data-view="enhanced">
+            <i class="bi bi-search-heart"></i> {{ _('Enhanced Search') }}
+        </a>
+    </div>
+</div>
+
+<!-- Search Within Section (Prominent for Database Optimization) -->
+<div class="search-within-container">
+    <div class="search-within-header">
+        <i class="bi bi-funnel-fill me-2"></i>
+        <span>{{ _('Search Within') }}</span>
+        <small class="text-muted ms-2">({{ _('Optional - reduces database load') }})</small>
+    </div>
+    <div class="search-within-filters">
+        <div class="search-within-filter">
+            <label class="search-within-label">
+                <i class="bi bi-building me-1"></i>
+                {{ _('Source') }}
+            </label>
+            <select class="form-select search-within-select" id="searchWithinSource">
+                <option value="">{{ _('All Sources') }}</option>
+                <!-- Will be populated dynamically -->
+            </select>
+        </div>
+        <div class="search-within-filter">
+            <label class="search-within-label">
+                <i class="bi bi-diagram-3 me-1"></i>
+                {{ _('Side') }}
+            </label>
+            <select class="form-select search-within-select" id="searchWithinSide">
+                <option value="">{{ _('All Sides') }}</option>
+                <!-- Will be populated dynamically -->
+            </select>
+        </div>
+        <div class="search-within-info">
+            <i class="bi bi-info-circle me-1"></i>
+            <small>{{ _('Selecting a source or side limits search to that scope, improving performance') }}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Google-like Main Search Box -->
+<div class="main-search-container">
+    <div class="search-box-wrapper">
+        <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" 
+                   class="search-input-main" 
+                   id="mainSearchInput"
+                   placeholder="{{ _('Search files, content, categories... (supports multiple words, quotes, AND/OR/NOT)') }}"
+                   autocomplete="off"
+                   spellcheck="false">
+            <button type="button" class="btn-clear-search-main" id="clearSearchBtn" style="display: none;">
+                <i class="bi bi-x-circle"></i>
+            </button>
+            <button type="button" class="btn-voice-search" id="voiceSearchBtn" title="{{ _('Voice search') }}">
+                <i class="bi bi-mic"></i>
+            </button>
+        </div>
+        
+        <!-- Search Suggestions Dropdown -->
+        <div class="search-suggestions-dropdown" id="searchSuggestions">
+            <div class="suggestions-header">
+                <i class="bi bi-clock-history me-2"></i>
+                <span>{{ _('Suggestions') }}</span>
+            </div>
+            <div class="suggestions-list" id="suggestionsList"></div>
+        </div>
+    </div>
+    
+    <!-- Search Query Help -->
+    <div class="search-help-text">
+        <small class="text-muted">
+            <i class="bi bi-lightbulb me-1"></i>
+            <strong>{{ _('Tips') }}:</strong>
+            {{ _('Use quotes for exact phrases: "exact phrase"') }} |
+            {{ _('Multiple words: word1 word2 (searches for both)') }} |
+            {{ _('Operators: word1 AND word2 OR word3 NOT word4') }}
+        </small>
+    </div>
+    
+    <!-- Search Action Buttons -->
+    <div class="search-actions">
+        <button type="button" class="btn btn-primary btn-search-main" onclick="executeAdvancedSearch()">
+            <i class="bi bi-search me-1"></i>{{ _('Search') }}
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-lucky" onclick="feelingLucky()" title="{{ _('I\'m Feeling Lucky') }}">
+            <i class="bi bi-stars me-1"></i>{{ _('Lucky') }}
+        </button>
+    </div>
+</div>
+
+<!-- Active Filters Chips -->
+<div class="filters-chips-container" id="filtersChipsContainer" style="display: none;">
+    <div class="filters-chips-header">
+        <i class="bi bi-funnel me-2"></i>
+        <span>{{ _('Active Filters') }}:</span>
+        <button type="button" class="btn-clear-all-filters" onclick="clearAllFilters()">
+            <i class="bi bi-x-circle me-1"></i>{{ _('Clear All') }}
+        </button>
+    </div>
+    <div class="filters-chips" id="filtersChips"></div>
+</div>
+
+<!-- Advanced Filters Panel (Collapsible) -->
+<div class="advanced-filters-panel">
+    <div class="filters-panel-header" onclick="toggleFiltersPanel()">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-sliders me-2"></i>
+            <span>{{ _('Advanced Filters') }}</span>
+            <span class="badge bg-primary ms-2" id="activeFiltersCount">0</span>
+        </div>
+        <i class="bi bi-chevron-down" id="filtersToggleIcon"></i>
+    </div>
+    
+    <div class="filters-panel-content" id="filtersPanelContent">
+        <div class="filters-grid">
+            <!-- File Type Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-filetype-pdf me-1"></i>
+                    {{ _('File Type') }}
+                </label>
+                <select class="form-select filter-select" id="fileType" multiple>
+                    <option value="">{{ _('All Types') }}</option>
+                    <option value="pdf">PDF</option>
+                    <option value="docx">Word Document</option>
+                    <option value="xlsx">Excel</option>
+                    <option value="txt">Text</option>
+                    <option value="html">HTML</option>
+                    <option value="jpg">Image (JPG)</option>
+                    <option value="png">Image (PNG)</option>
+                </select>
+            </div>
+            
+            <!-- Categories Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-tags me-1"></i>
+                    {{ _('Categories') }}
+                </label>
+                <select class="form-select filter-select" id="categoriesSelect" multiple>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Sources Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-building me-1"></i>
+                    {{ _('Sources') }}
+                </label>
+                <select class="form-select filter-select" id="sourcesSelect" multiple>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Sides Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-diagram-3 me-1"></i>
+                    {{ _('Sides') }}
+                </label>
+                <select class="form-select filter-select" id="sidesSelect" multiple>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Date Range Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    {{ _('Date Range') }}
+                </label>
+                <div class="date-range-inputs">
+                    <input type="date" class="form-control filter-date" id="dateFrom" placeholder="{{ _('From') }}">
+                    <span class="date-separator">{{ _('to') }}</span>
+                    <input type="date" class="form-control filter-date" id="dateTo" placeholder="{{ _('To') }}">
+                </div>
+            </div>
+            
+            <!-- File Status Filter -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-check-circle me-1"></i>
+                    {{ _('Status') }}
+                </label>
+                <div class="status-checkboxes">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Read" id="statusRead" checked>
+                        <label class="form-check-label" for="statusRead">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>{{ _('Analyzed') }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Unread" id="statusUnread">
+                        <label class="form-check-label" for="statusUnread">
+                            <i class="bi bi-hourglass-split text-warning me-1"></i>{{ _('Pending') }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Options -->
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="bi bi-gear me-1"></i>
+                    {{ _('Search Options') }}
+                </label>
+                <div class="search-options">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="caseSensitive">
+                        <label class="form-check-label" for="caseSensitive">
+                            {{ _('Case Sensitive') }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="wholeWord">
+                        <label class="form-check-label" for="wholeWord">
+                            {{ _('Whole Words Only') }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="useFuzzy" checked>
+                        <label class="form-check-label" for="useFuzzy">
+                            {{ _('Fuzzy Matching') }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filter Actions -->
+        <div class="filter-actions-bar">
+            <button type="button" class="btn btn-outline-primary" onclick="resetAllFilters()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('Reset') }}
+            </button>
+            <button type="button" class="btn btn-primary" onclick="executeAdvancedSearch()">
+                <i class="bi bi-search me-1"></i>{{ _('Apply Filters') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results Section -->
+<div id="searchResultsSection" class="search-results-section" style="display: none;">
+    <div class="results-header">
+        <div class="results-info">
+            <span id="resultsCount" class="results-count">0</span>
+            <span class="results-label">{{ _('results found') }}</span>
+            <span class="results-time" id="searchTime"></span>
+        </div>
+        <div class="results-actions">
+            <select class="form-select form-select-sm results-sort" id="sortBy" onchange="sortResults()">
+                <option value="relevance">{{ _('Sort: Relevance') }}</option>
+                <option value="date">{{ _('Date (Newest)') }}</option>
+                <option value="date_old">{{ _('Date (Oldest)') }}</option>
+                <option value="name">{{ _('Name (A-Z)') }}</option>
+                <option value="size">{{ _('Size (Largest)') }}</option>
+            </select>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" title="{{ _('Export/Print Results') }}">
+                    <i class="bi bi-download me-1"></i>{{ _('Export') }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#" onclick="exportResults('csv'); return false;">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('Export as CSV') }}
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportResults('excel'); return false;">
+                        <i class="bi bi-file-earmark-excel me-2"></i>{{ _('Export as Excel') }}
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportResults('json'); return false;">
+                        <i class="bi bi-file-earmark-code me-2"></i>{{ _('Export as JSON') }}
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="printResults(); return false;">
+                        <i class="bi bi-printer me-2"></i>{{ _('Print Results') }}
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div id="resultsContainer" class="results-container">
+        <!-- Results will be populated here -->
+    </div>
+    
+    <!-- Pagination -->
+    <div id="pagination" class="results-pagination"></div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="searchLoadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner-wrapper">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">{{ _('Searching...') }}</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="search-advanced-page-data">{{ {
+    "translations": {
+        "searchError": _('Search error'),
+        "noResultsFound": _('No results found matching your criteria'),
+        "noResultsToExport": _('No results to export'),
+        "searching": _('Searching...'),
+        "resultsFound": _('results found'),
+        "inSeconds": _('in {seconds} seconds')
+    }
+}|tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='js/pages/search-advanced-page.js') }}"></script>
+{% endblock %}
