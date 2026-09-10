@@ -4,9 +4,9 @@ Validates terms (words and phrases) before processing
 """
 
 from typing import Tuple
-from data.models import Term
-from utils.logger import get_logger
-from utils.exceptions import ValidationException
+from apps.importing.data.models import Term
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import ValidationException
 
 logger = get_logger(__name__)
 

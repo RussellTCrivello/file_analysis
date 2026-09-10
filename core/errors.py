@@ -73,15 +73,30 @@ def log_server_error(
     subsystem: str = "web",
     extra: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Log the full details server-side, tied to the correlation id."""
-    user = getattr(g, "user", None)
-    user_name = getattr(user, "username", None) if user is not None else None
+    """Log the full details server-side, tied to the correlation id.
+
+    Safe to call from worker threads: request/user details are included
+    only when a request context is actually active.
+    """
+    user_name = None
+    route = path = method = None
+    try:
+        from flask import has_request_context
+
+        if has_request_context():
+            user = getattr(g, "user", None)
+            user_name = getattr(user, "username", None) if user is not None else None
+            route = request.endpoint if request else None
+            path = request.path if request else None
+            method = request.method if request else None
+    except Exception:
+        pass
     payload = {
         "correlation_id": correlation_id,
         "exception_type": exc.__class__.__name__,
-        "route": request.endpoint if request else None,
-        "path": request.path if request else None,
-        "method": request.method if request else None,
+        "route": route,
+        "path": path,
+        "method": method,
         "user": user_name,
         "subsystem": subsystem,
     }

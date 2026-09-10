@@ -25,6 +25,24 @@ Single-source-of-truth boundaries that every feature must respect:
 (default-deny, public allow-list) → rate limiter → blueprint route → service
 layer → pooled DB connection → sanitized error path on failure.
 
+## Operations layer (unified frontend)
+
+`services/` is the single service layer shared by the web frontend, the
+operations API and the CLI compatibility adapters:
+
+| Concern | Owner |
+|---|---|
+| Ingestion requests/engine | `services/ingesting/` (wraps `pipeline.integrated_reader`) |
+| Source/side management | `services/sources.py` (wraps `database.queries`) |
+| Domain import | `services/importing/domain_import_service.py` (wraps `apps.importing`) |
+| Backup/batch import | `services/importing/backup_import_service.py` (wraps `Api.services.import_service`) |
+| Jobs (persistence, workers, cancel/pause/retry, recovery, events) | `services/jobs/` |
+
+Pages (`templates/Operations/*`) and the API (`Api/routes/operations_api.py`)
+are thin presentation over these services. The CLIs (`run_cli.py`,
+`run_import.py`) are deprecated adapters constructing the same request
+objects. No service depends on argparse, terminal I/O or exit codes.
+
 ## Ingestion lifecycle
 
 source/side row → `IntegratedFileReader.process_batch` →

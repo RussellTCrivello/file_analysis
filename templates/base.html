@@ -226,6 +226,32 @@
             </li>
             {% endif %}
             
+            <!-- Operations (unified input/import/jobs control surface) -->
+            <li class="sidebar-nav-item">
+                <a href="{{ url_for('operations_input_page') }}"
+                   class="sidebar-nav-link {% if request.endpoint == 'operations_input_page' %}active{% endif %}"
+                   data-endpoint="operations_input_page">
+                    <i class="bi bi-folder-plus"></i>
+                    <span>{{ _('Input / Ingestion') }}</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{{ url_for('operations_import_page') }}"
+                   class="sidebar-nav-link {% if request.endpoint == 'operations_import_page' %}active{% endif %}"
+                   data-endpoint="operations_import_page">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    <span>{{ _('Import Center') }}</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="{{ url_for('operations_jobs_page') }}"
+                   class="sidebar-nav-link {% if request.endpoint == 'operations_jobs_page' or request.endpoint == 'operations_job_detail_page' %}active{% endif %}"
+                   data-endpoint="operations_jobs_page">
+                    <i class="bi bi-list-check"></i>
+                    <span>{{ _('Jobs') }}</span>
+                </a>
+            </li>
+            
             <!-- Analysis -->
             {% if is_interface_enabled('file_analysis') or is_interface_enabled('path_analysis') or is_interface_enabled('batch_analysis') %}
             <li class="sidebar-nav-item">

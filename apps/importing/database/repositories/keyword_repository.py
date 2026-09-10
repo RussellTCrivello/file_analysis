@@ -6,9 +6,9 @@ Handles all database operations for the keywords table
 from typing import Optional, List
 
 from apps.importing.database.transaction_manager import TransactionManager
-from utils.logger import get_logger
-from utils.exceptions import RepositoryException
-from utils.constants import TABLE_KEYWORDS
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import RepositoryException
+from apps.importing.utils.constants import TABLE_KEYWORDS
 from core.serialization import pack_int_list, unpack_int_list
 
 logger = get_logger(__name__)

@@ -221,6 +221,23 @@ logger.info("✅ CSRF protection enabled")
 # ---------------------------------------------------------------------------
 limiter.init_app(app)
 app.config['RATELIMITER'] = limiter
+
+# Crash recovery for the unified job system (spec: interrupted jobs must be
+# identifiable; each file commits its own transaction so the DB stays
+# consistent). Guarded - a DB hiccup at import time must not block startup.
+def _recover_jobs():
+    try:
+        from services.jobs.manager import JobManager
+
+        out = JobManager.get_instance().recover_stale_jobs()
+        if out.get("count"):
+            logger.warning("Job crash recovery: %d stale job(s) marked FAILED: %s",
+                           out["count"], out["recovered"])
+    except Exception as exc:
+        logger.warning("Job crash recovery skipped: %s", exc.__class__.__name__)
+
+with app.app_context():
+    _recover_jobs()
 logger.info("✅ Rate limiting enabled (default 60/min, 600/hour per client)")
 
 # Enable gzip compression for all responses

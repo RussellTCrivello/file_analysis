@@ -178,6 +178,7 @@ def _():
         "words", "punctuation", "categorys", "words_categorys", "sides",
         "sources", "hashs", "paths", "contents", "titles_content", "keywords",
         "words_paths", "keywords_paths", "alerts", "users", "sessions", "audit_log",
+        "jobs", "job_events",
     }
     conn = _db_connect()
     try:
@@ -192,7 +193,7 @@ def _():
     missing = required - actual
     if missing:
         raise AssertionError(f"missing tables: {', '.join(sorted(missing))}")
-    return f"{len(required)} tables present"
+    return f"{len(required)} tables present (incl. job infrastructure)"
 
 
 @check("database", "Required performance indexes exist (DB-06)")

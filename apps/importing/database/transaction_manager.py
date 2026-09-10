@@ -6,8 +6,8 @@ Handles database transactions with automatic commit/rollback
 from typing import Optional, Any, Tuple, List
 
 from apps.importing.database.connection_pool import ConnectionPool
-from utils.logger import get_logger
-from utils.exceptions import DatabaseException
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import DatabaseException
 
 logger = get_logger(__name__)
 

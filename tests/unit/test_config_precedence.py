@@ -5,10 +5,7 @@ was served even after the test environment exported DB_HOST/DB_NAME pointing
 at an ephemeral PostgreSQL. These tests pin the read-time precedence
 guarantee at both consumption boundaries.
 """
-import os
-from unittest import mock
 
-import pytest
 
 
 def _with_file_settings(monkeypatch, tmp_path):

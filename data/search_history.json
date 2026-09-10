@@ -493,5 +493,260 @@
     "result_count": 0,
     "user_id": null,
     "timestamp": "2026-09-10T13:25:40.137294"
+  },
+  {
+    "id": 34,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:26:05.733382"
+  },
+  {
+    "id": 35,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:26:05.868829"
+  },
+  {
+    "id": 36,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:40:11.373521"
+  },
+  {
+    "id": 37,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:40:11.499458"
+  },
+  {
+    "id": 38,
+    "query": "quantum pineapple 92e0588e0d064a0ca41741f009953229",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:51:27.385283"
+  },
+  {
+    "id": 39,
+    "query": "quantum pineapple 8dc0f0ee32df47ff865a853c5da3af09",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:32.102268"
+  },
+  {
+    "id": 40,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:33.404494"
+  },
+  {
+    "id": 41,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:33.539103"
+  },
+  {
+    "id": 42,
+    "query": "quantum pineapple a8ec2b594b8c40f0aa025e0907466238",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:56.218354"
+  },
+  {
+    "id": 43,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:57.442518"
+  },
+  {
+    "id": 44,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:55:57.554963"
+  },
+  {
+    "id": 45,
+    "query": "quantum pineapple 410fec08bd9b4351bd592e3801ab0bad",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:56:37.033960"
+  },
+  {
+    "id": 46,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:56:38.302405"
+  },
+  {
+    "id": 47,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:56:38.429635"
+  },
+  {
+    "id": 48,
+    "query": "quantum pineapple 57573dcbff6a48f2ae288464ff9640c1",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:57:53.119802"
+  },
+  {
+    "id": 49,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:57:54.412246"
+  },
+  {
+    "id": 50,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:57:54.539554"
   }
 ]

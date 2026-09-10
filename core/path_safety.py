@@ -82,6 +82,19 @@ def validate_ingestion_path(
         except ValueError:
             continue
 
+    # Staged uploads are a configured application input location: files the
+    # authenticated user uploaded through the app itself are always
+    # ingestible, independent of INGESTION_ROOTS (which gates arbitrary
+    # server paths). The staging root lives under the app data dir.
+    try:
+        from core.app_paths import get_data_root
+
+        staged_root = (Path(get_data_root()) / "uploads").resolve()
+        resolved.relative_to(staged_root)
+        return resolved
+    except Exception:
+        pass
+
     logger.warning("Rejected ingestion path outside approved roots: %s", raw)
     raise PathSafetyError("Path is outside all approved ingestion roots")
 

@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}Job {{ job_id }}{% endblock %}
+{% block page_type %}operations{% endblock %}
+{% block page_title %}Job {{ job_id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0"><span id="jType">—</span> <code id="jId">{{ job_id }}</code></h5>
+            <span id="jStatus" class="badge bg-secondary">—</span>
+          </div>
+          <div class="progress mb-1" style="height:12px;">
+            <div id="jBar" class="progress-bar" style="width:0%"></div>
+          </div>
+          <div class="small text-muted" id="jPercent">0%</div>
+          <dl class="row small mt-3 mb-0">
+            <dt class="col-sm-3">Phase</dt><dd class="col-sm-9" id="jPhase">—</dd>
+            <dt class="col-sm-3">Current file</dt><dd class="col-sm-9 text-break" id="jItem">—</dd>
+            <dt class="col-sm-3">Source</dt><dd class="col-sm-9 text-break" id="jSource">—</dd>
+            <dt class="col-sm-3">User</dt><dd class="col-sm-9" id="jUser">—</dd>
+            <dt class="col-sm-3">Started</dt><dd class="col-sm-9" id="jStart">—</dd>
+            <dt class="col-sm-3">Completed</dt><dd class="col-sm-9" id="jEnd">—</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">Statistics</div>
+        <div class="card-body">
+          <div class="row text-center" id="jStats"></div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">Errors &amp; warnings</div>
+        <div class="card-body">
+          <input id="errFilter" class="form-control form-control-sm mb-2" placeholder="Filter…">
+          <div id="jErrors" class="small"></div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between">
+          Event log
+          <span class="text-muted small" id="evtCount"></span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive" style="max-height:320px; overflow-y:auto;">
+            <table class="table table-sm table-striped mb-0 small">
+              <thead class="table-light"><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead>
+              <tbody id="jEvents"><tr><td colspan="3" class="text-center text-muted py-3">No events yet</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">Actions</div>
+        <div class="card-body d-grid gap-2" id="jActions"></div>
+      </div>
+      <div class="card shadow-sm">
+        <div class="card-header">Result summary</div>
+        <div class="card-body small" id="jResult">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const JOB_ID = '{{ job_id }}';
+  const csrf = {'X-CSRFToken': '{{ csrf_token() }}'};
+  const badge = (s) => {
+    const cls = {RUNNING:'primary', QUEUED:'secondary', PAUSED:'warning',
+      CANCELLING:'warning', CANCELLED:'dark', COMPLETED:'success',
+      COMPLETED_WITH_WARNINGS:'info', FAILED:'danger'}[s] || 'light';
+    return `<span class="badge bg-${cls}">${(s||'').replace(/_/g,' ')}</span>`;
+  };
+  let lastEventId = 0;
+  let errorsCache = [], warningsCache = [];
+
+  async function refresh() {
+    const r = await fetch(`/api/jobs/${JOB_ID}`);
+    const d = await r.json();
+    if (!d.success) { document.getElementById('jStatus').textContent = 'NOT FOUND'; return; }
+    const j = d.job;
+    document.getElementById('jType').textContent = (j.job_type||'').replace(/_/g,' ');
+    document.getElementById('jStatus').innerHTML = badge(j.status);
+    document.getElementById('jBar').style.width = (j.progress||0) + '%';
+    document.getElementById('jPercent').textContent = (j.progress||0) + '%';
+    document.getElementById('jPhase').textContent = j.current_phase || '—';
+    document.getElementById('jItem').textContent = j.current_item || '—';
+    document.getElementById('jSource').textContent = j.source || '—';
+    document.getElementById('jUser').textContent = j.created_by || '—';
+    document.getElementById('jStart').textContent = j.started_at || '—';
+    document.getElementById('jEnd').textContent = j.completed_at || '—';
+
+    const st = j.statistics || {};
+    const cells = [
+      ['Discovered', st.files_discovered], ['Processed', st.files_processed],
+      ['Succeeded', st.files_succeeded], ['Failed', st.files_failed],
+      ['Skipped', st.files_skipped], ['Duplicates', st.duplicates],
+    ];
+    document.getElementById('jStats').innerHTML = cells.map(([k, v]) => `
+      <div class="col-4 col-md-2"><div class="border rounded p-2">
+        <div class="fs-5">${v ?? '—'}</div><div class="text-muted small">${k}</div>
+      </div></div>`).join('');
+    document.getElementById('jResult').textContent =
+      j.result_summary ? JSON.stringify(j.result_summary, null, 1) : '—';
+
+    // errors & warnings
+    const er = await fetch(`/api/jobs/${JOB_ID}/errors`).then(r => r.json());
+    errorsCache = er.errors || []; warningsCache = er.warnings || [];
+    renderErrors();
+
+    // actions by state
+    const actions = [];
+    if (['RUNNING','CANCELLING','QUEUED'].includes(j.status))
+      actions.push(`<button class="btn btn-outline-danger" onclick="act('cancel')">Cancel Job</button>`);
+    if (j.status === 'RUNNING')
+      actions.push(`<button class="btn btn-outline-warning" onclick="act('pause')">Pause</button>`);
+    if (j.status === 'PAUSED')
+      actions.push(`<button class="btn btn-outline-success" onclick="act('resume')">Resume</button>`);
+    if (['FAILED','CANCELLED','COMPLETED_WITH_WARNINGS'].includes(j.status))
+      actions.push(`<button class="btn btn-outline-secondary" onclick="act('retry')">Retry</button>`);
+    document.getElementById('jActions').innerHTML =
+      actions.join('') || '<span class="text-muted small">No actions available</span>';
+
+    loadEvents();
+  }
+
+  function renderErrors() {
+    const q = (document.getElementById('errFilter').value || '').toLowerCase();
+    const items = [
+      ...errorsCache.filter(e => !q || (e||'').toLowerCase().includes(q)).map(e => `<div class="text-danger mb-1">✗ ${e}</div>`),
+      ...warningsCache.filter(w => !q || (w||'').toLowerCase().includes(q)).map(w => `<div class="text-warning mb-1">⚠ ${w}</div>`),
+    ];
+    document.getElementById('jErrors').innerHTML =
+      items.join('') || '<span class="text-muted">No errors or warnings</span>';
+  }
+  document.getElementById('errFilter').addEventListener('input', renderErrors);
+
+  async function loadEvents() {
+    const r = await fetch(`/api/jobs/${JOB_ID}/events?after_id=${lastEventId}&limit=500`);
+    const d = await r.json();
+    const evts = d.events || [];
+    if (!evts.length && lastEventId === 0) return;
+    const body = document.getElementById('jEvents');
+    if (lastEventId === 0) body.innerHTML = '';
+    evts.forEach(e => {
+      lastEventId = Math.max(lastEventId, e.event_id);
+      const row = document.createElement('tr');
+      row.innerHTML = `<td class="text-nowrap">${(e.created_at||'').slice(11,19)}</td>
+        <td class="text-nowrap">${e.event_type}</td>
+        <td class="text-break">${escapeHtml(JSON.stringify(e.payload||{}))}</td>`;
+      body.prepend(row);
+    });
+    document.getElementById('evtCount').textContent = `${lastEventId} events`;
+  }
+  function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  window.act = async function (action) {
+    const r = await fetch(`/api/jobs/${JOB_ID}/${action}`, {method:'POST', headers: csrf});
+    const d = await r.json();
+    if (!d.success) alert((d.error && d.error.message) || `Cannot ${action} this job`);
+    refresh();
+  };
+
+  refresh();
+  setInterval(refresh, 2000);
+})();
+</script>
+{% endblock %}

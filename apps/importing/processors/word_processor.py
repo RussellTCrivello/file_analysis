@@ -4,10 +4,10 @@ Processes single words for import
 """
 
 from typing import Optional
-from data.models import Term
+from apps.importing.data.models import Term
 from apps.importing.database.repositories.word_repository import WordRepository
 from apps.importing.database.repositories.category_repository import CategoryRepository
-from utils.logger import get_logger
+from apps.importing.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -1,5 +1,10 @@
 """
-Entry point for the CLI application
+Entry point for the CLI application.
+
+DEPRECATED as an operational interface: the web frontend is the primary
+control surface (Input / Ingestion page). This script is kept as a thin
+compatibility adapter over the same IngestionService the frontend uses -
+no business logic lives here anymore.
 """
 
 import sys
@@ -33,10 +38,10 @@ initialize_database_config()
 # Initialize system
 initialize_system()
 
-# Import and run the CLI app
 if __name__ == '__main__':
-    from apps.cli.main import main
-    main()
+    # Compatibility adapter: parses arguments, delegates to IngestionService.
+    from apps.cli.main import cli_main
+    sys.exit(cli_main())
 else:
     # When imported by multiprocessing child process, ensure path is set up
     setup_project_path()

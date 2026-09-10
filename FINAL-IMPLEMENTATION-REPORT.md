@@ -102,7 +102,40 @@ hashing, revocable server-side sessions and account lockout.
 4. Run `verify_readiness.py` as a deployment gate; schedule nightly
    `pg_dump -Fc` with restore drills (docs/DATABASE.md).
 
-## 6. Verification commands
+## 6. Unified frontend operations (second directive)
+
+The application is now frontend-driven; `run_cli.py`/`run_import.py` are
+deprecated thin adapters over the same services.
+
+| Item | Implementation | Test/Evidence | Status |
+|---|---|---|---|
+| CLI logic extracted (no argparse/input()/prints in services) | `services/ingesting/`, `services/importing/`, `services/sources.py` | `tests/integration/test_cli_parity.py` (8) | RESOLVED |
+| Persistent jobs (spec fields + 8 states) | `services/jobs/` + additive migration 0006 (`jobs`, `job_events`) | `tests/unit/test_job_system.py` (11), `tests/integration/test_job_service.py` | RESOLVED |
+| Real progress from worker state | `IntegratedFileReader.get_live_progress()` + throttled persistence | e2e asserts stats; no fake increments | RESOLVED |
+| Structured events (+ sampling for large jobs) | `job_events` table + SSE `/api/jobs/stream` + polling | e2e event assertions | RESOLVED |
+| Cooperative cancellation | cancel flag → engine `request_cancel()` at file boundary | `test_cancellation_cooperative` | RESOLVED |
+| Pause / resume | pause flag → PAUSED; resume = successor job; checkpoint+dedup skip done work | `test_pause_and_resume` | RESOLVED |
+| Safe retry | new job, same options; dedup prevents duplicate records | `test_dedup_second_run_safe`, e2e dedup | RESOLVED |
+| Crash recovery | `recover_stale_jobs()` wired into app startup; stale RUNNING → FAILED | `test_crash_recovery_marks_stale_running_failed` | RESOLVED |
+| Concurrency limits | `JOBS_MAX_CONCURRENT` (default 2) + engine clamps | `test_max_concurrent_jobs_configurable` | RESOLVED |
+| Input UI (basic/advanced, drag&drop, server paths) | `/operations/input` + `/api/input/*` | `tests/e2e/test_operations_pages.py`, e2e workflow | RESOLVED |
+| Import Center (validate→preview→confirm) | `/operations/import` + `/api/import/*` | `tests/e2e/test_frontend_workflow.py::TestFrontendImportWorkflow` | RESOLVED |
+| Jobs Center (list, filters, detail, actions) | `/operations/jobs[/{id}]` | page render tests + API e2e | RESOLVED |
+| Dashboard integration | operations widget (active jobs, quick actions) | dashboard render test | RESOLVED |
+| Uploads (streamed, size-limited, filenames untrusted) | `/api/input/uploads` staging | e2e upload workflow | RESOLVED |
+| Security on new endpoints (401/403/400/CSRF/limits) | middleware + API-layer admin checks | `tests/security/test_jobs_security.py` (11) | RESOLVED |
+| Performance parity | `scripts/benchmark_operations.py`: **+0.5 %** overhead, 8 ms create latency | docs/performance.md | RESOLVED |
+| CLI deprecation (kept, adapter-only) | `run_cli.py`→`cli_main`→`IngestionService`; `run_import.py`→`DomainImportService` | parity tests | RESOLVED |
+| Docs | job-system, input-ingestion, import-center, api, operations, performance, README | docs/ | RESOLVED |
+
+Capability matrix: see `tests/integration/test_cli_parity.py` module
+docstring (executable parity gate).
+
+One test is skipped honestly: the domain-import dry-run requires a domain
+data file, which does not exist in this environment (the service reports
+"upload one first" instead of pretending).
+
+## 7. Verification commands
 
 ```bash
 .venv/bin/python -m pytest tests/          # 135 passed

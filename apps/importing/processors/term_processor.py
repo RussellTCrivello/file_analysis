@@ -4,11 +4,11 @@ Main processor that routes terms to appropriate handlers
 """
 
 from typing import Optional
-from data.models import Term, TermType
-from processors.word_processor import WordProcessor
-from processors.phrase_processor import PhraseProcessor
-from validators.term_validator import TermValidator
-from utils.logger import get_logger
+from apps.importing.data.models import Term, TermType
+from apps.importing.processors.word_processor import WordProcessor
+from apps.importing.processors.phrase_processor import PhraseProcessor
+from apps.importing.validators.term_validator import TermValidator
+from apps.importing.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

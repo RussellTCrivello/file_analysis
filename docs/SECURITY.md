@@ -124,6 +124,21 @@ management, backup/restore, and all administrative endpoints.
   Login has a strict 10/minute limit. Storage backend configurable via
   `RATELIMIT_STORAGE_URI` (use Redis in multi-process deployments).
 
+## Operations API (unified jobs)
+
+* All job creation/control endpoints require analyst or admin (middleware);
+  `backup_import` jobs and job deletion require admin - enforced in the API
+  layer, not by hiding buttons.
+* Server paths for ingestion are validated against `INGESTION_ROOTS`
+  (fail-closed when unset). Staged uploads under the application-managed
+  `APP_DATA_DIR/uploads` are a configured application input location.
+* Uploads: streamed, size-limited (`OPERATIONS_MAX_UPLOAD_MB`), filenames
+  never trusted, archive/path safety applies to staged files identically.
+* Strict per-route rate limits: job creation 10/min, uploads 30/min,
+  validation 20/min, control ops 30/min.
+* Job IDs are capability-free identifiers: knowing one grants nothing
+  without a valid session and role.
+
 ## Route classification (Phase 7)
 
 | Class | Endpoints | Control |

@@ -4,10 +4,10 @@ Processes multi-word phrases for import
 """
 
 from typing import Optional, List
-from data.models import Term
+from apps.importing.data.models import Term
 from apps.importing.database.repositories.word_repository import WordRepository
 from apps.importing.database.repositories.keyword_repository import KeywordRepository
-from utils.logger import get_logger
+from apps.importing.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

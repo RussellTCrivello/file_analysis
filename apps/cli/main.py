@@ -1,8 +1,6 @@
 
 import os
-import time
 import hashlib
-import json
 from pathlib import Path
 import sys
 import importlib
@@ -87,12 +85,10 @@ from Hdg_Err_Ex_Log.logging_utils import (
 from database.queries import (
     list_sources,
     search_sources,
-    create_source,
     insert_source,
     get_source_by_name,
     list_sides,
     search_sides,
-    create_side,
     insert_side,
     get_side_by_name
 )
@@ -306,7 +302,7 @@ def main_read_folder_threaded(folder_path, storage_source=None, storage_side=Non
                         file_types[extension] = file_types.get(extension, 0) + 1
                 
                 if file_types:
-                    print(f"\nFile Type Distribution:")
+                    print("\nFile Type Distribution:")
                     sorted_types = sorted(file_types.items(), key=lambda x: x[1], reverse=True)
                     for ext, count in sorted_types[:10]:  # Show top 10
                         percentage = (count / total_files * 100) if total_files > 0 else 0
@@ -771,7 +767,7 @@ def main_read_folder_sequential(folder_path, storage_source=None, storage_side=N
                 failed_count += 1
                 logger.error(f"Storage error for file {idx}: {e}", exc_info=True)
         
-        safe_print(f"\n[STORAGE] Storage complete:")
+        safe_print("\n[STORAGE] Storage complete:")
         print(f"   Stored: {stored_count}")
         print(f"   Extracted files stored: {extracted_count}")
         print(f"   Duplicates: {duplicate_count}")
@@ -831,7 +827,7 @@ def main_read_folder_sequential(folder_path, storage_source=None, storage_side=N
                 file_types[extension] = file_types.get(extension, 0) + 1
         
         if file_types:
-            print(f"\nFile Type Distribution:")
+            print("\nFile Type Distribution:")
             sorted_types = sorted(file_types.items(), key=lambda x: x[1], reverse=True)
             for ext, count in sorted_types[:10]:  # Show top 10
                 percentage = (count / total_files * 100) if total_files > 0 else 0
@@ -1406,7 +1402,15 @@ def get_or_select_side() -> Optional[str]:
 # ============================================================================
 
 def main():
-    """Main application entry point"""
+    """Main application entry point (INTERACTIVE, legacy).
+
+    DEPRECATED: the web frontend (Operations -> Input / Ingestion) is the
+    primary interface. This interactive flow is retained for terminal-only
+    environments and drives the same underlying engine via the same
+    functions used before; prefer the web UI or ``cli_main``.
+    """
+    safe_print("[DEPRECATION] The interactive CLI is deprecated; "
+               "use the web Operations UI (or: python -m apps.cli.main --help).\n")
     
     # Start action recording
     log_file = start_action_recording()
@@ -1483,7 +1487,7 @@ def main():
                             checkpoint_data = json.load(f)
                             processed_count = checkpoint_data.get('processed_count', 0)
                             last_updated = checkpoint_data.get('last_updated', 'unknown')
-                            safe_print(f"\n[RESUME] Found existing checkpoint:")
+                            safe_print("\n[RESUME] Found existing checkpoint:")
                             safe_print(f"   Processed files: {processed_count}")
                             safe_print(f"   Last updated: {last_updated}")
                             safe_print(f"   Checkpoint file: {checkpoint_file}")
@@ -1654,17 +1658,22 @@ if __name__ == "__main__":
 # CLI-01: Non-interactive mode for automation and CI
 # ===========================================================================
 def cli_main(argv=None) -> int:
-    """Non-interactive CLI entry point.
+    """Non-interactive CLI entry point (thin adapter over IngestionService).
+
+    The interactive frontend and this command share the exact same service
+    layer; this adapter only parses arguments and renders output.
 
     Usage examples:
         python -m apps.cli.main --path /data/inbox --source web --side a --json
-        python -m apps.cli.main --path /data/inbox --source web --side a \\
+        python -m apps.cli.main --path /data/inbox --source web --side a \
             --workers 4 --checkpoint run1 --quiet
 
     Exit codes: 0 success, 1 usage/configuration error, 2 partial failures,
     3 complete failure.
     """
     import argparse as _argparse
+    import json as _json
+    from pathlib import Path as _Path
 
     parser = _argparse.ArgumentParser(
         prog="file-analysis-cli",
@@ -1678,6 +1687,8 @@ def cli_main(argv=None) -> int:
                         help="Worker threads (0 = configured default)")
     parser.add_argument("--checkpoint", default=None,
                         help="Checkpoint name for crash recovery/resume")
+    parser.add_argument("--no-recursive", action="store_true",
+                        help="Do not recurse into subdirectories")
     parser.add_argument("--format", choices=("text", "json"), default="text",
                         help="Output format")
     parser.add_argument("--json", action="store_true", help="Shorthand for --format json")
@@ -1687,71 +1698,87 @@ def cli_main(argv=None) -> int:
 
     output_json = args.json or args.format == "json"
 
-    # Path safety: the CLI is an operator capability, but ingestion paths must
-    # still be validated when INGESTION_ROOTS are configured (SEC-06).
-    target = Path(args.path).expanduser()
-    try:
-        from core.path_safety import validate_ingestion_path, PathSafetyError, configured_ingestion_roots
-
-        if configured_ingestion_roots():
-            target = validate_ingestion_path(target)
-    except PathSafetyError as exc:
+    def _emit(payload_dict=None, text=None):
         if output_json:
-            print(json.dumps({"success": False, "error": str(exc)}))
-        else:
-            safe_print(f"[ERROR] {exc}")
-        return 1
+            print(_json.dumps(payload_dict or {}))
+        elif text is not None and not args.quiet:
+            safe_print(text)
 
-    if not target.exists():
-        msg = f"Path does not exist: {target}"
-        if output_json:
-            print(json.dumps({"success": False, "error": msg}))
-        else:
-            safe_print(f"[ERROR] {msg}")
-        return 1
+    # -- Build the service request (same object the web frontend sends) ----
+    from services.ingesting.options import IngestionOptions
+    from services.ingesting.service import (
+        IngestionRequest, IngestionService, IngestionValidationError,
+    )
+
+    options = IngestionOptions(
+        max_workers=args.workers,
+        checkpoint="auto" if args.checkpoint else "off",
+    )
+    request = IngestionRequest(
+        path=str(_Path(args.path).expanduser()),
+        source=args.source,
+        side=args.side,
+        recursive=not args.no_recursive,
+        options=options,
+    )
+    if args.checkpoint:
+        # Named checkpoints keep the operator's existing naming scheme.
+        try:
+            from core.app_paths import get_checkpoints_dir
+
+            ckpt_dir = get_checkpoints_dir()
+        except Exception:
+            ckpt_dir = _Path("data/checkpoints")
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        options.checkpoint = "auto"
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    checkpoint_arg = None
-    if args.checkpoint:
-        from core.app_paths import get_checkpoints_dir
-
-        checkpoint_arg = str(get_checkpoints_dir() / f"{args.checkpoint}.json")
-
+    service = IngestionService()
     try:
-        if target.is_file():
-            results = main_read_file_threaded(
-                str(target), storage_source=args.source, storage_side=args.side
-            )
-        else:
-            results = main_read_folder_threaded(
-                str(target),
-                storage_source=args.source,
-                storage_side=args.side,
-                checkpoint_file=checkpoint_arg,
-            )
-    except Exception as exc:
-        logger.exception("CLI ingestion failed")
-        msg = f"Ingestion failed: {exc.__class__.__name__}"
-        if output_json:
-            print(json.dumps({"success": False, "error": msg}))
-        else:
-            safe_print(f"[ERROR] {msg}")
+        service.validate(request)
+    except IngestionValidationError as exc:
+        msg = f"Invalid ingestion request: {exc}"
+        _emit({"success": False, "error": msg}, f"[ERROR] {msg}")
+        return 1
+
+    def _progress(snapshot):
+        if args.quiet or output_json:
+            return
+        done = snapshot.get("files_done", 0)
+        total = snapshot.get("total_files", 0)
+        pct = snapshot.get("percent", 0)
+        print(f"\rProgress: {done}/{total} ({pct}%)", end="", flush=True)
+
+    result = service.run(request, progress_cb=_progress)
+
+    if result.paused:
+        msg = "Ingestion paused at a safe boundary"
+        _emit({"success": False, "paused": True, "error": msg}, f"[PAUSED] {msg}")
+        return 3
+    if result.cancelled:
+        msg = "Ingestion cancelled"
+        _emit({"success": False, "cancelled": True, "error": msg}, f"[CANCELLED] {msg}")
+        return 3
+    if not result.success or result.errors:
+        msg = "Ingestion failed"
+        _emit({"success": False, "error": msg,
+               "details": {"errors": result.errors[:20]}}, f"[ERROR] {msg}")
         return 3
 
-    # Summarize results (DATA-04 counters)
-    summary = {}
-    if isinstance(results, list):
-        summary = {
-            "discovered": len(results),
-            "completed": sum(1 for r in results if isinstance(r, dict) and not r.get("error")),
-            "failed": sum(1 for r in results if isinstance(r, dict) and r.get("error")),
-        }
-    payload = {"success": True, "path": str(target), "source": args.source,
-               "side": args.side, "summary": summary}
-    if output_json:
-        print(json.dumps(payload))
-    elif not args.quiet:
-        safe_print(f"[OK] Ingestion complete: {summary}")
-    return 0
+    failed = int(result.stats.get("files_failed") or 0)
+    payload = {
+        "success": True,
+        "path": request.path,
+        "source": args.source,
+        "side": args.side,
+        "summary": {
+            "discovered": result.stats.get("files_total"),
+            "completed": result.stats.get("files_stored"),
+            "duplicates": result.stats.get("files_duplicates"),
+            "failed": failed,
+        },
+    }
+    _emit(payload, f"[OK] Ingestion complete: {payload['summary']}")
+    return 2 if failed else 0

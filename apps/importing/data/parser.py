@@ -4,9 +4,9 @@ Parses raw domain data into structured Domain and Term objects
 """
 
 from typing import Dict, List
-from data.models import Domain, Term
-from utils.logger import get_logger
-from utils.exceptions import DataParseException
+from apps.importing.data.models import Domain, Term
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import DataParseException
 
 logger = get_logger(__name__)
 

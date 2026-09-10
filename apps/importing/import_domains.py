@@ -3,29 +3,17 @@ Domain Import Application - Main Entry Point
 Complete restructured architecture with single-responsibility classes
 """
 
-import sys
-from pathlib import Path
-
-# Add project root to path (apps/importing/)
-# This allows relative imports within the importing app
-project_root = Path(__file__).parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-# Add actual project root (parent of apps/) to path for settings import
-actual_project_root = Path(__file__).parent.parent.parent
-if str(actual_project_root) not in sys.path:
-    sys.path.insert(0, str(actual_project_root))
-
-# Import settings from centralized settings folder
+# All intra-app imports use full package paths (apps.importing.*); the old
+# sys.path insertions that shadowed core packages (``database``, ``utils``)
+# were removed - they caused circular imports when the app ran in-process.
 from settings import get_database_config, get_settings
-from utils.logger import LoggerFactory, get_logger
-from utils.exceptions import DomainImportException
-from utils.constants import DEFAULT_DATA_FILE, DATA_FILE_SEARCH_PATHS
+from apps.importing.utils.logger import LoggerFactory, get_logger
+from apps.importing.utils.exceptions import DomainImportException
+from apps.importing.utils.constants import DEFAULT_DATA_FILE, DATA_FILE_SEARCH_PATHS
 
 # Data components
-from data.loader import DataLoaderFactory
-from data.parser import DataParser
+from apps.importing.data.loader import DataLoaderFactory
+from apps.importing.data.parser import DataParser
 
 # Database components - use importing app's local database module
 from apps.importing.database.connection_pool import ConnectionPool
@@ -35,12 +23,12 @@ from apps.importing.database.repositories.category_repository import CategoryRep
 from apps.importing.database.repositories.keyword_repository import KeywordRepository
 
 # Validators
-from validators.term_validator import TermValidator
+from apps.importing.validators.term_validator import TermValidator
 
 # Processors
-from processors.word_processor import WordProcessor
-from processors.phrase_processor import PhraseProcessor
-from processors.term_processor import TermProcessor
+from apps.importing.processors.word_processor import WordProcessor
+from apps.importing.processors.phrase_processor import PhraseProcessor
+from apps.importing.processors.term_processor import TermProcessor
 
 # Core components - use absolute import since orchestrator.py uses absolute imports
 from apps.importing.core.orchestrator import ImportOrchestrator

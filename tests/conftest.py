@@ -140,8 +140,12 @@ def admin_client(app, client, admin_credentials):
 
 
 @pytest.fixture()
-def viewer_client(app, client, admin_credentials):
-    """A test client authenticated as a read-only user."""
+def viewer_client(app, admin_credentials):
+    """A test client authenticated as a read-only user.
+
+    Uses its OWN client instance: sharing one client across roles would let
+    the later login overwrite the session cookie.
+    """
     from core.security.service import get_auth_service
 
     auth = get_auth_service()
@@ -149,6 +153,26 @@ def viewer_client(app, client, admin_credentials):
     password = "test-viewer-password-123"
     if auth.get_user_by_username(username) is None:
         auth.create_user(username, password, role="viewer")
-    resp = client.post("/auth/login", json={"username": username, "password": password})
+    c = app.test_client()
+    resp = c.post("/auth/login", json={"username": username, "password": password})
     assert resp.status_code == 200
-    return client
+    return c
+
+
+@pytest.fixture()
+def client_factory(app, client, admin_credentials):
+    """Factory for clients authenticated with an arbitrary role."""
+    from core.security.service import get_auth_service
+
+    def _make(role: str):
+        auth = get_auth_service()
+        username = f"testrole_{role}"
+        password = f"test-{role}-password-123"
+        if auth.get_user_by_username(username) is None:
+            auth.create_user(username, password, role=role)
+        c = app.test_client()
+        resp = c.post("/auth/login", json={"username": username, "password": password})
+        assert resp.status_code == 200
+        return c
+
+    return _make
