@@ -9,7 +9,8 @@ from Api.utils import (
     get_archive_statistics
 )
 import logging
-import pickle
+from core.serialization import pack_int_list, unpack_int_list
+from core.errors import client_error
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,6 @@ def register_archives_routes(app):
             
             keywords = []
             if keywords_data:
-                import pickle
                 # Batch load all word IDs to avoid N+1 queries
                 all_word_ids = set()
                 keyword_word_map = {}
@@ -57,7 +57,7 @@ def register_archives_routes(app):
                     keyword_bytes = row[2]
                     try:
                         if keyword_bytes:
-                            word_ids = pickle.loads(bytes(keyword_bytes))
+                            word_ids = unpack_int_list(keyword_bytes)
                             if word_ids and isinstance(word_ids, list):
                                 keyword_word_map[keyword_id] = word_ids
                                 all_word_ids.update(word_ids)
@@ -105,7 +105,6 @@ def register_archives_routes(app):
             
             titles = []
             if titles_data:
-                import pickle
                 # Batch load all word IDs
                 all_title_word_ids = set()
                 title_word_map = {}
@@ -129,11 +128,11 @@ def register_archives_routes(app):
                             if len(title_bytes) < 2:
                                 continue
                             
-                            word_ids = pickle.loads(title_bytes)
+                            word_ids = unpack_int_list(title_bytes)
                             if word_ids and isinstance(word_ids, list):
                                 title_word_map[title_id] = word_ids
                                 all_title_word_ids.update(word_ids)
-                    except (pickle.UnpicklingError, ValueError, TypeError, EOFError):
+                    except (ValueError, TypeError, EOFError):
                         # Silently skip corrupted data
                         pass
                     except Exception as e:
@@ -502,7 +501,7 @@ def register_archives_routes(app):
             logger.error(f"Error searching archives: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.archives', success_key='success', status=500)
     
     @app.route('/api/archives/files')
     def api_archives_files():
@@ -985,7 +984,7 @@ def register_archives_routes(app):
             logger.error(f"Error fetching archive files: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.archives', success_key='success', status=500)
     
     @app.route('/api/archives/source-categories-keywords')
     def api_source_categories_keywords():
@@ -1087,7 +1086,7 @@ def register_archives_routes(app):
                     keyword_bytes = row[2]
                     try:
                         if keyword_bytes:
-                            word_ids = pickle.loads(bytes(keyword_bytes))
+                            word_ids = unpack_int_list(keyword_bytes)
                             if word_ids and isinstance(word_ids, list):
                                 # Batch load words
                                 if word_ids:
@@ -1140,7 +1139,7 @@ def register_archives_routes(app):
             logger.error(f"Error fetching source categories/keywords: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.archives', success_key='success', status=500)
     
     @app.route('/api/archives/side-categories-keywords')
     def api_side_categories_keywords():
@@ -1242,7 +1241,7 @@ def register_archives_routes(app):
                     keyword_bytes = row[2]
                     try:
                         if keyword_bytes:
-                            word_ids = pickle.loads(bytes(keyword_bytes))
+                            word_ids = unpack_int_list(keyword_bytes)
                             if word_ids and isinstance(word_ids, list):
                                 # Batch load words
                                 if word_ids:
@@ -1295,4 +1294,4 @@ def register_archives_routes(app):
             logger.error(f"Error fetching side categories/keywords: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.archives', success_key='success', status=500)

@@ -188,7 +188,7 @@ class ConfigValidator:
             'user': db_config.get('user', 'postgres'),
             'database': DatabaseValidator.validate_database_name(db_config.get('database', 'analysis')),
             'port': DatabaseValidator.validate_port(db_config.get('port', 5432)),
-            'password': db_config.get('password', 'eggarf123')
+            'password': db_config.get('password', '')
         }
         
         # Processing validation - always include defaults if section missing

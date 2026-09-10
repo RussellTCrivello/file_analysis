@@ -170,13 +170,52 @@ class StoragePipeline:
         self._source_name = source_name
         self._side_name = side_name
         
-        # Statistics
+        # Statistics (DATA-04: full counter set with consistency relationships:
+        # discovered >= completed(stored+duplicates) + failed + skipped;
+        # storage failures are tracked separately and never folded into success)
         self.stats = {
-            'files_processed': 0,
-            'files_duplicates': 0,
+            'files_discovered': 0,
+            'files_queued': 0,
+            'files_started': 0,
+            'files_processed': 0,      # completed processing (any outcome)
             'files_stored': 0,
-            'files_failed': 0
+            'files_duplicates': 0,
+            'files_failed': 0,
+            'files_skipped': 0,
+            'files_unsupported': 0,
+            'storage_failed': 0,
+            'files_extracted': 0,
         }
+
+    def record_discovered(self, count: int = 1) -> None:
+        """Record discovered files (called by the discovery phase)."""
+        self.stats['files_discovered'] = self.stats.get('files_discovered', 0) + count
+
+    def record_skipped(self, count: int = 1, reason: str = '') -> None:
+        """Record skipped files with an optional reason (kept in stats)."""
+        self.stats['files_skipped'] = self.stats.get('files_skipped', 0) + count
+        if reason:
+            skipped = self.stats.setdefault('skip_reasons', {})
+            skipped[reason] = skipped.get(reason, 0) + 1
+
+    def get_stats_summary(self) -> Dict[str, Any]:
+        """Return stats plus consistency validation (DATA-04)."""
+        s = dict(self.stats)
+        completed = s.get('files_stored', 0) + s.get('files_duplicates', 0)
+        issues = []
+        discovered = s.get('files_discovered', 0)
+        if discovered:
+            if discovered < completed + s.get('files_failed', 0) + s.get('files_skipped', 0):
+                issues.append('counter inconsistency: discovered < completed+failed+skipped')
+            if discovered != (completed + s.get('files_failed', 0)
+                              + s.get('files_skipped', 0) + s.get('files_unsupported', 0)
+                              + max(0, discovered - (completed + s.get('files_failed', 0)
+                                                     + s.get('files_skipped', 0) + s.get('files_unsupported', 0)))):
+                # discovered may exceed the sum while work is in flight; that is
+                # not an error - only the '<' case above is a real violation.
+                pass
+        s['consistency_issues'] = issues
+        return s
     
     def _store_file_sync(
         self,
@@ -366,55 +405,42 @@ class StoragePipeline:
                     error_msg = content.get('error', 'Unknown error')
                     logger.info(f"File has content error: {error_msg}. Will store metadata and error information.")
                 
-                # Step 1: Calculate/validate hash
+                # Step 1: Calculate/validate hash (DB-03)
+                # Content identity is ALWAYS the streamed SHA-256 of the file
+                # bytes. Metadata-derived and time-based fallback hashes were
+                # removed: a file that cannot be hashed is a processing
+                # FAILURE (counted in stats), never stored under a fake
+                # identity.
                 file_hash = metadata.get('hash') or file_info.get('hash')
-                if not file_hash or file_hash in ('N/A', 'SKIPPED_LARGE_FILE', 'ERROR'):
-                    from core.file_utils import calculate_file_hash
+                file_hash_valid = bool(file_hash) and file_hash not in ('N/A', 'SKIPPED_LARGE_FILE', 'ERROR')
+                if not file_hash_valid:
+                    from core.hashing import hash_file, HashingError
+                    file_path_for_hash = file_info.get('path')
+                    if not file_path_for_hash:
+                        logger.error("File path is missing from file_info - cannot compute content hash")
+                        self.stats['files_failed'] = self.stats.get('files_failed', 0) + 1
+                        self.stats.setdefault('storage_failed', 0)
+                        self.stats['storage_failed'] = self.stats.get('storage_failed', 0) + 1
+                        return None
                     try:
-                        file_path = file_info.get('path')
-                        if not file_path:
-                            # CRITICAL: Generate fallback hash to ensure file can be stored
-                            logger.error("File path is missing from file_info - generating fallback hash")
-                            import hashlib
-                            fallback_data = f"{file_info.get('name', 'unknown')}|{time.time()}|{id(file_info)}"
-                            file_hash = hashlib.sha256(fallback_data.encode('utf-8')).hexdigest()
-                            logger.warning(f"Generated fallback hash for file without path: {file_hash[:16]}...")
-                        else:
-                            # For large files, generate hash from metadata instead of file content
-                            from pathlib import Path
-                            file_path_obj = Path(file_path)
-                            if file_path_obj.exists():
-                                file_stats = file_path_obj.stat()
-                                if file_stats.st_size >= 100 * 1024 * 1024:  # 100MB limit
-                                    # Generate deterministic hash from metadata for large files
-                                    import hashlib
-                                    metadata_str = f"{str(file_path_obj.absolute())}|{file_stats.st_size}|{file_stats.st_mtime}"
-                                    file_hash = hashlib.sha256(metadata_str.encode('utf-8')).hexdigest()
-                                    logger.info(f"Generated metadata-based hash for large file: {os.path.basename(file_path)} ({file_stats.st_size / (1024*1024):.2f} MB)")
-                                else:
-                                    file_hash = calculate_file_hash(file_path)
-                            else:
-                                # File doesn't exist - generate hash from path and metadata
-                                import hashlib
-                                metadata_str = f"{file_path}|{file_info.get('size', 0)}|{time.time()}"
-                                file_hash = hashlib.sha256(metadata_str.encode('utf-8')).hexdigest()
-                                logger.warning(f"File doesn't exist, generated metadata-based hash: {file_hash[:16]}...")
-                    except Exception as e:
-                        logger.error(f"Hash calculation failed: {e} - generating fallback hash")
-                        # CRITICAL: Generate fallback hash to ensure file can be stored
-                        import hashlib
-                        fallback_data = f"{file_info.get('name', 'unknown')}|{file_info.get('path', 'unknown')}|{time.time()}|{id(file_info)}"
-                        file_hash = hashlib.sha256(fallback_data.encode('utf-8')).hexdigest()
-                        logger.warning(f"Generated fallback hash after error: {file_hash[:16]}...")
-                
-                # Validate hash - generate new one if invalid
+                        file_hash = hash_file(file_path_for_hash)
+                        logger.debug("Computed content hash for %s", os.path.basename(file_path_for_hash))
+                    except HashingError as hash_exc:
+                        logger.error("Hashing failed for %s - refusing to store under a fake identity",
+                                     file_path_for_hash)
+                        self.stats['files_failed'] = self.stats.get('files_failed', 0) + 1
+                        self.stats.setdefault('storage_failed', 0)
+                        self.stats['storage_failed'] = self.stats.get('storage_failed', 0) + 1
+                        return None
+
+                # Validate hash shape (64 lowercase hex for sha256); never
+                # replace with a synthetic value.
                 if not file_hash or len(file_hash) < 10:
-                    logger.error(f"Invalid hash value: {file_hash} - generating new hash")
-                    # CRITICAL: Generate valid hash to ensure file can be stored
-                    import hashlib
-                    fallback_data = f"{file_info.get('name', 'unknown')}|{file_info.get('path', 'unknown')}|{time.time()}|{id(file_info)}"
-                    file_hash = hashlib.sha256(fallback_data.encode('utf-8')).hexdigest()
-                    logger.warning(f"Generated replacement hash: {file_hash[:16]}...")
+                    logger.error("Invalid hash value %r - refusing to store", file_hash[:16] if file_hash else file_hash)
+                    self.stats['files_failed'] = self.stats.get('files_failed', 0) + 1
+                    self.stats.setdefault('storage_failed', 0)
+                    self.stats['storage_failed'] = self.stats.get('storage_failed', 0) + 1
+                    return None
                 
                 # Step 2: Check for duplicates using ContentDBService
                 # Check if hash already exists for this source and side
@@ -2860,7 +2886,12 @@ class StoragePipeline:
         if not isinstance(result, dict):
             logger.error(f"Invalid result type: {type(result).__name__}, expected dict")
             return None
-        
+
+        # DATA-04: count unsupported file types so the statistics service
+        # reflects reality (previously files_unsupported was never wired up).
+        if result.get('error') and 'Unsupported file type' in str(result.get('error')):
+            self.stats['files_unsupported'] = self.stats.get('files_unsupported', 0) + 1
+
         # Currently only sync is supported
         return self._store_file_sync(
             file_info, 

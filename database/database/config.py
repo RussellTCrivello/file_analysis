@@ -5,7 +5,6 @@ This module provides backward compatibility while using the unified settings sys
 All functionality is provided by settings.config as the single source of truth.
 """
 import os
-from typing import Optional
 from dataclasses import dataclass
 
 
@@ -37,7 +36,17 @@ class DatabaseConfig:
             # Use unified settings system
             from settings import get_database_config
             db_config = get_database_config()
-            
+
+            # ARCH-02: environment variables take precedence over persisted
+            # settings AT READ TIME (defaults < file < env < secret provider).
+            host = os.environ.get('DB_HOST', db_config.host)
+            port = int(os.environ.get('DB_PORT', db_config.port))
+            dbname = os.environ.get('DB_NAME', db_config.database)
+            user = os.environ.get('DB_USER', db_config.user)
+            password = db_config.password
+            if os.environ.get('DB_PASSWORD') is not None:
+                password = os.environ['DB_PASSWORD']
+
             # Apply safe pool size from resource coordinator if available
             try:
                 from core.resource_coordinator import get_safe_db_pool_size
@@ -53,13 +62,13 @@ class DatabaseConfig:
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Resource coordinator not available, using settings pool size: {e}")
                 max_connections = db_config.pool_max_conn
-            
+
             return cls(
-                dbname=db_config.database,
-                user=db_config.user,
-                password=db_config.password or os.getenv('DB_PASSWORD', ''),
-                host=db_config.host,
-                port=db_config.port,
+                dbname=dbname,
+                user=user,
+                password=password or os.getenv('DB_PASSWORD', ''),
+                host=host,
+                port=port,
                 min_connections=db_config.pool_min_conn,
                 max_connections=max_connections
             )

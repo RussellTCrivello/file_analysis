@@ -306,6 +306,13 @@ class SettingsManager:
                     
                     self._settings = AllSettings.from_dict(data)
                     
+                    # ARCH-02: environment variables take precedence over the
+                    # persisted configuration file (defaults < file < env <
+                    # secret provider). Re-apply DB_* env overrides after the
+                    # file load so a stale settings.json can never override a
+                    # deployment's environment.
+                    self._settings.database.apply_env_overrides()
+                    
                     # Restore missing interfaces after loading
                     self._restore_missing_interfaces()
                     

@@ -1,11 +1,9 @@
 from datetime import date
 from typing import List, Optional, Dict, Tuple
 from contextlib import contextmanager
-import pickle
 import re
 import logging
 import psycopg2
-from psycopg2 import extensions
 
 from database.database.database import Database
 from database.exceptions import QueryError
@@ -25,6 +23,7 @@ from database.database.repository.hashs_repo import HashsRepository
 from database.database.repository.titles_content_repo import TitlesContentRepository
 from database.database.repository.punctuation_repo import PunctuationRepository
 from database.database.repository.alerts_repo import AlertsRepository
+from core.serialization import pack_int_list
 
 
 class ContentDBService:
@@ -1143,7 +1142,7 @@ class ContentDBService:
 
         # Prepare bulk data
         bulk_data = [
-            (path_id, word_id, len(positions), pickle.dumps(positions))
+            (path_id, word_id, len(positions), pack_int_list(positions))
             for word_id, positions in word_positions.items()
         ]
         # print(bulk_data)

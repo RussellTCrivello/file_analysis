@@ -16,6 +16,9 @@ from Api.utils import get_connection, return_connection
 
 logger = logging.getLogger(__name__)
 
+#: Maximum accepted size of a decompressed backup.json (SEC-04 size limits)
+MAX_BACKUP_JSON_BYTES = 512 * 1024 * 1024
+
 
 class ImportService:
     """
@@ -146,6 +149,32 @@ class ImportService:
                 'error': str(e)
             }
     
+    # ------------------------------------------------------------------
+    # SEC-04: backup import hardening constants
+    # ------------------------------------------------------------------
+    #: Only these application tables may ever be touched by backup import.
+    #: Anything else in the backup is rejected (SQL identifiers from an
+    #: uploaded file are untrusted input).
+    ALLOWED_TABLES = frozenset(
+        {
+            "words", "punctuation", "categorys", "words_categorys", "sides",
+            "sources", "hashs", "paths", "contents", "titles_content",
+            "keywords", "words_paths", "keywords_paths", "alerts",
+        }
+    )
+    MAX_BACKUP_ROWS_PER_TABLE = 500_000
+    MAX_BACKUP_VALUE_LENGTH = 5 * 1024 * 1024  # 5 MB per value
+    _IDENTIFIER_RE = None  # compiled lazily
+
+    @staticmethod
+    def _validate_identifier(name: Any) -> str:
+        """Strict SQL identifier validation for names arriving from backup data."""
+        import re
+
+        if not isinstance(name, str) or not re.match(r"^[a-z_][a-z0-9_]*$", name or ""):
+            raise ValueError(f"Invalid identifier in backup: {name!r}")
+        return name
+
     @staticmethod
     def _validate_schema_compatibility(
         backup_data: Dict[str, Any],
@@ -154,24 +183,28 @@ class ImportService:
     ) -> Dict[str, Any]:
         """
         Validate that backup schema is compatible with current database schema.
-        
-        Args:
-            backup_data: Backup data dictionary
-            cursor: Database cursor
-            existing_tables: Set of existing table names
-            
-        Returns:
-            Dictionary with compatibility status and errors
+
+        SEC-04: table and column names are validated against an allowlist and
+        the live information_schema; nothing from the backup file is ever
+        interpolated into SQL.
         """
         errors = []
         backup_tables = backup_data.get('tables', {})
-        
+
         for table_name, table_info in backup_tables.items():
+            try:
+                table_name = ImportService._validate_identifier(table_name)
+            except ValueError as exc:
+                errors.append(str(exc))
+                continue
+            if table_name not in ImportService.ALLOWED_TABLES:
+                errors.append(f"Table '{table_name}' is not importable (not in allowlist)")
+                continue
             if table_name not in existing_tables:
                 errors.append(f"Table '{table_name}' does not exist in current database")
                 continue
-            
-            # Get current table schema
+
+            # Get current table schema (parameterized)
             cursor.execute("""
                 SELECT column_name, data_type, is_nullable
                 FROM information_schema.columns
@@ -179,33 +212,45 @@ class ImportService:
                 AND table_schema = 'public'
                 ORDER BY ordinal_position
             """, (table_name,))
-            
+
             current_columns = {
                 row[0]: {'type': row[1], 'nullable': row[2] == 'YES'}
                 for row in cursor.fetchall()
             }
-            
-            # Check backup schema
-            backup_columns = {
-                col['name']: {'type': col['type'], 'nullable': col.get('nullable', True)}
-                for col in table_info.get('schema', [])
-            }
-            
+
+            backup_schema = table_info.get('schema', [])
+            if not isinstance(backup_schema, list):
+                errors.append(f"Table '{table_name}': schema must be a list")
+                continue
+            backup_columns = {}
+            for col in backup_schema:
+                if not isinstance(col, dict) or not isinstance(col.get('name'), str):
+                    errors.append(f"Table '{table_name}': invalid column entry in schema")
+                    continue
+                try:
+                    col_name = ImportService._validate_identifier(col['name'])
+                except ValueError as exc:
+                    errors.append(str(exc))
+                    continue
+                backup_columns[col_name] = {
+                    'type': col.get('type', 'unknown'),
+                    'nullable': col.get('nullable', True)
+                }
+
             # Check for missing columns in current schema
             missing_columns = set(backup_columns.keys()) - set(current_columns.keys())
             if missing_columns:
                 errors.append(
-                    f"Table '{table_name}' is missing columns in current schema: {', '.join(missing_columns)}"
+                    f"Table '{table_name}' has columns missing in current schema: {', '.join(sorted(missing_columns))}"
                 )
-            
+
             # Check for type mismatches (basic check)
             for col_name, backup_col in backup_columns.items():
                 if col_name in current_columns:
                     current_col = current_columns[col_name]
-                    # Basic type compatibility check (can be enhanced)
-                    backup_type = backup_col['type'].upper()
+                    backup_type = str(backup_col['type']).upper()
                     current_type = current_col['type'].upper()
-                    
+
                     # Allow some type variations (e.g., VARCHAR vs TEXT)
                     type_compatible = (
                         backup_type == current_type or
@@ -214,18 +259,28 @@ class ImportService:
                         (backup_type in ('INTEGER', 'INT', 'BIGINT', 'SMALLINT') and
                          current_type in ('INTEGER', 'INT', 'BIGINT', 'SMALLINT'))
                     )
-                    
+
                     if not type_compatible:
                         errors.append(
                             f"Table '{table_name}', column '{col_name}': "
                             f"type mismatch (backup: {backup_type}, current: {current_type})"
                         )
-        
+
+            # Row-count limit
+            data = table_info.get('data') or []
+            if not isinstance(data, list):
+                errors.append(f"Table '{table_name}': data must be a list")
+            elif len(data) > ImportService.MAX_BACKUP_ROWS_PER_TABLE:
+                errors.append(
+                    f"Table '{table_name}': row count {len(data)} exceeds the import limit "
+                    f"({ImportService.MAX_BACKUP_ROWS_PER_TABLE})"
+                )
+
         return {
             'compatible': len(errors) == 0,
             'errors': errors
         }
-    
+
     @staticmethod
     def _restore_backup_data(
         backup_data: Dict[str, Any],
@@ -233,81 +288,110 @@ class ImportService:
         cursor
     ) -> Dict[str, Any]:
         """
-        Restore data from backup.
-        
-        Args:
-            backup_data: Backup data dictionary
-            conn: Database connection
-            cursor: Database cursor
-            
-        Returns:
-            Dictionary with restoration results
+        Restore data from a validated backup.
+
+        SEC-04 hardening:
+        * identifiers validated + allowlisted, composed via psycopg2.sql
+        * values always parameterized
+        * single transaction; caller rolls back on any failure
         """
+        from psycopg2 import sql as pg_sql
+
         restored_tables = []
         restored_rows = 0
         errors = []
-        
+
         backup_tables = backup_data.get('tables', {})
-        
+
         for table_name, table_info in backup_tables.items():
             if 'data' not in table_info or not table_info['data']:
                 continue
-            
+
             try:
-                # Get column names from schema
-                column_names = [col['name'] for col in table_info.get('schema', [])]
-                if not column_names:
+                table_name = ImportService._validate_identifier(table_name)
+                if table_name not in ImportService.ALLOWED_TABLES:
+                    raise ValueError(f"Table '{table_name}' is not importable")
+
+                # Column names validated against identifier rules AND the
+                # columns that actually exist for this table.
+                cursor.execute(
+                    "SELECT column_name FROM information_schema.columns"
+                    " WHERE table_name = %s AND table_schema = 'public'",
+                    (table_name,),
+                )
+                live_columns = {row[0] for row in cursor.fetchall()}
+
+                validated_columns = []
+                for col in table_info.get('schema', []):
+                    col_name = ImportService._validate_identifier(
+                        col.get('name') if isinstance(col, dict) else None
+                    )
+                    if col_name not in live_columns:
+                        raise ValueError(
+                            f"Column '{col_name}' does not exist in table '{table_name}'"
+                        )
+                    validated_columns.append(col_name)
+
+                if not validated_columns:
                     errors.append(f"Table '{table_name}': No schema information available")
                     continue
-                
-                # Clear existing data (optional - can be made configurable)
-                # For safety, we'll use TRUNCATE which is faster and safer than DELETE
-                cursor.execute(f"TRUNCATE TABLE {table_name} CASCADE")
-                
-                # Prepare INSERT statement
-                placeholders = ', '.join(['%s'] * len(column_names))
-                columns_str = ', '.join(column_names)
-                insert_sql = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
-                
-                # Insert data in batches for better performance
+
+                # Clear existing data inside the same transaction. DELETE (not
+                # TRUNCATE) so the whole restore can be rolled back atomically.
+                cursor.execute(
+                    pg_sql.SQL("DELETE FROM {}").format(pg_sql.Identifier(table_name))
+                )
+
+                # Safe identifier composition + parameterized values
+                query = pg_sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                    pg_sql.Identifier(table_name),
+                    pg_sql.SQL(", ").join(map(pg_sql.Identifier, validated_columns)),
+                    pg_sql.SQL(", ").join(pg_sql.Placeholder() for _ in validated_columns),
+                )
+
                 batch_size = 1000
                 data_rows = table_info['data']
-                
+
                 for i in range(0, len(data_rows), batch_size):
                     batch = data_rows[i:i + batch_size]
                     batch_values = []
-                    
+
                     for row in batch:
-                        # Convert row dictionary to tuple in column order
+                        if not isinstance(row, dict):
+                            raise ValueError("Backup row is not an object")
                         values = []
-                        for col_name in column_names:
+                        for col_name in validated_columns:
                             value = row.get(col_name)
-                            
-                            # Handle special cases
+
                             if value is None:
                                 values.append(None)
                             elif isinstance(value, str) and value.startswith('<BYTEA:'):
-                                # Skip BYTEA data (can't restore from backup)
+                                # Binary payloads are exported as markers; they
+                                # cannot be reconstructed from a JSON backup.
                                 values.append(None)
+                            elif isinstance(value, str) and len(value) > ImportService.MAX_BACKUP_VALUE_LENGTH:
+                                raise ValueError("Backup value exceeds size limit")
                             else:
                                 values.append(value)
-                        
+
                         batch_values.append(tuple(values))
-                    
-                    # Execute batch insert
+
                     if batch_values:
-                        cursor.executemany(insert_sql, batch_values)
-                
+                        cursor.executemany(query, batch_values)
+
                 restored_tables.append(table_name)
                 restored_rows += len(data_rows)
-                
+
+            except ValueError as e:
+                # Deterministic validation error: report without internals.
+                logger.error("Backup restore validation error: %s", e)
+                errors.append(str(e))
+                raise  # abort the whole transactional restore
             except Exception as e:
-                error_msg = f"Error restoring table '{table_name}': {str(e)}"
-                logger.error(error_msg, exc_info=True)
-                errors.append(error_msg)
-                # Continue with other tables
-                continue
-        
+                logger.error("Error restoring table during backup import", exc_info=True)
+                errors.append(f"Error restoring table '{table_name}'")
+                raise  # abort the whole transactional restore
+
         return {
             'restored_tables': restored_tables,
             'restored_rows': restored_rows,
@@ -375,42 +459,138 @@ class ImportService:
     ) -> Dict[str, Any]:
         """
         Import file list from CSV and process files.
-        
-        CSV should have a 'file_path' or 'path' column.
-        
-        Args:
-            csv_file: BytesIO object containing CSV file
-            source_id: Source ID for the files
-            side_id: Side ID for the files
-        
-        Returns:
-            Dictionary with import results
+
+        CSV should have a 'file_path' or 'path' column. Every path is
+        validated against the configured ingestion roots (SEC-06) - paths
+        outside the approved roots are rejected.
         """
         try:
             csv_file.seek(0)
-            csv_content = csv_file.read().decode('utf-8-sig')  # Handle BOM
+            raw = csv_file.read()
+            if len(raw) > ImportService.MAX_IMPORT_CSV_BYTES:
+                return {'valid': False, 'error': 'CSV file exceeds the allowed size'}
+            csv_content = raw.decode('utf-8-sig')  # Handle BOM
             csv_reader = csv.DictReader(csv_content.splitlines())
-            
+
             file_paths = []
             for row in csv_reader:
                 # Try different column names
                 file_path = row.get('file_path') or row.get('path') or row.get('filepath')
                 if file_path:
                     file_paths.append(file_path)
-            
             if not file_paths:
                 return {
                     'valid': False,
                     'error': 'No file paths found in CSV. Expected column: file_path, path, or filepath'
                 }
-            
-            # Import files
+            if len(file_paths) > ImportService.MAX_IMPORT_PATHS:
+                return {'valid': False, 'error': 'Too many paths in CSV'}
+
+            # Import files (path validation happens inside import_batch_files)
             return ImportService.import_batch_files(file_paths, source_id, side_id)
-            
-        except Exception as e:
-            logger.error(f"Error importing file list from CSV: {e}", exc_info=True)
+
+        except UnicodeDecodeError:
+            return {'valid': False, 'error': 'CSV file must be UTF-8 encoded'}
+        except Exception:
+            logger.error("Error importing file list from CSV", exc_info=True)
+            from core.errors import new_correlation_id
             return {
                 'valid': False,
-                'error': str(e)
+                'error': 'An internal error occurred while importing the CSV',
+                'correlation_id': new_correlation_id()
             }
 
+    # ------------------------------------------------------------------
+    # Batch import (SEC-06: no arbitrary server-path access)
+    # ------------------------------------------------------------------
+    MAX_IMPORT_PATHS = 5000
+    MAX_IMPORT_CSV_BYTES = 10 * 1024 * 1024
+
+    @staticmethod
+    def import_batch_files(
+        file_paths: List[str],
+        source_id: int,
+        side_id: int,
+    ) -> Dict[str, Any]:
+        """
+        Queue a batch of server-side files for ingestion.
+
+        Security (SEC-06): every path is validated against the configured
+        ``INGESTION_ROOTS``. An empty roots configuration disables direct
+        server-path import entirely; clients must upload files instead.
+
+        Returns a per-path result list; never raises to the caller.
+        """
+        from core.path_safety import validate_ingestion_path, PathSafetyError
+
+        results: List[Dict[str, Any]] = []
+        accepted = 0
+        rejected = 0
+
+        if not isinstance(file_paths, list) or not file_paths:
+            return {'valid': False, 'error': 'No file paths provided', 'results': []}
+        if len(file_paths) > ImportService.MAX_IMPORT_PATHS:
+            return {'valid': False, 'error': 'Too many file paths in one request',
+                    'results': []}
+
+        # Fail closed: path validation with no configured roots raises for
+        # every path (server-path import disabled).
+        for raw_path in file_paths[:ImportService.MAX_IMPORT_PATHS]:
+            entry: Dict[str, Any] = {'path': str(raw_path)[:512]}
+            try:
+                resolved = validate_ingestion_path(raw_path)
+                if not resolved.is_file():
+                    entry.update({'status': 'error', 'error': 'File not found'})
+                    rejected += 1
+                else:
+                    entry['resolved_path'] = str(resolved)
+                    entry['status'] = 'accepted'
+                    accepted += 1
+            except PathSafetyError as exc:
+                entry.update({'status': 'rejected', 'error': str(exc)})
+                rejected += 1
+            except Exception:
+                logger.exception("Unexpected error validating import path")
+                entry.update({'status': 'error', 'error': 'Path validation failed'})
+                rejected += 1
+            results.append(entry)
+
+        # Queue accepted files through the task manager (wired concurrency
+        # subsystem); each task runs the full reader -> storage pipeline.
+        tasks = []
+        if accepted:
+            try:
+                from Api.task_manager import get_task_manager
+
+                tm = get_task_manager()
+                for entry in results:
+                    if entry.get('status') != 'accepted':
+                        continue
+                    try:
+                        task_id = tm.create_task(
+                            file_path=entry['resolved_path'],
+                            source_id=int(source_id),
+                            side_id=int(side_id),
+                        )
+                        entry['task_id'] = task_id
+                        entry['status'] = 'queued'
+                        tasks.append(task_id)
+                    except Exception as task_exc:
+                        logger.error("Failed to queue task: %s", task_exc.__class__.__name__)
+                        entry.update({'status': 'error',
+                                      'error': 'Failed to queue processing task'})
+            except Exception:
+                logger.exception("Task manager unavailable for batch import")
+                for entry in results:
+                    if entry.get('status') == 'queued':
+                        entry.update({'status': 'error',
+                                      'error': 'Processing subsystem unavailable'})
+
+        return {
+            'valid': True,
+            'total': len(file_paths),
+            'accepted': accepted,
+            'rejected': rejected,
+            'queued': len(tasks),
+            'results': results,
+        }

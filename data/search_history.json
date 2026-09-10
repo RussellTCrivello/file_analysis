@@ -1,0 +1,377 @@
+[
+  {
+    "id": 1,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:02:25.946310"
+  },
+  {
+    "id": 2,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:05:20.781052"
+  },
+  {
+    "id": 3,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:05:20.916268"
+  },
+  {
+    "id": 4,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:09:09.104003"
+  },
+  {
+    "id": 5,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:09:09.257241"
+  },
+  {
+    "id": 6,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:14:09.556114"
+  },
+  {
+    "id": 7,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:14:09.686430"
+  },
+  {
+    "id": 8,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:14:17.637017"
+  },
+  {
+    "id": 9,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:14:17.759493"
+  },
+  {
+    "id": 10,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:15:42.296163"
+  },
+  {
+    "id": 11,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:15:42.424201"
+  },
+  {
+    "id": 12,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:15:49.946667"
+  },
+  {
+    "id": 13,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:15:50.090379"
+  },
+  {
+    "id": 14,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:16:35.901425"
+  },
+  {
+    "id": 15,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:16:36.015558"
+  },
+  {
+    "id": 16,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:17:55.890411"
+  },
+  {
+    "id": 17,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:17:56.022945"
+  },
+  {
+    "id": 18,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:19:42.445361"
+  },
+  {
+    "id": 19,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:19:42.562170"
+  },
+  {
+    "id": 20,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:19:52.002993"
+  },
+  {
+    "id": 21,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:19:52.136307"
+  },
+  {
+    "id": 22,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:20:52.318320"
+  },
+  {
+    "id": 23,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:20:52.443650"
+  },
+  {
+    "id": 24,
+    "query": "geese",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 1,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:23:09.168992"
+  },
+  {
+    "id": 25,
+    "query": "zzz_no_such_token_zzz",
+    "filters": {
+      "file_type": null,
+      "source_id": null,
+      "side_id": null,
+      "date_from": null,
+      "date_to": null,
+      "category_id": null
+    },
+    "result_count": 0,
+    "user_id": null,
+    "timestamp": "2026-09-10T13:23:09.305358"
+  }
+]

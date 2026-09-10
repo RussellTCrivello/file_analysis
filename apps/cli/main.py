@@ -1649,3 +1649,109 @@ if __name__ == "__main__":
         traceback.print_exc()
         stop_action_recording()
         input("\nPress Enter to exit...")
+
+# ===========================================================================
+# CLI-01: Non-interactive mode for automation and CI
+# ===========================================================================
+def cli_main(argv=None) -> int:
+    """Non-interactive CLI entry point.
+
+    Usage examples:
+        python -m apps.cli.main --path /data/inbox --source web --side a --json
+        python -m apps.cli.main --path /data/inbox --source web --side a \\
+            --workers 4 --checkpoint run1 --quiet
+
+    Exit codes: 0 success, 1 usage/configuration error, 2 partial failures,
+    3 complete failure.
+    """
+    import argparse as _argparse
+
+    parser = _argparse.ArgumentParser(
+        prog="file-analysis-cli",
+        description="Ingest files into the file analysis database (non-interactive)",
+    )
+    parser.add_argument("--path", required=True,
+                        help="File or directory to ingest")
+    parser.add_argument("--source", required=True, help="Source name for storage")
+    parser.add_argument("--side", required=True, help="Side name for storage")
+    parser.add_argument("--workers", type=int, default=0,
+                        help="Worker threads (0 = configured default)")
+    parser.add_argument("--checkpoint", default=None,
+                        help="Checkpoint name for crash recovery/resume")
+    parser.add_argument("--format", choices=("text", "json"), default="text",
+                        help="Output format")
+    parser.add_argument("--json", action="store_true", help="Shorthand for --format json")
+    parser.add_argument("--quiet", action="store_true", help="Suppress progress output")
+    parser.add_argument("--verbose", action="store_true", help="Verbose logging")
+    args = parser.parse_args(argv)
+
+    output_json = args.json or args.format == "json"
+
+    # Path safety: the CLI is an operator capability, but ingestion paths must
+    # still be validated when INGESTION_ROOTS are configured (SEC-06).
+    target = Path(args.path).expanduser()
+    try:
+        from core.path_safety import validate_ingestion_path, PathSafetyError, configured_ingestion_roots
+
+        if configured_ingestion_roots():
+            target = validate_ingestion_path(target)
+    except PathSafetyError as exc:
+        if output_json:
+            print(json.dumps({"success": False, "error": str(exc)}))
+        else:
+            safe_print(f"[ERROR] {exc}")
+        return 1
+
+    if not target.exists():
+        msg = f"Path does not exist: {target}"
+        if output_json:
+            print(json.dumps({"success": False, "error": msg}))
+        else:
+            safe_print(f"[ERROR] {msg}")
+        return 1
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    checkpoint_arg = None
+    if args.checkpoint:
+        from core.app_paths import get_checkpoints_dir
+
+        checkpoint_arg = str(get_checkpoints_dir() / f"{args.checkpoint}.json")
+
+    try:
+        if target.is_file():
+            results = main_read_file_threaded(
+                str(target), storage_source=args.source, storage_side=args.side
+            )
+        else:
+            results = main_read_folder_threaded(
+                str(target),
+                storage_source=args.source,
+                storage_side=args.side,
+                checkpoint_file=checkpoint_arg,
+            )
+    except Exception as exc:
+        logger.exception("CLI ingestion failed")
+        msg = f"Ingestion failed: {exc.__class__.__name__}"
+        if output_json:
+            print(json.dumps({"success": False, "error": msg}))
+        else:
+            safe_print(f"[ERROR] {msg}")
+        return 3
+
+    # Summarize results (DATA-04 counters)
+    summary = {}
+    if isinstance(results, list):
+        summary = {
+            "discovered": len(results),
+            "completed": sum(1 for r in results if isinstance(r, dict) and not r.get("error")),
+            "failed": sum(1 for r in results if isinstance(r, dict) and r.get("error")),
+        }
+    payload = {"success": True, "path": str(target), "source": args.source,
+               "side": args.side, "summary": summary}
+    if output_json:
+        print(json.dumps(payload))
+    elif not args.quiet:
+        safe_print(f"[OK] Ingestion complete: {summary}")
+    return 0

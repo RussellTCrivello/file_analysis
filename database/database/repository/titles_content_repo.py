@@ -1,7 +1,8 @@
 from .best_repo import BaseRepository
-import zlib,pickle
+import zlib
 from ..queries.title_queries import TitleQueries
 from ..queries.word_queries import WordQueries
+from core.serialization import pack_int_list, unpack_int_list
 
 
 
@@ -30,7 +31,7 @@ class TitlesContentRepository(BaseRepository):
         Note: Title content consists of numbers (word IDs) from the words table.
         The word IDs are pickled and compressed before storage.
         """
-        packed = pickle.dumps(ids)
+        packed = pack_int_list(ids)
         compressed = zlib.compress(packed)
         try:
             last_id = self.execute(
@@ -59,7 +60,7 @@ class TitlesContentRepository(BaseRepository):
         
         compressed = row[0]
         packed = zlib.decompress(compressed)
-        ids = pickle.loads(packed)
+        ids = unpack_int_list(packed)
 
         # Get all words as {id: word} dictionary
         word_rows = self.execute(WordQueries.get_all(), None, False, True)  # fetchall=True
@@ -86,7 +87,7 @@ class TitlesContentRepository(BaseRepository):
         
         compressed = row[0]
         packed = zlib.decompress(compressed)
-        ids = pickle.loads(packed)
+        ids = unpack_int_list(packed)
         return ids
         
     

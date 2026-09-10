@@ -10,7 +10,7 @@ Optimized for speed with:
 """
 
 import re
-from typing import List, Tuple, Dict, Set, Optional
+from typing import List, Tuple, Dict, Optional
 from collections import Counter
 import threading
 

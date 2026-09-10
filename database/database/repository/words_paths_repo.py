@@ -1,6 +1,6 @@
 from .best_repo import BaseRepository
-import pickle
 from ..queries.word_path_queries import WordPathQueries
+from core.serialization import pack_int_list, unpack_int_list
 
 class WordsPathsRepository(BaseRepository):
 
@@ -19,7 +19,7 @@ class WordsPathsRepository(BaseRepository):
 
     def insert_words_paths(self, content_id, word_id, word_count, list_position_indexer):
         
-        position_byte = pickle.dumps(list_position_indexer)
+        position_byte = pack_int_list(list_position_indexer)
 
         params = (content_id, word_id, word_count, position_byte)
 
@@ -38,7 +38,7 @@ class WordsPathsRepository(BaseRepository):
                 word_id = row[0]
                 position_byte = row[1]
                 try:
-                    positions = pickle.loads(position_byte)
+                    positions = unpack_int_list(position_byte)
                     result[word_id] = positions
                 except Exception as e:
                     print(f"Error unpickling positions for word_id {word_id}: {e}")

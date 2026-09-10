@@ -1,5 +1,5 @@
 from .best_repo import BaseRepository
-from datetime import date, datetime
+from datetime import date
 from ..queries.path_queries import FileQueries
 
 class PathsRepository(BaseRepository):

@@ -6,11 +6,13 @@ from flask import Blueprint, request, jsonify
 from Api.cursor_pagination import get_cursor_paginator, SortDirection
 from Api.utils import execute_query, load_text_title
 from Api.utils.title_similarity import group_similar_titles, find_similar_titles
+from core.sql_safety import validate_identifier, IdentifierError
 import json
 import logging
-import pickle
 
 from Api.utils.title import display_titles_sorted, filter_titles_by_search
+from core.serialization import pack_int_list, unpack_int_list
+from core.errors import client_error
 
 
 logger = logging.getLogger(__name__)
@@ -372,7 +374,7 @@ def api_archives_categories():
     except ValueError as e:
         # ERROR HANDLING FIX: Handle validation errors separately
         logger.warning(f"Validation error in api_archives_categories: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 400
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=400)
     except Exception as e:
         logger.error(f"Error in api_archives_categories: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'An error occurred while loading categories. Please try again.'}), 500
@@ -451,7 +453,7 @@ def api_archives_keywords():
             keyword_bytes = row.get('keyword') or row.get('k.keyword')
             try:
                 if keyword_bytes:
-                    word_ids = pickle.loads(bytes(keyword_bytes))
+                    word_ids = unpack_int_list(keyword_bytes)
                     if word_ids and isinstance(word_ids, list):
                         keyword_word_map[keyword_id] = word_ids
                         all_word_ids.update(word_ids)
@@ -599,9 +601,19 @@ def api_archives_titles():
         # Determine sort direction
         direction = SortDirection.ASC if sort_order == 'asc' else SortDirection.DESC
         
-        # Note: file_count is calculated, so we sort client-side for it
-        # For SQL sorting, use id as default when sorting by file_count
-        sql_sort_column = f'tc.{sort_by}' if sort_by != 'file_count' else 'tc.id'
+        # SEC-03: explicit client value -> approved SQL column mapping.
+        # Anything outside the allowlist is rejected with HTTP 400.
+        _TITLE_SORT_COLUMNS = {
+            'id': 'tc.id',
+            'title_status': 'tc.title_status',
+            'path_id': 'tc.path_id',
+            'title_data': 'tc.title_data',
+            'file_count': 'tc.id',  # calculated field; SQL sorts by id, client re-sorts
+        }
+        try:
+            sql_sort_column = validate_identifier(sort_by, _TITLE_SORT_COLUMNS, field="sort_by")
+        except IdentifierError:
+            return jsonify({'success': False, 'error': 'Invalid sort_by parameter'}), 400
         
         paginator = get_cursor_paginator('titles_content')
         result = paginator.get_page(
@@ -634,7 +646,7 @@ def api_archives_titles():
                 if len(title_bytes) < 2:
                     continue
 
-                word_ids = pickle.loads(title_bytes)
+                word_ids = unpack_int_list(title_bytes)
                 if word_ids and isinstance(word_ids, list):
                     title_word_map[title_id] = word_ids
                     all_title_word_ids.update(word_ids)
@@ -751,7 +763,7 @@ def api_archives_titles():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_titles: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/titles/all', methods=['GET'])
@@ -819,7 +831,7 @@ def api_archives_titles_all():
                     title_bytes = bytes(title_bytes)
                 if len(title_bytes) < 2:
                     continue
-                word_ids = pickle.loads(title_bytes)
+                word_ids = unpack_int_list(title_bytes)
                 if word_ids and isinstance(word_ids, list):
                     title_word_map[title_id] = word_ids
                     all_title_word_ids.update(word_ids)
@@ -887,7 +899,7 @@ def api_archives_titles_all():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_titles_all: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/titles/count', methods=['GET'])
@@ -904,7 +916,7 @@ def api_archives_titles_count():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_titles_count: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 @archives_api_bp.route('/api/archives/sources', methods=['GET'])
 def api_archives_sources():
@@ -1095,7 +1107,7 @@ def api_archives_sources():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_sources: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/sides', methods=['GET'])
@@ -1283,7 +1295,7 @@ def api_archives_sides():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_sides: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/hashs', methods=['GET'])
@@ -1416,7 +1428,7 @@ def api_archives_hashs():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_hashs: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/addresses', methods=['GET'])
@@ -1493,7 +1505,7 @@ def api_archives_addresses():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_addresses: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)
 
 
 @archives_api_bp.route('/api/archives/geolocation', methods=['GET'])
@@ -1707,4 +1719,4 @@ def api_archives_geolocation():
         })
     except Exception as e:
         logger.error(f"Error in api_archives_geolocation: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.archives_api', success_key='success', status=500)

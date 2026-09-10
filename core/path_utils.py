@@ -67,8 +67,10 @@ def get_extraction_base_folder(base_path: Optional[Path] = None) -> Path:
         if extraction_folder_env:
             extraction_base = Path(extraction_folder_env)
         else:
-            # Default to current working directory
-            extraction_base = Path.cwd() / "extracted_files"
+            # Phase 19: derive from the application data root, never the CWD,
+            # so behaviour is identical regardless of launch directory.
+            from core.app_paths import get_extracted_dir
+            extraction_base = get_extracted_dir()
     
     extraction_base.mkdir(parents=True, exist_ok=True)
     return extraction_base

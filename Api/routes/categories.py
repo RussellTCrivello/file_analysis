@@ -9,6 +9,7 @@ from Api.utils import (
     list_categories
 )
 import logging
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ def register_categories_routes(app):
             
         except Exception as e:
             logger.error(f"Error checking category: {e}")
-            return jsonify({'exists': False, 'error': str(e)}), 500
+            return jsonify({'exists': False, 'error': client_safe_message(e, subsystem='Api.routes.categories')}), 500
     
     @app.route('/category/add', methods=['POST'])
     def category_add():
@@ -156,7 +157,7 @@ def register_categories_routes(app):
             # Check if it's a unique constraint violation
             if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
                 return jsonify({'success': False, 'error': 'A category with this name already exists'}), 400
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/<int:category_id>', methods=['GET'])
     def api_get_category(category_id):
@@ -169,7 +170,7 @@ def register_categories_routes(app):
                 return jsonify({'success': False, 'error': 'Category not found'}), 404
         except Exception as e:
             logger.error(f"Error getting category: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/all-words')
     def api_all_categories_words():
@@ -188,7 +189,7 @@ def register_categories_routes(app):
             return jsonify({'success': True, 'data': result})
         except Exception as e:
             logger.error(f"Error getting all categories words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/<int:category_id>/words')
     def api_category_words(category_id):
@@ -198,7 +199,7 @@ def register_categories_routes(app):
             return jsonify({'success': True, 'words': words})
         except Exception as e:
             logger.error(f"Error getting category words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/<int:category_id>/words/<int:word_id>', methods=['DELETE'])
     def api_remove_word_from_category(category_id, word_id):
@@ -217,7 +218,7 @@ def register_categories_routes(app):
                 return jsonify({'success': False, 'error': 'Word-category relationship not found'}), 404
         except Exception as e:
             logger.error(f"Error removing word from category: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/words-categorys/add', methods=['POST'])
     def words_categorys_add():
@@ -273,7 +274,7 @@ def register_categories_routes(app):
             # Check if it's a unique constraint violation
             if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
                 return jsonify({'success': False, 'error': 'This word-category relationship already exists'}), 400
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/<int:category_id>', methods=['DELETE'])
     def api_delete_category(category_id):
@@ -296,7 +297,7 @@ def register_categories_routes(app):
             return jsonify({'success': True, 'message': 'Category deleted successfully'})
         except Exception as e:
             logger.error(f"Error deleting category: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/find-duplicates', methods=['GET'])
     def api_find_duplicate_categories():
@@ -360,7 +361,7 @@ def register_categories_routes(app):
             logger.error(f"Error finding duplicate categories: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
     
     @app.route('/api/categories/remove-duplicates', methods=['POST'])
     def api_remove_duplicate_categories():
@@ -449,5 +450,5 @@ def register_categories_routes(app):
             logger.error(f"Error removing duplicate categories: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.categories', success_key='success', status=500)
 

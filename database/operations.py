@@ -2,11 +2,8 @@
 Database operations module - provides operation classes for categories and keywords.
 """
 
-import pickle
 from database.services.contents_db_service import ContentDBService
-from database.database.repository.categorys_repo import CategorysRepository
-from database.database.repository.keywords_repo import KeywordsRepository
-from database.database.repository.words_repo import WordsRepository
+from core.serialization import pack_int_list
 
 
 class CategoryOperations:
@@ -86,7 +83,7 @@ class CategoryOperations:
                     word_ids.append(word_id)
                 
                 # Create keyword blob
-                keyword_blob = pickle.dumps(word_ids)
+                keyword_blob = pack_int_list(word_ids)
                 
                 # Check if keyword already exists
                 existing_keyword_id = self.db_service.keywords_repo.keyword_exists(word_ids, category_id)

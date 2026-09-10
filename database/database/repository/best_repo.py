@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import Optional, Any
 import logging
 import psycopg2
-from psycopg2 import extensions, errors
+from psycopg2 import errors
 
 from database.exceptions import QueryError, TransactionError
 

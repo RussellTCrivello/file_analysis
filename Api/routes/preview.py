@@ -37,11 +37,10 @@ def get_file_preview(file_id):
         return jsonify(preview_data)
         
     except Exception as e:
-        logger.error(f"File preview error for file {file_id}: {e}", exc_info=True)
-        return jsonify({
-            'preview_type': 'error',
-            'error': str(e)
-        }), 500
+        # SEC-08: client-safe error, details logged server-side only.
+        from core.errors import client_error
+        return client_error(e, subsystem="preview",
+                            public_message="Preview generation failed")
 
 
 def register_preview_routes(app):

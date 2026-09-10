@@ -1,12 +1,12 @@
 from .best_repo import BaseRepository
-import pickle
 from ..queries.keyword_queries import KeywordQueries
+from core.serialization import pack_int_list, unpack_int_list
 
 class KeywordsRepository(BaseRepository):
 
     def insert_keywords(self, category_id, list_keywords_ids):
         """Insert keywords with pickled list"""
-        keyword_byte = pickle.dumps(list_keywords_ids)
+        keyword_byte = pack_int_list(list_keywords_ids)
         try:
             query = KeywordQueries.insert_keyword()
             params = (keyword_byte, category_id)
@@ -22,7 +22,7 @@ class KeywordsRepository(BaseRepository):
         for row in rows:
             if row[1]:  # Check if keyword field is not None
                 try:
-                    ids_keyword = pickle.loads(row[1])
+                    ids_keyword = unpack_int_list(row[1])
                     dic_keyword[row[0]] = ids_keyword
                 except:
                     dic_keyword[row[0]] = row[1]  # Fallback to raw data
@@ -32,7 +32,7 @@ class KeywordsRepository(BaseRepository):
     
     def update_keywords(self, keyword_id, category_id, list_keywords_ids):
         """Update keywords with pickled list"""
-        keyword_byte = pickle.dumps(list_keywords_ids)
+        keyword_byte = pack_int_list(list_keywords_ids)
         return self.execute(
             KeywordQueries.update_by_id(), 
             (keyword_byte, category_id, keyword_id), 
@@ -41,7 +41,7 @@ class KeywordsRepository(BaseRepository):
     
     def update_keywords_by_category(self, category_id, list_keywords_ids):
         """Update keywords for a specific category"""
-        keyword_byte = pickle.dumps(list_keywords_ids)
+        keyword_byte = pack_int_list(list_keywords_ids)
         return self.execute(
             KeywordQueries.update_by_category_id(), 
             (keyword_byte, category_id), 
@@ -55,7 +55,7 @@ class KeywordsRepository(BaseRepository):
             # Unpickle the keyword field (index 1 in the row)
             if row[1]:  # Check if keyword field is not None
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     # Return tuple with unpickled data
                     return (unpickled_keyword, row[2], row[3])  # keyword, category_id, date_creation
                 except:
@@ -76,7 +76,7 @@ class KeywordsRepository(BaseRepository):
         for row in rows:
             if row and row[1]:  # row[1] is the keyword field
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     processed_rows.append((row[0], unpickled_keyword, row[2], row[3], row[4]))
                 except:
                     processed_rows.append(row)  # Keep original if unpickling fails
@@ -92,7 +92,7 @@ class KeywordsRepository(BaseRepository):
             for row in rows:
                 if row[0]:  # row[0] is the keyword field
                     try:
-                        ids_keyword = pickle.loads(row[0])
+                        ids_keyword = unpack_int_list(row[0])
                         result.append((ids_keyword, row[1]))
                     except:
                         result.append((row[0], row[1]))  # Fallback to raw data
@@ -127,7 +127,7 @@ class KeywordsRepository(BaseRepository):
         for row in rows:
             if row and row[1]:  # row[1] is the keyword field
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     processed_rows.append((row[0], unpickled_keyword, row[2], row[3]))
                 except:
                     processed_rows.append(row)  # Keep original if unpickling fails
@@ -138,7 +138,7 @@ class KeywordsRepository(BaseRepository):
     
     def keyword_exists(self, keyword_data, category_id):
         """Check if keyword exists (keyword_data should be the list to pickle)"""
-        keyword_byte = pickle.dumps(keyword_data)
+        keyword_byte = pack_int_list(keyword_data)
         row = self.execute(
             KeywordQueries.check_keyword_exists(),
             (keyword_byte, category_id),
@@ -157,7 +157,7 @@ class KeywordsRepository(BaseRepository):
             # Unpickle the keyword field
             if row[1]:  # row[1] is the keyword field
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     # Return a new tuple with unpickled data
                     return (row[0], unpickled_keyword, row[2], row[3])
                 except:
@@ -177,7 +177,7 @@ class KeywordsRepository(BaseRepository):
         for row in rows:
             if row and row[1]:  # row[1] is the keyword field
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     processed_rows.append((row[0], unpickled_keyword, row[2], row[3]))
                 except:
                     processed_rows.append(row)  # Keep original if unpickling fails
@@ -199,7 +199,7 @@ class KeywordsRepository(BaseRepository):
         for row in rows:
             if row and row[1]:  # row[1] is the keyword field
                 try:
-                    unpickled_keyword = pickle.loads(row[1])
+                    unpickled_keyword = unpack_int_list(row[1])
                     processed_rows.append((row[0], unpickled_keyword, row[2], row[3]))
                 except:
                     processed_rows.append(row)  # Keep original if unpickling fails
@@ -223,7 +223,7 @@ class KeywordsRepository(BaseRepository):
         try:
             # Assuming keyword is at index 1, adjust if needed
             if len(row) > 1 and row[1]:
-                unpickled_keyword = pickle.loads(row[1])
+                unpickled_keyword = unpack_int_list(row[1])
                 # Reconstruct the tuple with unpickled keyword
                 return (row[0], unpickled_keyword) + row[2:]
         except:

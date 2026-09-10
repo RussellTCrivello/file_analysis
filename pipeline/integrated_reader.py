@@ -261,7 +261,11 @@ class IntegratedFileReader:
             
             # Process file
             try:
-                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0)
+                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0,
+                                          storage_source=getattr(self, 'storage_source', None),
+                                          storage_side=getattr(self, 'storage_side', None),
+                                          storage_pipeline=getattr(self, 'storage_pipeline', None),
+                                          store_result=False)
             except Exception as e:
                 handle_error(
                     e,
@@ -418,6 +422,11 @@ class IntegratedFileReader:
             files, skipped_count = self.checkpoint_manager.filter_processed_files(files)
             if skipped_count > 0:
                 print(f"Resuming: {skipped_count} files already processed, {len(files)} remaining")
+                # DATA-04: checkpoint-resumed files count as skipped, not discovered.
+                if self.storage_pipeline is not None:
+                    self.storage_pipeline.record_skipped(
+                        skipped_count, reason='checkpoint_already_processed'
+                    )
         
         if not files:
             if self.checkpoint_manager:
@@ -462,7 +471,12 @@ class IntegratedFileReader:
         with self._stats_lock:
             self._processing_stats['total'] = total_files
             self._processing_stats['in_progress'] = total_files
-        
+
+        # DATA-04: feed the persistent statistics service so dashboards and
+        # consistency checks see discovered counts (previously never wired).
+        if self.storage_pipeline is not None:
+            self.storage_pipeline.record_discovered(total_files)
+
         # Process files in three phases: priority files first, then PDFs, then images
         # Use continuous processing with batching for memory efficiency
         results = []
@@ -1129,15 +1143,22 @@ class IntegratedFileReader:
             
             # Process file
             try:
-                # Pass storage parameters to the file reader so extracted files can be stored
+                # DATA-01/ARCH-04: storage context is passed explicitly (no
+                # function-attribute globals). The worker owns persistence of
+                # the top-level file (store_result=False); the router still
+                # persists child artifacts (extracted members, attachments).
                 if self.enable_storage:
-                    # Set storage parameters as attributes on the function so it can access them
-                    import reader_file.main_specify_method as reader_module
-                    reader_module.main_specify_method_of_reading_the_file._storage_source = self.storage_source
-                    reader_module.main_specify_method_of_reading_the_file._storage_side = self.storage_side
-                    reader_module.main_specify_method_of_reading_the_file._storage_pipeline = self.storage_pipeline
-                
-                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0)
+                    result = main_specify_method_of_reading_the_file(
+                        file_info, collect=True, depth=0,
+                        storage_source=self.storage_source,
+                        storage_side=self.storage_side,
+                        storage_pipeline=self.storage_pipeline,
+                        store_result=False,
+                    )
+                else:
+                    result = main_specify_method_of_reading_the_file(
+                        file_info, collect=True, depth=0
+                    )
             except Exception as e:
                 handle_error(
                     e,

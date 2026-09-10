@@ -39,8 +39,7 @@ if web_app_dir not in sys.path:
 
 from core.monitoring.monitor import PerformanceMonitor
 
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from core.security.rate_limit import limiter
 from flask_wtf.csrf import CSRFProtect
 from flask_compress import Compress
 from functools import wraps
@@ -108,16 +107,10 @@ def get_locale():
 # Initialize Babel with locale selector (Flask-Babel 3.0+)
 babel = Babel(app, locale_selector=get_locale)
 
-# Set up upload folder from unified settings
-from settings import get_settings
-settings = get_settings()
-if settings.uploads_dir:
-    upload_folder = str(settings.uploads_dir)
-else:
-    upload_folder = os.path.join(project_root, 'uploads')
-    # Set it in settings for future use
-    if settings.project_root is None:
-        settings.set_project_root(project_root)
+# Set up upload folder - Phase 19: all runtime paths derive from APP_DATA_DIR,
+# never from the current working directory.
+from core.app_paths import get_uploads_dir
+upload_folder = str(get_uploads_dir())
 app.config['UPLOAD_FOLDER'] = upload_folder
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -220,6 +213,16 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 csrf = CSRFProtect(app)
 logger.info("✅ CSRF protection enabled")
 
+# ---------------------------------------------------------------------------
+# API-01: Rate limiting (Flask-Limiter was previously imported but unused).
+# The shared limiter instance lives in core.security.rate_limit so blueprints
+# can decorate routes at import time; stricter per-route limits apply to
+# login, search, import/export and admin endpoints.
+# ---------------------------------------------------------------------------
+limiter.init_app(app)
+app.config['RATELIMITER'] = limiter
+logger.info("✅ Rate limiting enabled (default 60/min, 600/hour per client)")
+
 # Enable gzip compression for all responses
 compress = Compress(app)
 logger.info("✅ Gzip compression enabled")
@@ -268,54 +271,60 @@ def after_request(response):
         response.headers['X-Response-Time'] = f"{duration:.3f}"
     return response
 
-# Global error handler
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler that records errors to monitoring"""
-    try:
-        from Hdg_Err_Ex_Log import handle_error, ErrorCategory, ErrorSeverity, record_error_to_monitor as record_error
-        
-        # Determine category and severity
-        category = ErrorCategory.UNKNOWN
-        severity = ErrorSeverity.MEDIUM
-        
-        # Check if it's a database error
-        error_str = str(e).lower()
-        if 'database' in error_str or 'connection' in error_str:
-            category = ErrorCategory.DATABASE_CONNECTION
-            severity = ErrorSeverity.HIGH
-        elif 'file' in error_str or 'path' in error_str:
-            category = ErrorCategory.FILE_PROCESSING
-        elif 'validation' in error_str:
-            category = ErrorCategory.VALIDATION
-        
-        context = {
-            'request_path': request.path,
-            'request_method': request.method,
-            'request_url': request.url
-        }
-        
-        # Handle error with logging
-        handle_error(e, category=category, severity=severity, context=context)
-        
-        # Record to monitoring
-        record_error(
-            e,
-            category=category.value,
-            severity=severity.value,
-            context=context,
-            request_id=request.headers.get('X-Request-ID')
-        )
-    except Exception as monitor_error:
-        # Don't fail if error monitoring fails
-        logger.error(f"Error in global exception handler: {monitor_error}")
-    
-    # Return error response
-    from flask import jsonify
-    return jsonify({
-        'error': str(e),
-        'type': type(e).__name__
-    }), 500
+# ---------------------------------------------------------------------------
+# SEC-09: Browser security headers on every response
+# ---------------------------------------------------------------------------
+@app.after_request
+def add_security_headers(response):
+    """Content-Security-Policy and related browser protections."""
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "  # legacy inline scripts; see docs/SECURITY.md
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'"
+    )
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    response.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
+    # HSTS is only meaningful over TLS; harmless otherwise but only sent in production.
+    if app.config.get('FLASK_ENV') == 'production':
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    return response
+
+# Global error handler - SEC-08: never return raw exception strings to clients.
+# Full details (traceback, user, route, subsystem) are logged server-side and
+# correlated to the client response via a reference id.
+try:
+    from core.errors import register_error_handlers
+    register_error_handlers(app)
+    logger.info("\u2705 Secure error handlers registered (client-safe messages)")
+except Exception as _err_reg_exc:
+    logger.warning(f"\u26a0\ufe0f Could not register secure error handlers: {_err_reg_exc}")
+
+# ---------------------------------------------------------------------------
+# SEC-01/SEC-02: Authentication & authorization middleware. All routes are
+# default-deny; public endpoints are the explicit allow-list in flask_ext.
+# ---------------------------------------------------------------------------
+from core.security import init_auth
+init_auth(app)
+logger.info("\u2705 Authentication middleware active (all routes default-deny)")
+
+from Api.routes.auth import register_auth_routes
+register_auth_routes(app)
+logger.info("\u2705 Authentication routes registered")
+
+# SEC-01: create the initial administrator when the users table is empty.
+try:
+    from core.security.bootstrap_admin import ensure_initial_admin
+    ensure_initial_admin()
+except Exception as _admin_exc:
+    logger.warning(f"Initial admin bootstrap skipped: {_admin_exc}")
 
 # Register setup routes FIRST - before any other routes
 # This ensures setup page is shown before database connections are attempted
@@ -323,12 +332,9 @@ from Api.routes.setup import register_setup_routes, setup_bp
 register_setup_routes(app)
 logger.info("✅ Setup routes registered (first)")
 
-# Exempt setup routes from CSRF (one-time setup before system is initialized)
-try:
-    csrf.exempt(setup_bp)
-    logger.info("✅ Setup routes exempted from CSRF protection")
-except Exception as e:
-    logger.debug(f"Could not exempt setup routes from CSRF: {e}")
+# SEC-09: setup routes are NOT exempt from CSRF. The setup flow fetches a
+# token like every other form (first-run is additionally gated server-side:
+# it is only functional while the system is uninitialized / has zero users).
 
 from Api.blueprints.paths import paths_bp
 app.register_blueprint(paths_bp)

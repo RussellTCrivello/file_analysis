@@ -20,14 +20,19 @@ from Api.services.search_history import SearchHistoryService, SavedSearchesServi
 from Api.services.export_service import ExportService
 import logging
 from datetime import datetime
+from core.errors import client_error
 
 logger = logging.getLogger(__name__)
+
+
+from core.security.rate_limit import limiter
 
 
 def register_search_routes(app):
     """Register search routes with the Flask app"""
     
     @app.route('/search/enhanced')
+    @limiter.limit("30 per minute")
     def search_enhanced_page():
         """Enhanced search page with full-text search, sorting, and filters"""
         from Api.utils import select_info_sources, select_info_sides, select_info_categories
@@ -51,6 +56,7 @@ def register_search_routes(app):
                              categories=categories)
     
     @app.route('/search')
+    @limiter.limit("30 per minute")
     def search_page():
         """Enhanced Search with Content Filtering - Uses Google-like search algorithm"""
         settings = get_settings()
@@ -80,6 +86,7 @@ def register_search_routes(app):
                              total_results=total_results)
     
     @app.route('/search/advanced')
+    @limiter.limit("30 per minute")
     def search_advanced():
         """Advanced Search with Multiple Filters - Uses Google-like search algorithm"""
         # Get filter parameters
@@ -135,6 +142,7 @@ def register_search_routes(app):
                              categories=categories)
     
     @app.route('/search/advanced', methods=['POST'])
+    @limiter.limit("30 per minute")
     def search_advanced_api():
         """Advanced Search API endpoint for JSON responses"""
         try:
@@ -185,11 +193,12 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Search API error: {e}")
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     # ==================== ENHANCED SEARCH API ====================
     
     @app.route('/api/search', methods=['GET', 'POST'])
+    @limiter.limit("30 per minute")
     def api_search():
         """
         Enhanced search API with full-text search, sorting, and filtering.
@@ -380,7 +389,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Enhanced search API error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     # ==================== AUTOCOMPLETE / SUGGESTIONS ====================
     
@@ -413,7 +422,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Autocomplete API error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/suggestions', methods=['GET'])
     def api_suggestions():
@@ -441,7 +450,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Suggestions API error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     # ==================== SEARCH HISTORY ====================
     
@@ -497,7 +506,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Search history API error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/history', methods=['DELETE'])
     def api_clear_search_history():
@@ -510,7 +519,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Clear search history error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     # ==================== SAVED SEARCHES ====================
     
@@ -528,7 +537,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Get saved searches error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/saved', methods=['POST'])
     def api_save_search():
@@ -568,7 +577,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Save search error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/saved/<int:search_id>', methods=['GET'])
     def api_get_saved_search(search_id):
@@ -586,7 +595,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Get saved search error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/saved/<int:search_id>', methods=['PUT'])
     def api_update_saved_search(search_id):
@@ -618,7 +627,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Update saved search error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     @app.route('/api/search/saved/<int:search_id>', methods=['DELETE'])
     def api_delete_saved_search(search_id):
@@ -636,7 +645,7 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Delete saved search error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
     
     # ==================== EXPORT SEARCH RESULTS ====================
     
@@ -706,5 +715,5 @@ def register_search_routes(app):
             
         except Exception as e:
             logger.error(f"Export search results error: {e}", exc_info=True)
-            return jsonify({'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.search', status=500)
 

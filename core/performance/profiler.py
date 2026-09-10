@@ -6,7 +6,7 @@ Decorators and utilities for profiling function execution
 import time
 import functools
 import logging
-from typing import Callable, Any, Optional
+from typing import Callable
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)

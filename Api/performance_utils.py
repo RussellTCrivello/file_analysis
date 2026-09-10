@@ -10,6 +10,7 @@ import time
 import logging
 
 from Api.utils import execute_query
+from core.serialization import pack_int_list, unpack_int_list
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,6 @@ def batch_load_keywords(keyword_ids):
     if not keyword_ids:
         return {}
     
-    import pickle
     
     # Batch load all keywords
     placeholders = ','.join(['%s'] * len(keyword_ids))
@@ -148,7 +148,7 @@ def batch_load_keywords(keyword_ids):
                 keyword_bytes = row[1]
                 try:
                     if keyword_bytes:
-                        word_ids = pickle.loads(bytes(keyword_bytes))
+                        word_ids = unpack_int_list(keyword_bytes)
                         if word_ids and isinstance(word_ids, list):
                             keyword_word_map[keyword_id] = word_ids
                             all_word_ids.update(word_ids)

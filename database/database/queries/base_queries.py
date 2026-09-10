@@ -2,7 +2,7 @@
 Centralized Query Management System
 Organizes all SQL queries by domain for easy maintenance and reuse
 """
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
 

@@ -81,5 +81,24 @@ initialize_system()
 # Import and run the web app
 from apps.web.app import app
 
-if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5000)
+def main():
+    """Console entry point (pyproject: file-analysis-web = run_web:main)."""
+    globals()['_run_main']()
+
+
+def _run_main():
+    # SEC-10: debug mode is environment-controlled and never hardcoded.
+    # Production startup must reject debug mode.
+    flask_env = os.environ.get('FLASK_ENV', 'production').lower()
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    if debug_mode and flask_env == 'production':
+        raise RuntimeError(
+            "Refusing to start: FLASK_DEBUG is enabled while FLASK_ENV=production. "
+            "Set FLASK_ENV=development for debug mode."
+        )
+    if debug_mode:
+        print("[WARNING] Flask debug mode is ENABLED - development use only")
+
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+    app.run(debug=debug_mode, host=host, port=port)

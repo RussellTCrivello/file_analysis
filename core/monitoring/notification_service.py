@@ -6,7 +6,7 @@ System-wide notification management for alerts, similar files, and future events
 import logging
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 import json
 import threading

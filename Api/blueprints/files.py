@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 files_bp = Blueprint("files", __name__)
 
 
+from core.serialization import pack_int_list, unpack_int_list
+from core.errors import client_error, client_safe_message
 from Api.utils import (
     execute_query, select_info_sources, select_info_sides, select_info_file_types,
     load_text_content, select_classification, compute_percentage, get_content_stats,
@@ -44,9 +46,8 @@ def get_keyword_frequencies(file_id, limit=50):
         decoded_results = []
         for keyword_bytes, count in results:
             try:
-                import pickle
                 # Keywords are stored as pickled word IDs
-                word_ids = pickle.loads(keyword_bytes) if keyword_bytes else []
+                word_ids = unpack_int_list(keyword_bytes) if keyword_bytes else []
                 # Convert word IDs to text
                 if word_ids:
                     # Use IN clause with placeholders (same approach as load_text_keyword)
@@ -267,11 +268,11 @@ def upload_process_path():
         
         except RuntimeError as e:
             # Too many concurrent tasks
-            return jsonify({'error': str(e)}), 503  # 503 Service Unavailable
+            return client_error(e, subsystem='Api.blueprints.files', status=503)  # 503 Service Unavailable
         
     except Exception as e:
         logger.error(f"Upload process-path error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/upload/progress/<task_id>', methods=['GET'])
@@ -293,7 +294,7 @@ def upload_progress(task_id):
         
     except Exception as e:
         logger.error(f"Get progress error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/upload/active-tasks', methods=['GET'])
@@ -322,7 +323,7 @@ def get_active_tasks():
         
     except Exception as e:
         logger.error(f"Get active tasks error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/upload/pause/<task_id>', methods=['POST'])
@@ -346,7 +347,7 @@ def pause_task(task_id):
         
     except Exception as e:
         logger.error(f"Pause task error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/upload/resume/<task_id>', methods=['POST'])
@@ -370,7 +371,7 @@ def resume_task(task_id):
         
     except Exception as e:
         logger.error(f"Resume task error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/upload/cancel/<task_id>', methods=['POST'])
@@ -402,7 +403,7 @@ def api_cancel_task(task_id):
         
     except Exception as e:
         logger.error(f"Cancel task error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 # ==================== CHUNKED UPLOAD ROUTES ====================
@@ -474,7 +475,7 @@ def chunked_upload_start():
         
     except Exception as e:
         logger.error(f"Error starting chunked upload: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 
 @files_bp.route('/upload/chunked/<upload_id>/chunk/<int:chunk_index>', methods=['POST'])
@@ -507,10 +508,10 @@ def chunked_upload_chunk(upload_id, chunk_index):
             return jsonify({'success': False, 'error': f'Cannot save chunk: Permission denied'}), 403
         except OSError as e:
             logger.error(f"OS error saving chunk {chunk_index}: {e}")
-            return jsonify({'success': False, 'error': f'Cannot save chunk: {str(e)}'}), 500
+            return client_error(e, subsystem='Api.blueprints.files', success_key='success', public_message='Cannot save chunk', status=500)
         except Exception as e:
             logger.error(f"Unexpected error saving chunk {chunk_index}: {e}")
-            return jsonify({'success': False, 'error': f'Failed to save chunk: {str(e)}'}), 500
+            return client_error(e, subsystem='Api.blueprints.files', success_key='success', public_message='Failed to save chunk', status=500)
         
         # Mark chunk as uploaded
         session['uploaded_chunks'].add(chunk_index)
@@ -526,7 +527,7 @@ def chunked_upload_chunk(upload_id, chunk_index):
         
     except Exception as e:
         logger.error(f"Error uploading chunk: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 @files_bp.route('/upload/chunked/<upload_id>/cancel', methods=['POST'])
 def chunked_upload_cancel(upload_id):
@@ -555,7 +556,7 @@ def chunked_upload_cancel(upload_id):
         
     except Exception as e:
         logger.error(f"Error cancelling chunked upload: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 
 @files_bp.route('/upload/chunked/<upload_id>/status', methods=['GET'])
@@ -577,7 +578,7 @@ def chunked_upload_status(upload_id):
         
     except Exception as e:
         logger.error(f"Error getting chunked upload status: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 
 # ==================== FILE BROWSER ====================
@@ -1176,7 +1177,7 @@ def file_content_lazy(file_id):
             'total_length': len(full_content)
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/api/files/<int:file_id>/export')
@@ -1212,7 +1213,7 @@ def file_export(file_id):
         
     except Exception as e:
         logger.error(f"Error exporting file {file_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 
 @files_bp.route('/file/<int:file_id>/content/page')
@@ -1248,7 +1249,7 @@ def file_content_page(file_id):
             'has_next': page < total_pages
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/file/<int:file_id>/chart-data')
@@ -1332,7 +1333,7 @@ def file_chart_data(file_id):
         logger.error(f"Error getting chart data: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': client_safe_message(e, subsystem='Api.routes.files')
         }), 500
 
 
@@ -1413,7 +1414,7 @@ def file_search_all_pages(file_id):
         
     except Exception as e:
         logger.error(f"File search error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/file/<int:file_id>/full-content')
@@ -1601,7 +1602,7 @@ def serve_file():
         
     except Exception as e:
         logger.error(f"Error serving file {file_path}: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/api/file/<int:file_id>/serve', methods=['GET'])
@@ -1653,7 +1654,7 @@ def serve_file_by_id(file_id):
         
     except Exception as e:
         logger.error(f"Error serving file {file_id}: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', status=500)
 
 
 @files_bp.route('/file/<int:file_id>/delete', methods=['POST', 'DELETE'])
@@ -1691,9 +1692,15 @@ def delete_file(file_id):
         hash_usage = execute_query("""
             SELECT COUNT(*) FROM paths WHERE hash_id = %s
         """, (hash_id,), fetch="one")
-        
+
+        # DB-05 FIX: hash_usage is a row tuple like (0,). The old check
+        # `if hash_usage and hash_usage == 0` compared a tuple to an int and
+        # never fired, leaving orphaned hash rows that made deleted files
+        # permanently non-reingestable. Extract the count properly.
+        hash_refcount = hash_usage[0] if hash_usage else 0
+
         # If hash is not used by any other files, delete it
-        if hash_usage and hash_usage == 0:
+        if hash_refcount == 0:
             execute_query("DELETE FROM hashs WHERE id = %s", (hash_id,), fetch=None)
         
         try:
@@ -1708,7 +1715,7 @@ def delete_file(file_id):
         
     except Exception as e:
         logger.error(f"Error deleting file {file_id}: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 
 
 @files_bp.route('/files/bulk-delete', methods=['POST'])
@@ -1800,5 +1807,5 @@ def bulk_delete_files():
         
     except Exception as e:
         logger.error(f"Error in bulk delete: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.files', success_key='success', status=500)
 

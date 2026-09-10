@@ -28,34 +28,44 @@ _file_router_service = get_file_router_service()
 def main_specify_method_of_reading_the_file(
     file_info: Dict[str, Any],
     collect: bool = True,
-    depth: int = 0
+    depth: int = 0,
+    storage_source: Optional[str] = None,
+    storage_side: Optional[str] = None,
+    storage_pipeline: Optional[Any] = None,
+    store_result: bool = True,
     ) -> Optional[Dict[str, Any]]:
     """
     Read a file using appropriate reader and optionally collect results.
-    
+
     Backward compatibility wrapper that delegates to FileRouterService.
     All functionality is now implemented in the FileRouterService class.
-    
+
+    DATA-01/ARCH-04: storage context is passed explicitly by the caller
+    (previously it was smuggled through function attributes, which is hidden
+    global state). ``store_result=False`` lets the storage-pipeline owner
+    (IntegratedFileReader) persist the top-level file exactly once while the
+    router still persists child artifacts (extracted members, attachments).
+
     Args:
         file_info: Dictionary containing file information
         collect: Whether to collect results
         depth: Current recursion depth
-    
+        storage_source: Optional storage source name
+        storage_side: Optional storage side name
+        storage_pipeline: Optional storage pipeline (explicit dependency)
+        store_result: Whether the router should persist the top-level file
+
     Returns:
         Dictionary with processing result or None
     """
-    # Get storage parameters from function attributes if set
-    storage_source = getattr(main_specify_method_of_reading_the_file, '_storage_source', None)
-    storage_side = getattr(main_specify_method_of_reading_the_file, '_storage_side', None)
-    storage_pipeline = getattr(main_specify_method_of_reading_the_file, '_storage_pipeline', None)
-    
     return _file_router_service.process_file(
         file_info,
         collect=collect,
         depth=depth,
         storage_source=storage_source,
         storage_side=storage_side,
-        storage_pipeline=storage_pipeline
+        storage_pipeline=storage_pipeline,
+        store_result=store_result,
     )
 
 
@@ -110,7 +120,7 @@ def _process_extracted_files(
     """
     # Get storage_pipeline from function attributes if available
     storage_pipeline = getattr(main_specify_method_of_reading_the_file, '_storage_pipeline', None)
-    
+
     return _file_router_service._process_extracted_files(
         extraction_path,
         extraction_type,
