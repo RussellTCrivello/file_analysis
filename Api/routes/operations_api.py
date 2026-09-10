@@ -174,7 +174,7 @@ def api_input_upload():
                     if not chunk:
                         break
                     written += len(chunk)
-                    total += written and len(chunk)
+                    total += len(chunk)
                     if total > MAX_UPLOAD_BYTES:
                         raise ValueError("size")
                     out.write(chunk)

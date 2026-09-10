@@ -3,6 +3,9 @@ Domain Import Application - Main Entry Point
 Complete restructured architecture with single-responsibility classes
 """
 
+import sys
+from pathlib import Path
+
 # All intra-app imports use full package paths (apps.importing.*); the old
 # sys.path insertions that shadowed core packages (``database``, ``utils``)
 # were removed - they caused circular imports when the app ran in-process.

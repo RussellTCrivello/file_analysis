@@ -84,3 +84,27 @@ def test_batch_validation(roots, tmp_path):
     assert len(validate_batch_paths([good])) == 1
     with pytest.raises(PathSafetyError):
         validate_batch_paths([good, "/etc/passwd"])
+
+
+def test_staged_upload_allowed_without_roots(tmp_path, monkeypatch):
+    """Operations API staged uploads are a configured application input
+    location: ingestible even with no INGESTION_ROOTS, while arbitrary
+    server paths stay rejected (SEC-06 fail-closed)."""
+    monkeypatch.delenv("INGESTION_ROOTS", raising=False)
+    import core.path_safety as ps
+
+    data_root = tmp_path / "appdata"
+    (data_root / "uploads" / "abc123").mkdir(parents=True)
+    monkeypatch.setattr(
+        "core.app_paths.get_data_root", lambda: str(data_root), raising=False
+    )
+    # patch the symbol the module actually imported
+    monkeypatch.setattr(ps, "get_data_root", lambda: str(data_root), raising=False)
+
+    staged = data_root / "uploads" / "abc123" / "doc.txt"
+    staged.write_text("x")
+    assert validate_ingestion_path(staged) == staged.resolve()
+
+    # anything outside the staging root is still rejected
+    with pytest.raises(PathSafetyError):
+        validate_ingestion_path(str(tmp_path / "elsewhere.txt"))

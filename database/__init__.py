@@ -6,6 +6,7 @@ maintaining backward compatibility while using the modern database architecture.
 """
 
 # Core database classes
+import logging
 from database.database.database import Database
 from database.database.config import DatabaseConfig
 from database.exceptions import QueryError, TransactionError
@@ -45,6 +46,8 @@ from database.queries import (
     create_side,
     insert_side,
 )
+
+logger = logging.getLogger(__name__)
 
 # Database initialization functions
 from database.init_database import create_database

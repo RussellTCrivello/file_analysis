@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "arena/**"]
   pull_request:
     branches: ["main"]
 
@@ -16,12 +16,14 @@ jobs:
           python-version: "3.11"
       - name: Install ruff
         run: pip install ruff
-      - name: Lint (ruff)
-        run: ruff check --no-cache --exit-zero Api apps core database reader_file settings pipeline concurrency
+      - name: Critical lint (undefined names / syntax - fails the build)
+        run: ruff check --no-cache --select F821,E9 Api apps core database reader_file settings pipeline concurrency services scripts tests
+      - name: Lint (ruff, advisory on legacy code)
+        run: ruff check --no-cache --exit-zero Api apps core database reader_file settings pipeline concurrency services scripts tests
       - name: Security scan (bandit, high severity only fails)
         run: |
           pip install bandit
-          bandit -r Api apps core database reader_file settings pipeline -lll -q || true
+          bandit -r Api apps core database reader_file settings pipeline services -lll -q || true
 
   test:
     runs-on: ubuntu-latest
@@ -50,6 +52,28 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     needs: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fileanalysis
+          POSTGRES_PASSWORD: ci-readiness-password
+          POSTGRES_DB: file_analysis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fileanalysis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: file_analysis
+      DB_USER: fileanalysis
+      DB_PASSWORD: ci-readiness-password
+      FLASK_SECRET_KEY: ci-readiness-secret-key-not-for-production
+      FLASK_ENV: production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -60,6 +84,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e ".[pdf,office,dev]"
+      - name: Bootstrap schema (versioned migrations)
+        run: |
+          python -c "from database.bootstrap import bootstrap_database; from settings.config import get_db_config; report = bootstrap_database(get_db_config()); print('migrations applied:', report.get('applied_migrations'))"
       - name: Readiness verification (behavioral)
         run: python verify_readiness.py --json > readiness-report.json
       - name: Upload readiness report

@@ -9,10 +9,13 @@ Optimized for speed with:
 - Streaming processing
 """
 
+import logging
 import re
 from typing import List, Tuple, Dict, Optional
 from collections import Counter
 import threading
+
+logger = logging.getLogger(__name__)
 
 # Unicode-aware word pattern that properly handles Hebrew, Arabic, English, and other scripts
 # Pattern matches sequences of word characters including:

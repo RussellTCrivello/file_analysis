@@ -135,7 +135,40 @@ One test is skipped honestly: the domain-import dry-run requires a domain
 data file, which does not exist in this environment (the service reports
 "upload one first" instead of pretending).
 
-## 7. Verification commands
+## 7. Definition of Done — verified checklist (directive §42)
+
+Every claim below re-verified in this session:
+
+- [x] No normal workflow requires `run_cli.py` / `run_import.py` — frontend covers ingestion+import; both CLIs carry deprecation notices (`python -m apps.cli.main --help` / `run_import.py --help` verified working)
+- [x] Capabilities moved into reusable services — `services/` (no argparse/input()/prints/exit codes); parity gate `tests/integration/test_cli_parity.py` (8 passed)
+- [x] Dedicated Input / Import / Jobs interfaces — `/operations/input`, `/operations/import`, `/operations/jobs[/{id}]` (render tests pass)
+- [x] Long-running processing asynchronous — jobs API returns 202 in ~8 ms (benchmarked); workers execute
+- [x] Progress is real — engine live stats (`get_live_progress()`), no simulated increments (e2e asserts stats)
+- [x] Cancellation is real — cooperative, at file boundary; `test_cancellation_cooperative`
+- [x] Retry is safe — successor jobs; `test_dedup_second_run_safe` (0 re-stored, duplicates counted)
+- [x] Crash recovery works — startup `recover_stale_jobs()`; `test_crash_recovery_marks_stale_running_failed`
+- [x] Deduplication / hashing remain correct — full prior suites still pass (179 tests total)
+- [x] Archive & path security enforced — prior SEC-05/SEC-06 suites + new staged-upload regression (`test_staged_upload_allowed_without_roots` — caught and fixed a fail-closed ordering bug before it shipped)
+- [x] Authentication / authorization / CSRF enforced — `tests/security/test_jobs_security.py` (11 tests)
+- [x] Database integrity preserved — migration 0006 additive-only; no existing table/column/row touched; `test_bootstrap_migrations` green
+- [x] No second database stack — services use the existing `Api.utils.get_connection` / `database.queries`
+- [x] No credentials introduced — readiness SEC-07 git-grep clean
+- [x] Advanced capabilities remain available — workers/checkpoint/monitoring options validated server-side
+- [x] CLI and frontend share the same services — proven by `TestCliIsThinAdapter` (mocked service captures the request the CLI builds)
+- [x] Feature parity demonstrated — executable capability matrix
+- [x] Performance benchmarked, no regression — `scripts/benchmark_operations.py`: +0.5 % (tolerance 35 %), 8 ms create latency
+- [x] Unit / integration / security / e2e / frontend tests pass — **179 passed, 1 honest skip**
+- [x] Documentation updated — 6 new/updated docs + README claims match reality
+- [x] CI verifies the complete workflow — lint (F821/E9 blocking) + bandit + unit + integration/security/e2e (pgserver) + readiness (postgres service, bootstrap, behavioral checks)
+
+Additional hardening done in this pass: fixed 8 repo-wide undefined-name
+bugs (`F821` — including a `NameError` crash path in the legacy domain-import
+entry point), CI readiness job now actually provisions PostgreSQL +
+bootstraps schema (previously would have failed), `python -m apps.cli.main
+--path …` dispatch fixed (was hijacked by the interactive flow), and the
+`services` package added to wheel packaging.
+
+## 8. Verification commands
 
 ```bash
 .venv/bin/python -m pytest tests/          # 135 passed

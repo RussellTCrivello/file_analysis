@@ -39,9 +39,13 @@ initialize_database_config()
 initialize_system()
 
 if __name__ == '__main__':
-    # Compatibility adapter: parses arguments, delegates to IngestionService.
-    from apps.cli.main import cli_main
-    sys.exit(cli_main())
+    # Compatibility adapter: with arguments -> non-interactive service run;
+    # with no arguments -> the legacy interactive flow (deprecated).
+    from apps.cli.main import cli_main, main
+
+    if len(sys.argv) > 1:
+        sys.exit(cli_main())
+    main()
 else:
     # When imported by multiprocessing child process, ensure path is set up
     setup_project_path()

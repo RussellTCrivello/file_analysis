@@ -1629,34 +1629,6 @@ def main():
         if is_recording_enabled():
             safe_print(f"\n[INFO] Action recording stopped. Log saved to: {log_file}")
 
-
-if __name__ == "__main__":
-    try:
-        main()
-    
-    except KeyboardInterrupt:
-        print("\n\nInterrupted by user. Exiting...")
-        record_command_line_action("SYSTEM", "Application interrupted by user", {}, level="WARNING")
-        stop_action_recording()
-        input("\nPress Enter to exit...")
-        
-    except Exception as e:
-        safe_print(f"\n[ERROR] Unexpected error: {str(e)}")
-        import traceback
-        error_trace = traceback.format_exc()
-        record_command_line_action(
-            "ERROR", 
-            f"Unexpected error: {str(e)}", 
-            {"error": str(e), "traceback": error_trace}, 
-            level="ERROR"
-        )
-        traceback.print_exc()
-        stop_action_recording()
-        input("\nPress Enter to exit...")
-
-# ===========================================================================
-# CLI-01: Non-interactive mode for automation and CI
-# ===========================================================================
 def cli_main(argv=None) -> int:
     """Non-interactive CLI entry point (thin adapter over IngestionService).
 
@@ -1782,3 +1754,36 @@ def cli_main(argv=None) -> int:
     }
     _emit(payload, f"[OK] Ingestion complete: {payload['summary']}")
     return 2 if failed else 0
+
+if __name__ == "__main__":
+    # Dispatch: flags -> non-interactive service adapter (cli_main);
+    # no flags -> legacy interactive flow (deprecated, kept for
+    # terminal-only environments).
+    if any(a.startswith("-") for a in sys.argv[1:]):
+        sys.exit(cli_main())
+    try:
+        main()
+    
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user. Exiting...")
+        record_command_line_action("SYSTEM", "Application interrupted by user", {}, level="WARNING")
+        stop_action_recording()
+        input("\nPress Enter to exit...")
+        
+    except Exception as e:
+        safe_print(f"\n[ERROR] Unexpected error: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        record_command_line_action(
+            "ERROR", 
+            f"Unexpected error: {str(e)}", 
+            {"error": str(e), "traceback": error_trace}, 
+            level="ERROR"
+        )
+        traceback.print_exc()
+        stop_action_recording()
+        input("\nPress Enter to exit...")
+
+# ===========================================================================
+# CLI-01: Non-interactive mode for automation and CI
+# ===========================================================================

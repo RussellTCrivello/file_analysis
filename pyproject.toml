@@ -61,7 +61,7 @@ file-analysis-cli = "apps.cli.main:cli_main"
 py-modules = ["run_web", "verify_readiness"]
 
 [tool.setuptools.packages.find]
-include = ["Api*", "apps*", "concurrency*", "core*", "database*", "reader_file*", "settings*", "pipeline*", "Hdg_Err_Ex_Log*"]
+include = ["Api*", "apps*", "concurrency*", "core*", "database*", "reader_file*", "settings*", "pipeline*", "services*", "Hdg_Err_Ex_Log*"]
 exclude = ["tests*", "templates*", "static*", "*.venv*"]
 
 [tool.pytest.ini_options]

@@ -65,6 +65,22 @@ def validate_ingestion_path(
 
     allowed = [Path(r).expanduser().resolve() for r in roots] if roots is not None \
         else configured_ingestion_roots()
+
+    # Staged uploads are a configured application input location: files the
+    # authenticated user uploaded through the app itself are always
+    # ingestible, independent of INGESTION_ROOTS (which gates arbitrary
+    # server paths). The staging root lives under the app data dir and is
+    # added BEFORE the fail-closed check so upload-then-ingest works even
+    # when server-path ingestion is disabled entirely.
+    try:
+        from core.app_paths import get_data_root
+
+        staged_root = (Path(get_data_root()) / "uploads").resolve()
+        if staged_root.is_dir():
+            allowed = allowed + [staged_root]
+    except Exception:
+        pass
+
     if not allowed:
         raise PathSafetyError(
             "Server-path ingestion is disabled: no INGESTION_ROOTS are configured"
@@ -81,19 +97,6 @@ def validate_ingestion_path(
             return resolved
         except ValueError:
             continue
-
-    # Staged uploads are a configured application input location: files the
-    # authenticated user uploaded through the app itself are always
-    # ingestible, independent of INGESTION_ROOTS (which gates arbitrary
-    # server paths). The staging root lives under the app data dir.
-    try:
-        from core.app_paths import get_data_root
-
-        staged_root = (Path(get_data_root()) / "uploads").resolve()
-        resolved.relative_to(staged_root)
-        return resolved
-    except Exception:
-        pass
 
     logger.warning("Rejected ingestion path outside approved roots: %s", raw)
     raise PathSafetyError("Path is outside all approved ingestion roots")
