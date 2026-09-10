@@ -38,6 +38,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Load .env from the project root so DB_*/FLASK_* settings work without
+# manually exporting environment variables. Real OS env vars take precedence.
+try:
+    _env_file = PROJECT_ROOT / ".env"
+    if _env_file.exists():
+        from dotenv import load_dotenv
+
+        load_dotenv(_env_file, override=False)
+except Exception:
+    pass  # python-dotenv missing or unreadable .env: checks will report it
+
 
 @dataclass
 class CheckResult:

@@ -1,3 +1,10 @@
+# File Analysis
+
+> **New here? Start with [INSTALL.md](INSTALL.md)** — the complete
+> step-by-step installation guide for absolute beginners (Windows, macOS, Linux).
+> Quick version: install Python 3.11 + PostgreSQL → double-click `setup.bat` →
+> double-click `start.bat` → open http://127.0.0.1:5000.
+
 # Zero Data Loss Guarantees - Production Implementation
 
 ## Overview
