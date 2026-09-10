@@ -13,6 +13,7 @@ from core.monitoring.notification_service import (
 )
 from Api.utils import execute_query
 import logging
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +182,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error getting notifications: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/upcoming', methods=['GET'])
     def get_upcoming_events():
@@ -295,7 +296,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error getting upcoming events: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/<int:notification_id>', methods=['GET'])
     def get_notification(notification_id):
@@ -415,7 +416,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error getting notification: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
     def mark_notification_read(notification_id):
@@ -437,7 +438,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error marking notification as read: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/<int:notification_id>/dismiss', methods=['POST'])
     def dismiss_notification(notification_id):
@@ -459,7 +460,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error dismissing notification: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/analyze-file/<int:file_id>', methods=['POST'])
     def analyze_file_for_events(file_id):
@@ -520,7 +521,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error analyzing file for events: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/refresh', methods=['POST'])
     def refresh_notifications():
@@ -536,7 +537,7 @@ def register_notification_routes(app):
             })
         except Exception as e:
             logger.error(f"Error refreshing notifications: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/stats', methods=['GET'])
     def get_notification_stats():
@@ -574,7 +575,7 @@ def register_notification_routes(app):
         
         except Exception as e:
             logger.error(f"Error getting notification stats: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications', success_key='success', status=500)
     
     @app.route('/api/notifications/scan', methods=['POST'])
     def scan_for_notifications():
@@ -796,7 +797,7 @@ def register_notification_routes(app):
             logger.error(f"Error scanning for notifications: {e}", exc_info=True)
             return jsonify({
                 'success': False, 
-                'error': str(e),
+                'error': client_safe_message(e, subsystem='Api.routes.notifications'),
                 'message': f'Error during scan: {str(e)}'
             }), 500
 

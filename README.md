@@ -191,3 +191,36 @@ results = reader.process_folder("/path/to/terabyte/folder")
 - Database connection failures → Retried with exponential backoff
 
 **Result**: Every file path results in a database record, ensuring complete audit trail and zero data loss.
+
+## Unified Operations (frontend-driven)
+
+All ingestion, import and monitoring workflows run from the web frontend —
+no terminal required:
+
+* **Input / Ingestion** (`/operations/input`) — upload (drag & drop) or
+  server paths (INGESTION_ROOTS), basic/advanced options, dry run.
+* **Import Center** (`/operations/import`) — domain data, backup restore
+  (admin), server batch import — validate → preview → confirm.
+* **Jobs** (`/operations/jobs`) — live progress, real events, cancel /
+  pause / resume / retry, crash recovery.
+
+Long-running operations execute as persistent, concurrency-limited jobs
+(`services/jobs/`); HTTP only creates and controls them. The command-line
+entry points `run_cli.py` and `run_import.py` are **deprecated thin
+adapters** over the same services (`services/ingesting`,
+`services/importing`) kept for compatibility.
+
+## Windows-native operation
+
+The application runs fully on native Windows: drive-qualified paths
+(`C:\data`), UNC shares (`\\server\share`), and backslash separators work
+end to end (INGESTION_ROOTS, server-path ingestion validation, upload
+staging, checkpoints, extracted files). Path validation is case-insensitive
+and separator-tolerant on Windows; console output is UTF-8-safe; use
+`waitress` for production serving (gunicorn is POSIX-only).
+
+See **docs/windows.md** for setup, `.env` examples, and service installation.
+
+See docs/: job-system.md, input-ingestion.md, import-center.md, api.md,
+operations.md, performance.md, windows.md, security.md, database.md,
+architecture.md.

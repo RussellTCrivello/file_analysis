@@ -1,19 +1,21 @@
 """
-Archive file reader - Extract archives
-Aligned with database design principles - all functions within class
-Supports: ZIP, TAR, GZ, BZ2, RAR, 7Z
+Archive file reader - Safe extraction (SEC-05)
+
+Supports: ZIP, TAR (.tar/.tar.gz/.tar.bz2/.tar.xz), GZ, BZ2, RAR, 7Z.
+
+All extraction goes through :mod:`core.archive_safety`, which enforces
+path-traversal rejection, symlink/hardlink refusal, depth / file-count /
+byte / ratio limits and timeouts. The legacy implementation used
+``extractall`` (zip-slip / tar-slip vulnerable) and is replaced entirely.
 """
 
-import bz2
-import gzip
 import os
 from typing import Dict, Any, Optional, Set
 from pathlib import Path
-import shutil
-import tarfile
-import zipfile
 
 from core.path_utils import get_extraction_name_file
+from core import archive_safety
+from core.archive_safety import ArchiveSafetyError
 
 from .base_reader import BaseReader
 
@@ -31,14 +33,14 @@ logger = logging.getLogger(__name__)
 class ArchiveFileReader(BaseReader):
     """
     Reader for archive files.
-    
+
     Follows database design principles:
     - All functions are within the class
     - Inherits from BaseReader
     - Consistent error handling
     - Proper resource management
     """
-    
+
     def get_supported_extensions(self) -> Set[str]:
         """Return set of supported archive extensions"""
         return {
@@ -49,14 +51,14 @@ class ArchiveFileReader(BaseReader):
             '.rar',
             '.7z'
         }
-    
+
     def read_file(self, file_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Read archive file and extract contents with improved error handling
-        
+        Read archive file and extract contents safely.
+
         Args:
             file_info: Dictionary containing file information with 'path' key
-        
+
         Returns:
             Dictionary with extraction path or error information
         """
@@ -64,13 +66,13 @@ class ArchiveFileReader(BaseReader):
         is_valid, error_msg = self.validate_file_info(file_info)
         if not is_valid:
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
-        
+
         file_path = str(file_info.get("path"))
         file_lower = file_path.lower()
-        
+
         try:
             extraction_path = None
-            
+
             if file_lower.endswith('.zip'):
                 extraction_path = self.extract_zip(file_path)
             elif file_lower.endswith('.tar') or file_lower.endswith('.tar.gz') or file_lower.endswith('.tar.bz2') or file_lower.endswith('.tar.xz'):
@@ -84,9 +86,9 @@ class ArchiveFileReader(BaseReader):
             elif file_lower.endswith('.7z'):
                 extraction_path = self.extract_7z(file_path)
             else:
-                error_msg = f"Unsupported archive type: {file_path}"
+                error_msg = f"Unsupported archive type: {Path(file_path).suffix}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
-            
+
             # STANDARDIZED: Always return dict
             if extraction_path:
                 return {
@@ -97,23 +99,26 @@ class ArchiveFileReader(BaseReader):
             else:
                 error_msg = "Extraction failed"
                 return self.handle_read_error(Exception(error_msg), file_path, "read_file")
-                
+
+        except ArchiveSafetyError as e:
+            # Safety violations are reported as rejected archives (client-safe).
+            logger.warning("Archive rejected by safety policy: %s (%s)", file_path, e)
+            return self.handle_read_error(e, file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")
-    
+
+    # ------------------------------------------------------------------
+    # Extraction backends - all via core.archive_safety
+    # ------------------------------------------------------------------
     def extract_zip(self, file_path):
-        """Extract ZIP files"""
+        """Extract ZIP files safely (zip-slip protected)."""
         extract_to = get_extraction_name_file(file_path, '.zip')
-        os.makedirs(extract_to, exist_ok=True)
-        
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
-        print(f"✓ Extracted {file_path} to {extract_to}/")
-        return extract_to
-    
+        result = archive_safety.extract_zip(file_path, extract_to)
+        logger.info("Extracted %d files from %s", result.files_extracted, file_path)
+        return str(extract_to)
+
     def extract_tar(self, file_path):
-        """Extract TAR files (.tar, .tar.gz, .tar.bz2, .tar.xz)"""
-        # Determine extension to use for folder name
+        """Extract TAR files safely (.tar, .tar.gz, .tar.bz2, .tar.xz)."""
         if file_path.endswith('.tar.gz'):
             extension = '.tar.gz'
         elif file_path.endswith('.tar.bz2'):
@@ -122,101 +127,61 @@ class ArchiveFileReader(BaseReader):
             extension = '.tar.xz'
         else:
             extension = '.tar'
-        
+
         extract_to = get_extraction_name_file(file_path, extension)
-        os.makedirs(extract_to, exist_ok=True)
-        
-        with tarfile.open(file_path, 'r:*') as tar_ref:
-            tar_ref.extractall(extract_to)
-        print(f"✓ Extracted {file_path} to {extract_to}/")
-        return extract_to
-    
+        result = archive_safety.extract_tar(file_path, extract_to)
+        logger.info("Extracted %d files from %s", result.files_extracted, file_path)
+        return str(extract_to)
+
     def extract_gz(self, file_path):
-        """Extract GZ files (single file compression)"""
+        """Extract GZ files (single file compression) safely."""
         extract_to = get_extraction_name_file(file_path, '.gz')
-        os.makedirs(extract_to, exist_ok=True)
-        
-        # Output file inside the folder
-        output_file = os.path.join(extract_to, Path(file_path).stem)
-        
-        with gzip.open(file_path, 'rb') as f_in:
-            with open(output_file, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        print(f"✓ Extracted {file_path} to {extract_to}/")
-        return extract_to
-    
+        result = archive_safety.extract_single_file(file_path, extract_to, codec="gzip")
+        return str(extract_to)
+
     def extract_bz2(self, file_path):
-        """Extract BZ2 files (single file compression)"""
+        """Extract BZ2 files (single file compression) safely."""
         extract_to = get_extraction_name_file(file_path, '.bz2')
-        os.makedirs(extract_to, exist_ok=True)
-        
-        # Output file inside the folder
-        output_file = os.path.join(extract_to, Path(file_path).stem)
-        
-        with bz2.open(file_path, 'rb') as f_in:
-            with open(output_file, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        print(f"✓ Extracted {file_path} to {extract_to}/")
-        return extract_to
-    
+        result = archive_safety.extract_single_file(file_path, extract_to, codec="bzip2")
+        return str(extract_to)
+
     def extract_rar(self, file_path):
-        """Extract RAR files (requires rarfile package and UnRAR tool)"""
+        """Extract RAR files safely (requires rarfile package and UnRAR tool)."""
         try:
-            import rarfile
-            
-            # Set UnRAR tool path for Windows
-            rarfile.UNRAR_TOOL = "unrar"
-            
-            # Try to find WinRAR installation
-            winrar_paths = [
-                r"C:\Users\SOLO\Downloads\UnRAR.exe",
-                r"C:\Program Files\WinRAR\UnRAR.exe",
-                r"C:\Program Files (x86)\WinRAR\UnRAR.exe"
-            ]
-            for path in winrar_paths:
-                if os.path.exists(path):
-                    rarfile.UNRAR_TOOL = path
-                    break
-            
+            import rarfile  # noqa: F401
         except ImportError:
             logger.warning("rarfile not installed. Install with: pip install rarfile")
             return None
-        
+
         extract_to = get_extraction_name_file(file_path, '.rar')
-        os.makedirs(extract_to, exist_ok=True)
-        
         try:
-            with rarfile.RarFile(file_path, 'r') as rar_ref:
-                rar_ref.extractall(extract_to)
-            print(f"✓ Extracted {file_path} to {extract_to}/")
-            return extract_to
-        except rarfile.RarCannotExec:
-            logger.warning("UnRAR tool not found. Please install UnRAR:")
-            logger.warning("  Linux: sudo apt-get install unrar")
-            logger.warning("  Mac: brew install unrar")
+            result = archive_safety.extract_rar(file_path, extract_to)
+            logger.info("Extracted %d files from %s", result.files_extracted, file_path)
+            return str(extract_to)
+        except ArchiveSafetyError as e:
+            logger.warning("RAR rejected by safety policy: %s (%s)", file_path, e)
             return None
         except Exception as e:
-            logger.error(f"Error extracting RAR file: {str(e)}")
+            # rarfile.RarCannotExec lands here: the UnRAR tool is missing.
+            logger.warning("RAR extraction unavailable for %s: %s", file_path, e.__class__.__name__)
             return None
-    
+
     def extract_7z(self, file_path):
-        """Extract 7Z files (requires py7zr package)"""
+        """Extract 7Z files safely (requires py7zr package)."""
         try:
-            import py7zr
+            import py7zr  # noqa: F401
         except ImportError:
             logger.warning("py7zr not installed. Install with: pip install py7zr")
             return None
-        
+
         extract_to = get_extraction_name_file(file_path, '.7z')
-        os.makedirs(extract_to, exist_ok=True)
-        
         try:
-            with py7zr.SevenZipFile(file_path, 'r') as sz_ref:
-                sz_ref.extractall(extract_to)
-            print(f"✓ Extracted {file_path} to {extract_to}/")
-            return extract_to
-        except Exception as e:
-            logger.error(f"Error extracting 7z file: {str(e)}")
+            result = archive_safety.extract_7z(file_path, extract_to)
+            logger.info("Extracted %d files from %s", result.files_extracted, file_path)
+            return str(extract_to)
+        except ArchiveSafetyError as e:
+            logger.warning("7z rejected by safety policy: %s (%s)", file_path, e)
             return None
-
-
+        except Exception as e:
+            logger.error("Error extracting 7z file %s: %s", file_path, e.__class__.__name__)
+            return None

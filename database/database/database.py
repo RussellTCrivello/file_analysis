@@ -2,7 +2,7 @@
 Enhanced Database class with connection pooling and transaction support.
 """
 import psycopg2
-from psycopg2 import pool, errors
+from psycopg2 import pool
 from contextlib import contextmanager
 from typing import Optional, Dict, Any
 import logging

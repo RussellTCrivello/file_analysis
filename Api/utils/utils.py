@@ -1,9 +1,10 @@
 import time
 import logging
 import threading
-import pickle
 from datetime import datetime, date
 from collections import defaultdict
+
+from core.serialization import unpack_int_list
 
 # Unified database interface - import from centralized database module
 # This provides a single source of truth for all database operations
@@ -373,7 +374,6 @@ def load_text_content(file_id):
 def load_text_keyword(keyword_id):
     """Load keyword text from keyword ID by unpickling word IDs and converting to text"""
     try:
-        import pickle
         
         # Get the pickled keyword data from the keywords table
         query = """
@@ -392,7 +392,7 @@ def load_text_keyword(keyword_id):
         
         # Unpickle to get word IDs
         try:
-            word_ids = pickle.loads(bytes(keyword_bytes))
+            word_ids = unpack_int_list(keyword_bytes)
         except Exception as e:
             logger.error(f"Error unpickling keyword {keyword_id}: {e}")
             return None
@@ -434,7 +434,6 @@ def load_text_keyword(keyword_id):
 def load_text_title(title_id):
     """Load title text from title ID by unpickling word IDs and converting to text"""
     try:
-        import pickle
         
         # Get the pickled title data from the titles_content table
         query = """
@@ -469,8 +468,8 @@ def load_text_title(title_id):
                 logger.debug(f"Title {title_id} has invalid pickle data (too short)")
                 return None
             
-            word_ids = pickle.loads(title_bytes)
-        except (pickle.UnpicklingError, ValueError, TypeError, EOFError) as e:
+            word_ids = unpack_int_list(title_bytes)
+        except (ValueError, TypeError, EOFError) as e:
             # Silently skip corrupted data to prevent log spam
             logger.debug(f"Error unpickling title {title_id}: {type(e).__name__}")
             return None
@@ -532,7 +531,6 @@ def batch_load_keywords_from_rows(keyword_rows):
     """
 
     try:
-        import pickle
         
         if not keyword_rows:
             return {}
@@ -568,7 +566,7 @@ def batch_load_keywords_from_rows(keyword_rows):
             
             if keyword_id and keyword_bytes:
                 try:
-                    word_ids = pickle.loads(bytes(keyword_bytes))
+                    word_ids = unpack_int_list(keyword_bytes)
                     if word_ids and isinstance(word_ids, list):
                         keyword_word_map[keyword_id] = word_ids
                         all_word_ids.update(word_ids)
@@ -601,7 +599,6 @@ def batch_load_keywords_from_rows(keyword_rows):
 def batch_load_titles(title_rows):
 
     try:
-        import pickle
         
         if not title_rows:
             return {}
@@ -626,7 +623,7 @@ def batch_load_titles(title_rows):
             
             if title_id and title_bytes:
                 try:
-                    word_ids = pickle.loads(bytes(title_bytes))
+                    word_ids = unpack_int_list(title_bytes)
                     if word_ids and isinstance(word_ids, list):
                         title_word_map[title_id] = word_ids
                         all_word_ids.update(word_ids)
@@ -1151,20 +1148,77 @@ def get_connection():
         psycopg2 connection object
     """
     executor = _get_query_executor()
-    return executor._get_connection()
+    # API-04 FIX: return a *connection*, not the pool's context manager.
+    # The previous implementation returned executor._get_connection(), which
+    # is a @contextmanager object; calling .cursor() on it raised
+    # AttributeError and made every preview request fail with a 500.
+    # The returned object supports BOTH call styles:
+    #   conn = get_connection(); ...; return_connection(conn)
+    #   with get_connection() as conn: ...   (releases to pool on exit)
+    return _PooledConnection(executor)
+
+
+class _PooledConnection:
+    """A pooled connection usable as a raw connection and as a context manager."""
+
+    def __init__(self, executor):
+        self._executor = executor
+        self._conn = executor.db.connect()
+        self._released = False
+
+    def __getattr__(self, name):
+        # Delegate everything (cursor, commit, rollback, closed, ...) to the
+        # real psycopg2 connection.
+        return getattr(object.__getattribute__(self, "_conn"), name)
+
+    def __enter__(self):
+        return self._conn
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is not None:
+                self._conn.rollback()
+            else:
+                self._conn.commit()
+        finally:
+            self.release()
+        return False
+
+    def release(self):
+        if not self._released:
+            self._released = True
+            try:
+                self._executor.db.putconn(self._conn)
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Failed to return database connection to pool: %s",
+                    exc.__class__.__name__,
+                )
+
+    def close(self):
+        self.release()
 
 
 def return_connection(conn):
     """
-    Return a database connection (no-op for DatabaseHub which manages its own connection).
-    This is provided for compatibility with code expecting connection pooling.
-    
-    Args:
-        conn: Connection to return (not actually returned to pool, just for compatibility)
+    Return a database connection to the pool.
+
+    API-04 FIX: this previously was a no-op, leaking pooled connections; now
+    the connection is properly released back to the shared pool. Accepts both
+    :class:`_PooledConnection` wrappers and raw psycopg2 connections.
     """
-    # DatabaseHub manages its own connection, so this is a no-op
-    # But we keep it for compatibility with code that expects connection pooling
-    pass
+    if conn is None:
+        return
+    try:
+        if hasattr(conn, "release"):
+            conn.release()
+            return
+        executor = _get_query_executor()
+        executor.db.putconn(conn)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "Failed to return database connection to pool: %s", exc.__class__.__name__
+        )
 
 
 # ==================== CATEGORY FUNCTIONS ====================

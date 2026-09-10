@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import logging
 
 from Api.utils import execute_query
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +327,7 @@ def api_paths_hierarchical():
             }
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/storage-stats', methods=['GET'])
@@ -455,7 +456,7 @@ def api_storage_stats():
             }
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/processing-statistics', methods=['GET'])
@@ -562,7 +563,7 @@ def api_processing_statistics():
             ]
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 
@@ -592,7 +593,7 @@ def api_analytics_sources():
         # 🚀 FIXED: Return consistent format with sides endpoint
         return jsonify({'sources': sources})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/sides', methods=['GET'])
@@ -604,7 +605,7 @@ def api_analytics_sides():
         sides = [{'id': k, 'name': v} for k, v in sides_dict.items()]
         return jsonify({'sides': sides})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/word-frequency', methods=['GET'])
@@ -641,7 +642,7 @@ def api_word_frequency():
             ]
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/path-hierarchy', methods=['GET'])
@@ -703,7 +704,7 @@ def api_path_hierarchy():
             'hierarchy': structure  # Also include as 'hierarchy' for backward compatibility
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'success': False}), 500
+        return jsonify({'error': client_safe_message(e, subsystem='Api.routes.analytics'), 'success': False}), 500
 
 
 @analytics_bp.route('/api/analytics/search-files', methods=['GET'])
@@ -769,7 +770,7 @@ def api_search_files():
             ]
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/content-statistics', methods=['GET'])
@@ -835,7 +836,7 @@ def api_content_statistics():
             ]
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/analytics', methods=['GET'])
@@ -933,7 +934,7 @@ def api_path_analytics():
         import traceback
         print(f"Error in api_path_analytics: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/words', methods=['GET'])
@@ -998,7 +999,7 @@ def api_path_words():
         import traceback
         print(f"Error in api_path_words: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/files', methods=['GET'])
@@ -1075,7 +1076,7 @@ def api_path_files():
         import traceback
         print(f"Error in api_path_files: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/classifications', methods=['GET'])
@@ -1181,7 +1182,7 @@ def api_path_classifications():
         import traceback
         print(f"Error in api_path_classifications: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/category-words-analysis', methods=['GET'])
@@ -1279,7 +1280,7 @@ def api_path_category_words_analysis():
         import traceback
         print(f"Error in api_path_category_words_analysis: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/category-files', methods=['GET'])
@@ -1397,7 +1398,7 @@ def api_path_category_files():
         import traceback
         print(f"Error in api_path_category_files: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/category-words-detail', methods=['GET'])
@@ -1450,7 +1451,7 @@ def api_path_category_words_detail():
             ]
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/path/word-files', methods=['GET'])
@@ -1573,7 +1574,7 @@ def api_path_word_files():
             'categoryFiltered': category_id is not None
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', status=500)
 
 
 @analytics_bp.route('/api/analytics/dashboard-summary', methods=['GET'])
@@ -1675,7 +1676,7 @@ def api_dashboard_summary():
         })
     except Exception as e:
         logger.error(f"Error in dashboard-summary endpoint: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/timeline-data', methods=['GET'])
@@ -1736,7 +1737,7 @@ def api_timeline_data():
             'processedCount': processed_counts
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/category-distribution', methods=['GET'])
@@ -1769,7 +1770,7 @@ def api_category_distribution():
         })
     except Exception as e:
         logger.error(f"Error in category-distribution endpoint: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 
 @analytics_bp.route('/api/analytics/file-type-distribution', methods=['GET'])
@@ -1824,6 +1825,6 @@ def api_file_type_distribution():
             ]
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.blueprints.analytics', success_key='success', status=500)
 
 

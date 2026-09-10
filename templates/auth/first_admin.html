@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Create administrator - File Analysis System</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        body { background: #f4f6fb; }
+        .card { max-width: 480px; margin: 8vh auto 0; border: 0;
+                border-radius: 1rem; box-shadow: 0 10px 40px rgba(30,40,90,.12); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="card-body p-4">
+            <h4 class="mb-1">Create the administrator account</h4>
+            <p class="text-muted">This page is available only until the first administrator exists.</p>
+            <div id="err" class="alert alert-danger d-none"></div>
+            <form id="form" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label class="form-label" for="username">Admin username</label>
+                    <input class="form-control" id="username" name="username" required maxlength="64"
+                           autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password</label>
+                    <input class="form-control" id="password" name="password" type="password" required
+                           minlength="12" autocomplete="new-password">
+                    <div class="form-text">Minimum 12 characters.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password2">Confirm password</label>
+                    <input class="form-control" id="password2" type="password" required minlength="12"
+                           autocomplete="new-password">
+                </div>
+                <button class="btn btn-primary w-100" id="btn" type="submit">Create administrator</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('form');
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var err = document.getElementById('err');
+        var p1 = document.getElementById('password').value;
+        var p2 = document.getElementById('password2').value;
+        if (p1 !== p2) {
+            err.textContent = 'Passwords do not match';
+            err.classList.remove('d-none');
+            return;
+        }
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+            },
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: p1
+            })
+        }).then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (res) {
+            if (res.ok) { window.location.href = res.body.redirect || '/'; return; }
+            err.textContent = res.body.error || 'Failed to create administrator';
+            err.classList.remove('d-none');
+        }).catch(function () {
+            err.textContent = 'An internal error occurred.';
+            err.classList.remove('d-none');
+        });
+    });
+})();
+</script>
+</body>
+</html>

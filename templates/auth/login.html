@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Sign in - File Analysis System</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        body { background: #f4f6fb; }
+        .login-card {
+            max-width: 420px; margin: 8vh auto 0; border: 0;
+            border-radius: 1rem; box-shadow: 0 10px 40px rgba(30,40,90,.12);
+        }
+        .brand-badge {
+            width: 56px; height: 56px; border-radius: 14px;
+            background: linear-gradient(135deg,#4f46e5,#06b6d4);
+            color:#fff; display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:1.4rem; margin: 0 auto 1rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card login-card">
+        <div class="card-body p-4">
+            <div class="brand-badge">FA</div>
+            <h4 class="text-center mb-1">File Analysis System</h4>
+            <p class="text-center text-muted mb-4">Sign in to continue</p>
+
+            <div id="login-error" class="alert alert-danger d-none" role="alert"></div>
+
+            <form id="login-form" method="post" action="{{ url_for('auth.login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if request.args.get('next') %}<input type="hidden" name="next" value="{{ request.args.get('next') }}">{% endif %}
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username"
+                           autocomplete="username" autofocus required maxlength="64">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                           autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-2" id="login-btn">Sign in</button>
+            </form>
+        </div>
+    </div>
+    <p class="text-center text-muted mt-3 small">
+        Accounts are managed by your administrator.
+    </p>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('login-form');
+    var errorBox = document.getElementById('login-error');
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errorBox.classList.add('d-none');
+        var btn = document.getElementById('login-btn');
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        fetch(form.action + window.location.search, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+            },
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            })
+        }).then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (res) {
+            if (res.ok) { window.location.href = res.body.redirect || '/'; return; }
+            errorBox.textContent = res.body.error || 'Sign-in failed';
+            errorBox.classList.remove('d-none');
+            btn.disabled = false; btn.textContent = 'Sign in';
+        }).catch(function () {
+            errorBox.textContent = 'An internal error occurred. Please try again.';
+            errorBox.classList.remove('d-none');
+            btn.disabled = false; btn.textContent = 'Sign in';
+        });
+    });
+})();
+</script>
+</body>
+</html>

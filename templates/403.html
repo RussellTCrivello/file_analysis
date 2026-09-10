@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+<div class="container d-flex flex-column align-items-center justify-content-center" style="min-height:60vh">
+    <h1 class="display-1 text-danger">403</h1>
+    <p class="lead">You do not have permission to access this resource.</p>
+    <p class="text-muted">If you believe this is an error, contact your administrator.</p>
+    <a href="/" class="btn btn-primary mt-2">Back to dashboard</a>
+</div>
+{% endblock %}

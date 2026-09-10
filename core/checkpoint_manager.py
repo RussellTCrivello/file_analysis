@@ -5,7 +5,6 @@ This module provides checkpoint/resume capabilities to allow processing to conti
 from where it left off after power outages, device shutdowns, or other interruptions.
 """
 
-import os
 import json
 import hashlib
 import threading

@@ -1,0 +1,60 @@
+<!-- Dashboard operations widget: active jobs, throughput, quick actions.
+     Real data from /api/jobs/summary + /api/jobs - no fake increments. -->
+<div class="card shadow-sm mb-3" id="opsWidget">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-check me-2"></i>Operations</span>
+    <span class="small text-muted" id="opsActive"></span>
+  </div>
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <a href="/operations/input" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> New Ingestion</a>
+      <a href="/operations/import" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-in-down"></i> New Import</a>
+      <a href="/operations/jobs" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history"></i> View Jobs</a>
+      <a href="/search" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Search Files</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 small">
+        <tbody id="opsRows">
+          <tr><td class="text-muted">Loading active jobs…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const badge = (s) => {
+    const cls = {RUNNING:'primary', QUEUED:'secondary', PAUSED:'warning',
+      CANCELLING:'warning', CANCELLED:'dark', COMPLETED:'success',
+      COMPLETED_WITH_WARNINGS:'info', FAILED:'danger'}[s] || 'light';
+    return `<span class="badge bg-${cls}">${(s||'').replace(/_/g,' ')}</span>`;
+  };
+  async function refreshOps() {
+    try {
+      const sum = await fetch('/api/jobs/summary').then(r => r.json());
+      if (sum.success) {
+        document.getElementById('opsActive').textContent =
+          `${sum.active} active · ` +
+          Object.entries(sum.counts).map(([k, v]) => `${k.replace(/_/g,' ')}: ${v}`).join(' · ');
+      }
+      const jobs = await fetch('/api/jobs?limit=5').then(r => r.json());
+      const rows = (jobs.jobs || []).slice(0, 5);
+      document.getElementById('opsRows').innerHTML = rows.length ? rows.map(j => `
+        <tr>
+          <td><a href="/operations/jobs/${j.job_id}"><code>${j.job_id}</code></a></td>
+          <td>${(j.job_type||'').replace(/_/g,' ')}</td>
+          <td>${badge(j.status)}</td>
+          <td style="min-width:90px;">
+            <div class="progress" style="height:6px;">
+              <div class="progress-bar" style="width:${j.progress||0}%"></div>
+            </div>
+          </td>
+          <td class="text-muted">${j.progress||0}%</td>
+        </tr>`).join('')
+        : '<tr><td class="text-muted">No operations yet - start an ingestion.</td></tr>';
+    } catch (e) { /* widget is non-critical */ }
+  }
+  refreshOps();
+  setInterval(refreshOps, 3000);
+})();
+</script>

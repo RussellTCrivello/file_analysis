@@ -14,13 +14,15 @@ from Api.utils import (
 
 from datetime import date, datetime, timedelta
 import logging
-import pickle
 
 from Api.utils import get_processing_statistics, get_statistics
+from core.errors import client_error
+from core.security.rate_limit import limiter
 from database import (
     create_side, create_source, insert_side, insert_source, get_side, get_side_by_name, get_source, get_source_by_name, get_source_by_id,
     update_source, update_side, search_categories
 )
+from core.serialization import unpack_int_list
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ def register_api_routes(app):
             return response
         except Exception as e:
             logger.error(f"Dashboard stats API error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sources', methods=['GET', 'POST'])
     def api_sources():
@@ -133,7 +135,7 @@ def register_api_routes(app):
                     raise  # Re-raise to be caught by outer except
             except Exception as e:
                 logger.error(f"Error creating source: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': f'Failed to create source: {str(e)}'}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', public_message='Failed to create source', status=500)
         else:
             # GET request - 🚀 OPTIMIZED with shorter cache (30 seconds for better freshness)
             try:
@@ -145,7 +147,7 @@ def register_api_routes(app):
                 return response
             except Exception as e:
                 logger.error(f"Error getting sources: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sources/<int:source_id>', methods=['DELETE', 'GET', 'PUT'])
     def api_source_detail(source_id):
@@ -171,7 +173,7 @@ def register_api_routes(app):
                 return jsonify({'success': True, 'message': 'Source deleted successfully'})
             except Exception as e:
                 logger.error(f"Error deleting source {source_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
         elif request.method == 'GET':
             try:
                 from datetime import date, datetime
@@ -203,7 +205,7 @@ def register_api_routes(app):
                     return jsonify({'success': False, 'error': 'Source not found'}), 404
             except Exception as e:
                 logger.error(f"Error getting source {source_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': f'Error loading source: {str(e)}'}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', public_message='Error loading source', status=500)
         elif request.method == 'PUT':
             try:
                 data = request.get_json(silent=True)
@@ -345,7 +347,7 @@ def register_api_routes(app):
                 return jsonify({'success': True, 'message': 'Source updated successfully'})
             except Exception as e:
                 logger.error(f"Error updating source {source_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sources/<int:source_id>/duplicate', methods=['POST'])
     def api_source_duplicate(source_id):
@@ -426,7 +428,7 @@ def register_api_routes(app):
             })
         except Exception as e:
             logger.error(f"Error duplicating source {source_id}: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sources/<int:source_id>/export', methods=['GET'])
     def api_source_export(source_id):
@@ -477,7 +479,7 @@ def register_api_routes(app):
             
         except Exception as e:
             logger.error(f"Error exporting source {source_id}: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sides', methods=['GET', 'POST'])
     def api_sides():
@@ -522,7 +524,7 @@ def register_api_routes(app):
                     return jsonify({'success': False, 'error': 'Failed to create side: Invalid side ID returned'}), 500
             except Exception as e:
                 logger.error(f"Error creating side: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
         else:
             try:
                 sides_dict = select_info_sides()
@@ -532,7 +534,7 @@ def register_api_routes(app):
                 return response
             except Exception as e:
                 logger.error(f"Error getting sides: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sides/<int:side_id>', methods=['DELETE', 'GET', 'PUT'])
     def api_side_detail(side_id):
@@ -557,7 +559,7 @@ def register_api_routes(app):
                 return jsonify({'success': True, 'message': 'Side deleted successfully'})
             except Exception as e:
                 logger.error(f"Error deleting side {side_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
         elif request.method == 'GET':
             try:
                 from datetime import date, datetime
@@ -573,7 +575,7 @@ def register_api_routes(app):
                     return jsonify({'success': False, 'error': 'Side not found'}), 404
             except Exception as e:
                 logger.error(f"Error getting side {side_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
         elif request.method == 'PUT':
             try:
                 data = request.get_json(silent=True)
@@ -604,7 +606,7 @@ def register_api_routes(app):
                 return jsonify({'success': True, 'message': 'Side updated successfully'})
             except Exception as e:
                 logger.error(f"Error updating side {side_id}: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/sides/<int:side_id>/duplicate', methods=['POST'])
     def api_side_duplicate(side_id):
@@ -653,7 +655,7 @@ def register_api_routes(app):
             })
         except Exception as e:
             logger.error(f"Error duplicating side {side_id}: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/categories')
     def api_categories():
@@ -675,6 +677,7 @@ def register_api_routes(app):
         return response
     
     @app.route('/api/categories/search')
+    @limiter.limit("30 per minute")
     def api_categories_search():
         """Search categories with pagination"""
         try:
@@ -699,9 +702,10 @@ def register_api_routes(app):
             })
         except Exception as e:
             logger.error(f"Error searching categories: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/words/search')
+    @limiter.limit("30 per minute")
     def api_words_search():
         """Search words with pagination, returns word_id. Optionally excludes words already in a category.
         Uses exact match for multi-word keywords to search for the entire keyword."""
@@ -778,7 +782,7 @@ def register_api_routes(app):
             })
         except Exception as e:
             logger.error(f"Error searching words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/files-filtered')
     def api_dashboard_files_filtered():
@@ -847,7 +851,7 @@ def register_api_routes(app):
             return jsonify({'success': True, 'file_types': file_types})
         except Exception as e:
             logger.error(f"Error fetching filtered files: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/categories-filtered')
     def api_dashboard_categories_filtered():
@@ -908,7 +912,7 @@ def register_api_routes(app):
             return jsonify({'success': True, 'categories': categories})
         except Exception as e:
             logger.error(f"Error fetching filtered categories: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/keywords-filtered')
     def api_dashboard_keywords_filtered():
@@ -986,7 +990,7 @@ def register_api_routes(app):
             return jsonify({'success': True, 'keywords': keywords})
         except Exception as e:
             logger.error(f"Error fetching filtered keywords: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/sources-filtered')
     def api_dashboard_sources_filtered():
@@ -1056,7 +1060,7 @@ def register_api_routes(app):
             return jsonify({'success': True, 'sources': sources})
         except Exception as e:
             logger.error(f"Error fetching filtered sources: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/sides-filtered')
     def api_dashboard_sides_filtered():
@@ -1134,7 +1138,7 @@ def register_api_routes(app):
             return jsonify({'success': True, 'sides': sides})
         except Exception as e:
             logger.error(f"Error fetching filtered sides: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/words')
     def api_dashboard_words():
@@ -1252,13 +1256,12 @@ def register_api_routes(app):
             })
         except Exception as e:
             logger.error(f"Error fetching words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/dashboard/similar-files')
     def api_dashboard_similar_files():
         """API: Get similar files grouped by hash and title similarity"""
         try:
-            import pickle
             from Api.utils.title_similarity import group_similar_titles
             
             similarity_threshold = request.args.get('similarity_threshold', 0.7, type=float)
@@ -1403,11 +1406,11 @@ def register_api_routes(app):
                                 logger.warning(f"Title {title_id} has invalid pickle data (too short)")
                                 continue
                             
-                            word_ids = pickle.loads(title_bytes)
+                            word_ids = unpack_int_list(title_bytes)
                             if word_ids and isinstance(word_ids, list):
                                 title_word_map[title_id] = word_ids
                                 all_title_word_ids.update(word_ids)
-                    except (pickle.UnpicklingError, ValueError, TypeError, EOFError) as e:
+                    except (ValueError, TypeError, EOFError) as e:
                         # Silently skip corrupted data to prevent log spam
                         # Only log if it's a new type of error
                         if 'invalid load key' not in str(e).lower():
@@ -1500,7 +1503,7 @@ def register_api_routes(app):
             logger.error(f"Error fetching similar files: {e}")
             import traceback
             traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
     
     @app.route('/api/file/<int:file_id>/details')
     def api_file_details(file_id):
@@ -1576,7 +1579,6 @@ def register_api_routes(app):
                     """, (title_id,) if title_id else (0,), fetch="all")
                     
                     if all_titles_data:
-                        import pickle
                         from Api.utils import execute_query as eq
                         
                         # Decode all titles
@@ -1589,7 +1591,7 @@ def register_api_routes(app):
                             tbytes = row[2]
                             try:
                                 if tbytes:
-                                    word_ids = pickle.loads(bytes(tbytes))
+                                    word_ids = unpack_int_list(tbytes)
                                     if word_ids and isinstance(word_ids, list):
                                         title_word_map[tid] = word_ids
                                         all_word_ids.update(word_ids)
@@ -1655,6 +1657,4 @@ def register_api_routes(app):
             return jsonify({'success': True, 'details': details})
         except Exception as e:
             logger.error(f"Error fetching file details: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-
+            return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)

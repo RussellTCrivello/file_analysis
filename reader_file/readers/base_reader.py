@@ -160,7 +160,6 @@ class BaseReader(ABC):
                 'file_path': file_path,
                 'reader': self.__class__.__name__
             },
-            logger=self.logger
         )
         
         return {

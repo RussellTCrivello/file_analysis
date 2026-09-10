@@ -7,9 +7,9 @@ import threading
 from typing import Optional, Dict
 
 from apps.importing.database.transaction_manager import TransactionManager
-from utils.logger import get_logger
-from utils.exceptions import RepositoryException
-from utils.constants import TABLE_WORDS
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import RepositoryException
+from apps.importing.utils.constants import TABLE_WORDS
 
 logger = get_logger(__name__)
 

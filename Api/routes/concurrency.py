@@ -19,6 +19,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from concurrency import hub
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def get_metrics():
             }
         except Exception as e:
             logger.warning(f"Error getting thread manager metrics: {e}")
-            metrics['thread_manager'] = {'status': 'error', 'error': str(e)}
+            metrics['thread_manager'] = {'status': 'error', 'error': client_safe_message(e, subsystem='Api.routes.concurrency')}
         
         # Process Manager metrics
         try:
@@ -78,7 +79,7 @@ def get_metrics():
             }
         except Exception as e:
             logger.warning(f"Error getting process manager metrics: {e}")
-            metrics['process_manager'] = {'status': 'error', 'error': str(e)}
+            metrics['process_manager'] = {'status': 'error', 'error': client_safe_message(e, subsystem='Api.routes.concurrency')}
         
         # Async Manager metrics
         try:
@@ -97,7 +98,7 @@ def get_metrics():
             }
         except Exception as e:
             logger.warning(f"Error getting async manager metrics: {e}")
-            metrics['async_manager'] = {'status': 'error', 'error': str(e)}
+            metrics['async_manager'] = {'status': 'error', 'error': client_safe_message(e, subsystem='Api.routes.concurrency')}
         
         # Pool Manager (MultiprocessingManager) metrics
         try:
@@ -116,7 +117,7 @@ def get_metrics():
             }
         except Exception as e:
             logger.warning(f"Error getting pool manager metrics: {e}")
-            metrics['pool_manager'] = {'status': 'error', 'error': str(e)}
+            metrics['pool_manager'] = {'status': 'error', 'error': client_safe_message(e, subsystem='Api.routes.concurrency')}
         
         return jsonify({
             'success': True,
@@ -125,7 +126,7 @@ def get_metrics():
         })
     except Exception as e:
         logger.error(f"Error getting concurrency metrics: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.concurrency', success_key='success', status=500)
 
 
 @concurrency_bp.route('/api/threads')
@@ -158,7 +159,7 @@ def get_threads():
         })
     except Exception as e:
         logger.error(f"Error getting threads: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.concurrency', success_key='success', status=500)
 
 
 @concurrency_bp.route('/api/processes')
@@ -192,7 +193,7 @@ def get_processes():
         })
     except Exception as e:
         logger.error(f"Error getting processes: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.concurrency', success_key='success', status=500)
 
 
 @concurrency_bp.route('/api/async-tasks')
@@ -225,7 +226,7 @@ def get_async_tasks():
         })
     except Exception as e:
         logger.error(f"Error getting async tasks: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.concurrency', success_key='success', status=500)
 
 
 @concurrency_bp.route('/api/pools')
@@ -258,5 +259,5 @@ def get_pools():
         })
     except Exception as e:
         logger.error(f"Error getting pools: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.concurrency', success_key='success', status=500)
 

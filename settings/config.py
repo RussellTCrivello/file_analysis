@@ -23,13 +23,21 @@ logger = logging.getLogger(__name__)
 
 def get_db_config() -> Dict[str, any]:
     """
-    Get database configuration from centralized settings system
-    
-    Returns:
-        Dict with database connection parameters
+    Get database configuration from centralized settings system.
+
+    ARCH-02 precedence: environment variables override the persisted
+    settings file AT READ TIME, so a stale cached settings object can never
+    override a deployment's environment.
     """
     db_config = get_database_config()
-    return db_config.to_dict_full()
+    d = db_config.to_dict_full()
+    d["host"] = os.environ.get("DB_HOST", d["host"])
+    d["port"] = int(os.environ.get("DB_PORT", d["port"]))
+    d["database"] = os.environ.get("DB_NAME", d["database"])
+    d["user"] = os.environ.get("DB_USER", d["user"])
+    if os.environ.get("DB_PASSWORD") is not None:
+        d["password"] = os.environ["DB_PASSWORD"]
+    return d
 
 
 def get_connection_string() -> str:

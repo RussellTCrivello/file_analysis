@@ -8,9 +8,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
-from settings.config import get_config, AppConfig
-from settings import DatabaseConfig, StorageConfig, ProcessingConfig
-from settings import get_settings, UnifiedSettingsManager
+from settings.config import get_config
+from settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +126,7 @@ def initialize_paths(config: Dict[str, Any]):
         settings = get_settings()
         
         if 'paths' in config:
-            paths_config = config['paths']
+            config['paths']  # validate presence
             
             # Set project root
             if app_config.project_root is None:

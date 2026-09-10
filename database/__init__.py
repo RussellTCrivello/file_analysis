@@ -6,6 +6,7 @@ maintaining backward compatibility while using the modern database architecture.
 """
 
 # Core database classes
+import logging
 from database.database.database import Database
 from database.database.config import DatabaseConfig
 from database.exceptions import QueryError, TransactionError
@@ -45,6 +46,8 @@ from database.queries import (
     create_side,
     insert_side,
 )
+
+logger = logging.getLogger(__name__)
 
 # Database initialization functions
 from database.init_database import create_database
@@ -306,125 +309,23 @@ def database_exists(dbname, password=None, user=None, host=None, port=None):
         return False
 
 def create_schema(conn=None):
+    """Create the database schema via the versioned migration system (DB-01/DB-02).
+
+    This delegates to the single authoritative bootstrap:
+    ``database.bootstrap.bootstrap_database``.  The previous implementation
+    executed table DDL in an order that violated foreign-key dependencies
+    (``words_paths`` before ``paths``), which made fresh installation fail,
+    and relied on a module that ran DDL with hardcoded credentials at import
+    time.  Both defects are removed.
     """
-    Create database schema (tables)
-    
-    Args:
-        conn: Optional database connection. If provided, uses this connection.
-              If None, creates a new connection using Database().
-    """
-    try:
-        from database.createsTables import (
-            create_words_table,
-            create_categorys_table,
-            create_word_categorys_table,  # Note: name is create_word_categorys_table, not create_words_categorys_table
-            create_words_paths_table,
-            create_keywords_paths_table,
-            create_keywords_table,
-            create_contents_table,
-            create_titles_content_table,
-            create_sides_table,
-            create_source_table,
-            create_hashs_table,
-            create_paths_table,
-            create_punctuation_table,
-        )
-    except ImportError:
-        # Fallback: try to read createsTables.py directly
-        import importlib.util
-        import os
-        creates_tables_path = os.path.join(os.path.dirname(__file__), 'createsTables.py')
-        if os.path.exists(creates_tables_path):
-            spec = importlib.util.spec_from_file_location("createsTables", creates_tables_path)
-            creates_tables = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(creates_tables)
-            create_words_table = creates_tables.create_words_table
-            create_categorys_table = creates_tables.create_categorys_table
-            create_word_categorys_table = creates_tables.create_word_categorys_table
-            create_words_paths_table = creates_tables.create_words_paths_table
-            create_keywords_paths_table = creates_tables.create_keywords_paths_table
-            create_keywords_table = creates_tables.create_keywords_table
-            create_contents_table = creates_tables.create_contents_table
-            create_titles_content_table = creates_tables.create_titles_content_table
-            create_sides_table = creates_tables.create_sides_table
-            create_source_table = creates_tables.create_source_table
-            create_hashs_table = creates_tables.create_hashs_table
-            create_paths_table = creates_tables.create_paths_table
-            create_punctuation_table = creates_tables.create_punctuation_table
-        else:
-            raise ImportError("Could not find createsTables.py")
-    
-    # Use provided connection or create a new one
-    if conn is not None:
-        # Use the provided connection
-        cur = conn.cursor()
-        try:
-            # Execute all table creation statements in correct order
-            cur.execute(create_words_table)
-            cur.execute(create_categorys_table)
-            cur.execute(create_word_categorys_table)
-            cur.execute(create_words_paths_table)
-            cur.execute(create_keywords_paths_table)
-            cur.execute(create_keywords_table)
-            cur.execute(create_contents_table)
-            cur.execute(create_titles_content_table)
-            cur.execute(create_sides_table)
-            cur.execute(create_source_table)
-            cur.execute(create_hashs_table)
-            cur.execute(create_paths_table)
-            cur.execute(create_punctuation_table)
-            # Always create alerts table (required by notification service)
-            try:
-                from database.createsTables import create_alerts_table
-                cur.execute(create_alerts_table)
-            except (ImportError, AttributeError) as e:
-                # Log but don't fail - alerts table may not be critical for basic operation
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Could not create alerts table: {e}")
-            conn.commit()
-            return True
-        except Exception as e:
-            conn.rollback()
-            raise
-        finally:
-            cur.close()
-    else:
-        # Create a new connection using Database()
-        db = Database()
-        with db.get_connection() as conn:
-            cur = conn.cursor()
-            try:
-                # Execute all table creation statements in correct order
-                cur.execute(create_words_table)
-                cur.execute(create_categorys_table)
-                cur.execute(create_word_categorys_table)
-                cur.execute(create_words_paths_table)
-                cur.execute(create_keywords_paths_table)
-                cur.execute(create_keywords_table)
-                cur.execute(create_contents_table)
-                cur.execute(create_titles_content_table)
-                cur.execute(create_sides_table)
-                cur.execute(create_source_table)
-                cur.execute(create_hashs_table)
-                cur.execute(create_paths_table)
-                cur.execute(create_punctuation_table)
-                # Always create alerts table (required by notification service)
-                try:
-                    from database.createsTables import create_alerts_table
-                    cur.execute(create_alerts_table)
-                except (ImportError, AttributeError) as e:
-                    # Log but don't fail - alerts table may not be critical for basic operation
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Could not create alerts table: {e}")
-                conn.commit()
-                return True
-            except Exception as e:
-                conn.rollback()
-                raise
-            finally:
-                cur.close()
+    from settings.config import get_db_config
+    from database.bootstrap import bootstrap_database, BootstrapError
+
+    cfg = get_db_config()
+    report = bootstrap_database(cfg)
+    if report.get("applied_migrations"):
+        logger.info("Schema bootstrap applied migrations: %s", report["applied_migrations"])
+    return True
 
 def get_postgres_connection(**kwargs):
     """Get a PostgreSQL connection"""

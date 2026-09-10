@@ -6,9 +6,9 @@ Handles all database operations for categories and words_categorys tables
 from typing import Optional
 
 from apps.importing.database.transaction_manager import TransactionManager
-from utils.logger import get_logger
-from utils.exceptions import RepositoryException
-from utils.constants import TABLE_CATEGORIES, TABLE_WORDS_CATEGORIES
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import RepositoryException
+from apps.importing.utils.constants import TABLE_CATEGORIES, TABLE_WORDS_CATEGORIES
 
 logger = get_logger(__name__)
 

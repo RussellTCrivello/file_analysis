@@ -11,6 +11,9 @@ from settings import get_settings
 import logging
 from datetime import datetime
 from io import BytesIO
+from core.errors import client_error
+from core.security.flask_ext import admin_required
+from core.security.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,7 @@ import_export_bp = Blueprint('import_export', __name__, url_prefix='/api/import-
 # ==================== BATCH FILE IMPORT ====================
 
 @import_export_bp.route('/batch-import', methods=['POST'])
+@limiter.limit("20 per minute")
 def batch_import_files():
 
     try:
@@ -40,28 +44,33 @@ def batch_import_files():
         
         if not file_paths:
             return jsonify({'error': 'No file paths provided'}), 400
-        
+
         if not source_id or not side_id:
             return jsonify({'error': 'source_id and side_id are required'}), 400
-        
-        # Import files
+
+        # Import files (path validation + queueing happen in the service)
         results = ImportService.import_batch_files(
             file_paths=file_paths,
             source_id=source_id,
             side_id=side_id
         )
-        
+
+        if not results.get('valid', False):
+            return jsonify({'error': results.get('error', 'Import failed')}), 400
+
+        status = 200 if results.get('accepted', 0) > 0 else 422
         return jsonify({
-            'success': True,
-            'results': results
-        })
+            'success': results.get('accepted', 0) > 0,
+            **results
+        }), status
         
     except Exception as e:
         logger.error(f"Batch import error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 @import_export_bp.route('/batch-import/csv', methods=['POST'])
+@limiter.limit("20 per minute")
 def batch_import_from_csv():
     """
     Import file list from CSV and process files.
@@ -102,18 +111,23 @@ def batch_import_from_csv():
         
     except Exception as e:
         logger.error(f"CSV batch import error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 # ==================== DATABASE BACKUP ====================
 
 @import_export_bp.route('/backup/export', methods=['GET', 'POST'])
+@limiter.limit("20 per minute")
+@admin_required
 def export_database_backup():
     """
     Export database backup.
-    
+
+    ADMIN-ONLY: a backup contains the full evidence tables. Backup export
+    and restore are administrator capabilities (SEC-02; docs/SECURITY.md).
+
     Query Parameters (GET) or JSON Body (POST):
-    - tables: Comma-separated list of table names (optional, all tables if not provided)
+    - tables: Comma-separated list of table names (optional, evidence tables if not provided)
     - include_data: Include data in backup (default: true)
     """
     try:
@@ -144,19 +158,24 @@ def export_database_backup():
         
     except Exception as e:
         logger.error(f"Database backup export error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 @import_export_bp.route('/backup/import', methods=['POST'])
+@limiter.limit("20 per minute")
+@admin_required
 def import_database_backup():
     """
     Import/validate database backup.
-    
+
+    ADMIN-ONLY: restoring replaces rows in the evidence tables (SEC-02;
+    docs/SECURITY.md).
+
     Form Data:
     - file: Backup ZIP file
-    
+
     Query Parameters:
-    - restore_data: Whether to restore data (default: false, not implemented)
+    - restore_data: Whether to restore data (default: false = validate only)
     """
     try:
         if 'file' not in request.files:
@@ -181,12 +200,13 @@ def import_database_backup():
         
     except Exception as e:
         logger.error(f"Database backup import error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 # ==================== SETTINGS EXPORT/IMPORT ====================
 
 @import_export_bp.route('/settings/export', methods=['GET'])
+@limiter.limit("20 per minute")
 def export_settings():
     """
     Export current settings to JSON file.
@@ -215,10 +235,11 @@ def export_settings():
         
     except Exception as e:
         logger.error(f"Settings export error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 @import_export_bp.route('/settings/import', methods=['POST'])
+@limiter.limit("20 per minute")
 def import_settings():
     """
     Import settings from JSON file.
@@ -248,7 +269,7 @@ def import_settings():
         
     except Exception as e:
         logger.error(f"Settings import error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.import_export', status=500)
 
 
 def register_import_export_routes(app):

@@ -4,7 +4,6 @@ Consolidates common initialization logic.
 """
 
 import sys
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -85,7 +84,7 @@ def initialize_settings(project_root: Path) -> None:
         if settings.project_root is None:
             settings.set_project_root(project_root)
         
-        settings_file = ensure_settings_file_exists()
+        ensure_settings_file_exists()
         settings.reload_from_file()
         
         # Initialize resource coordinator

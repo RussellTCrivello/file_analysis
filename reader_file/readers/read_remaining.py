@@ -5,6 +5,7 @@ Supports: JSON, XML, TXT, YAML, HTML, BIN, ICS and many other text-based formats
 """
 
 import os
+from pathlib import Path
 import logging
 from typing import Dict, Any, Optional, Set
 
@@ -30,45 +31,42 @@ class RemainingFileReader(BaseReader):
     """
     
     def get_supported_extensions(self) -> Set[str]:
-        """Return set of supported remaining file extensions - supports ALL text-based files"""
+        """Return set of supported remaining file extensions.
+
+        READER-02 (audit fix): this list previously advertised ~150
+        extensions while ``read_file`` implemented only nine of them - every
+        other advertised format failed deterministically with "Unsupported
+        file type". The list now contains exactly what ``read_file``
+        genuinely handles: text-based documents, structured data, code and
+        configuration formats. Binary executable/library formats were
+        removed: they cannot yield meaningful extractable content.
+        """
         return {
-            '.json', '.xml', '.txt', '.yaml', '.yml', '.html', '.htm', '.bin',
-            '.rtf', '.md', '.csv', '.log', '.ini', '.cfg', '.conf', '.properties',
-            '.sql', '.sh', '.bat', '.ps1', '.js', '.css', '.php', '.py', '.java',
-            '.cpp', '.c', '.h', '.hpp', '.cs', '.rb', '.go', '.rs', '.swift',
-            '.kt', '.scala', '.r', '.m', '.pl', '.lua', '.vb', '.asm', '.s',
-            '.srt', '.vtt', '.smi', '.sub', '.idx', '.nfo', '.readme', '.license',
-            '.gitignore', '.gitattributes', '.editorconfig', '.dockerfile', '.makefile',
-            '.cmake', '.gradle', '.maven', '.pom', '.lock', '.toml', '.env',
-            '.dockerignore', '.npmignore', '.babelrc', '.eslintrc', '.prettierrc',
-            '.tsconfig', '.jsx', '.tsx', '.vue', '.svelte', '.elm', '.clj', '.cljs',
-            '.ex', '.exs', '.erl', '.hrl', '.fs', '.fsx', '.ml', '.mli', '.hs',
-            '.lhs', '.purs', '.dart', '.jl', '.nim', '.cr', '.heex', '.eex',
-            '.leex', '.slim', '.haml', '.jade', '.pug', '.styl', '.less', '.sass',
-            '.scss', '.coffee', '.iced', '.ls', '.ts', '.d.ts', '.map', '.graphql',
-            '.gql', '.prisma', '.proto', '.thrift', '.avsc', '.avdl', '.avpr',
-            '.fbs', '.capnp', '.bson', '.msgpack', '.cbor', '.ubj', '.ion', '.edn',
-            '.cljc', '.transit', '.hocon', '.config', '.settings', '.prefs', '.plist',
-            '.strings', '.stringsdict', '.xcconfig', '.pbxproj', '.xcscheme',
-            '.xcworkspace', '.xcodeproj', '.storyboard', '.xib', '.nib', '.lproj',
-            '.xclangspec', '.xcmappingmodel', '.xcdatamodel', '.xcdatamodeld',
-            '.mom', '.momd', '.omo', '.hmap', '.modulemap', '.pch', '.pcm',
-            '.swiftmodule', '.swiftdoc', '.swiftsourceinfo', '.tbd', '.dylib',
-            '.a', '.framework', '.bundle', '.app', '.appex', '.ipa', '.apk',
-            '.aab', '.dex', '.so', '.dll', '.lib', '.obj', '.o', '.elf', '.exe',
-            '.com', '.scr', '.cmd', '.psm1', '.psd1', '.ps1xml', '.bash', '.zsh',
-            '.fish', '.csh', '.tcsh', '.ksh', '.dash', '.ash', '.yash', '.mksh',
-            '.pdksh', '.ole',  # OLE files
-            '.ics'  # iCalendar files
+            # structured data / markup / documents
+            '.json', '.xml', '.txt', '.yaml', '.yml', '.html', '.htm',
+            '.rtf', '.md', '.csv', '.tsv', '.log', '.ini', '.cfg', '.conf',
+            '.properties', '.toml', '.env', '.srt', '.vtt',
+            # calendar
+            '.ics',
+            # source code / scripts / shell
+            '.sql', '.sh', '.bash', '.bat', '.cmd', '.ps1',
+            '.js', '.jsx', '.ts', '.tsx', '.css', '.scss', '.less', '.php',
+            '.py', '.java', '.c', '.h', '.cpp', '.hpp', '.cs', '.rb', '.go',
+            '.rs', '.swift', '.kt', '.scala', '.r', '.m', '.pl', '.lua',
+            '.vb', '.hs', '.dart', '.jl', '.nim', '.vue', '.svelte',
+            # build / config metadata
+            '.gitignore', '.gitattributes', '.editorconfig', '.makefile',
+            '.cmake', '.gradle', '.lock', '.graphql', '.gql', '.proto',
+            '.dockerfile', '.hocon', '.config', '.settings', '.prefs',
         }
-    
+
     def read_file(self, file_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Read remaining file types with improved error handling
-        
+
         Args:
             file_info: Dictionary containing file information with 'path' key
-        
+
         Returns:
             Dictionary with file content or None on error
         """
@@ -76,30 +74,55 @@ class RemainingFileReader(BaseReader):
         is_valid, error_msg = self.validate_file_info(file_info)
         if not is_valid:
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
-        
+
         file_path = str(file_info.get("path"))
         file_lower = file_path.lower()
-        
+
         try:
             if file_lower.endswith('.json'):
                 return self.read_json_file(file_path)
             elif file_lower.endswith('.xml'):
                 return self.read_xml_file(file_path)
-            elif file_lower.endswith('.txt'):
-                return self.read_text_file(file_path)
-            elif file_lower.endswith(('.yaml', '.yml')):
+            elif file_lower.endswith('.rtf'):
+                return self.read_rtf_file(file_path)
+            elif file_lower.endswith('.yaml') or file_lower.endswith('.yml'):
                 return self.read_yaml_file(file_path)
-            elif file_lower.endswith(('.html', '.htm')):
+            elif file_lower.endswith('.html') or file_lower.endswith('.htm'):
                 return self.read_html_file(file_path)
-            elif file_lower.endswith('.bin'):
-                return self.read_binary_file(file_path)
             elif file_lower.endswith('.ics'):
                 return self.read_ics_file(file_path)
+            elif file_lower.endswith('.bin'):
+                return self.read_binary_file(file_path)
+            elif file_lower.endswith(tuple(self.get_supported_extensions() | {'.bin'})):
+                # READER-02: every other advertised text format is genuinely
+                # supported through the encoding-aware text reader.
+                return self.read_text_file(file_path)
             else:
-                error_msg = f"Unsupported file type: {file_path}"
+                error_msg = f"Unsupported file type: {Path(file_path).suffix}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")
+
+    def read_rtf_file(self, filepath: str) -> Dict[str, Any]:
+        """Read an RTF file; strips control words when striprtf is available,
+        falls back to plain text extraction otherwise (READER-02/READER-04)."""
+        result: Dict[str, Any] = {"filepath": filepath}
+        try:
+            try:
+                from striprtf.striprtf import rtf_to_text
+
+                with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                    raw = f.read()
+                result["content"] = rtf_to_text(raw)
+                result["rtf_stripped"] = True
+            except ImportError:
+                # Fallback: readable text extraction without the dependency.
+                with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                    result["content"] = f.read()
+                result["rtf_stripped"] = False
+        except Exception as e:
+            return self.handle_read_error(e, filepath, "read_rtf_file")
+        return result
     
     def read_json_file(self, filepath: str, encoding: str = 'utf-8') -> Dict[str, Any]:
         """

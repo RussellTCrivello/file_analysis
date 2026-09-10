@@ -1,5 +1,5 @@
 from .best_repo import BaseRepository
-from datetime import date, datetime
+from datetime import date
 from typing import Optional, Dict, Any
 import json
 from ..queries.alert_queries import AlertQueries

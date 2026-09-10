@@ -395,16 +395,34 @@ class ExportService:
                 'tables': {}
             }
             
-            # Get list of tables
+            # Get list of tables. Default (and hard cap): the evidence
+            # tables shared with the backup importer (ALLOWED_TABLES).
+            # System tables (users, sessions, audit_log, jobs,
+            # schema_migrations, ...) are never exported: they must not be
+            # restored over a live system, and credential/session material
+            # must not end up in backup files.
             if tables is None:
-                cursor.execute("""
-                    SELECT table_name
-                    FROM information_schema.tables
-                    WHERE table_schema = 'public'
-                    AND table_type = 'BASE TABLE'
-                    ORDER BY table_name
-                """)
-                tables = [row[0] for row in cursor.fetchall()]
+                from Api.services.import_service import ImportService
+
+                tables = sorted(ImportService.ALLOWED_TABLES)
+            else:
+                from Api.services.import_service import ImportService
+
+                disallowed = [t for t in tables
+                              if t not in ImportService.ALLOWED_TABLES]
+                if disallowed:
+                    raise ValueError(
+                        "Tables not exportable: " + ", ".join(sorted(disallowed))
+                    )
+            cursor.execute("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_type = 'BASE TABLE'
+                ORDER BY table_name
+            """)
+            existing = {row[0] for row in cursor.fetchall()}
+            tables = [t for t in tables if t in existing]
             
             for table_name in tables:
                 try:

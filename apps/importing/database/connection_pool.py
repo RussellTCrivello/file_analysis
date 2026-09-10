@@ -8,8 +8,8 @@ from psycopg2 import pool
 import threading
 from typing import Dict, Any
 
-from utils.logger import get_logger
-from utils.exceptions import ConnectionPoolException
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import ConnectionPoolException
 
 logger = get_logger(__name__)
 

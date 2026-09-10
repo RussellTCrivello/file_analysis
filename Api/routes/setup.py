@@ -53,7 +53,7 @@ def check_database_initialized():
             conn = psycopg2.connect(
                 dbname=db_config.get('database', 'analysis'),
                 user=db_config.get('user', 'postgres'),
-                password=db_config.get('password', 'eggarf123'),
+                password=db_config.get('password', ''),
                 host=db_config.get('host', 'localhost'),
                 port=db_config.get('port', 5432)
             )
@@ -248,24 +248,31 @@ def setup_database():
             else:
                 return jsonify({'error': 'Failed to create database'}), 500
         
-        # Connect to database and create schema
-        logger.info(f"Connecting to database '{database}'...")
-        conn = psycopg2.connect(
-            dbname=database,
-            user=user,
-            password=password,
-            host=host,
-            port=port
-        )
+        # Create the schema through the versioned migration bootstrap (DB-01).
+        # The legacy inline DDL path was removed: it ran statements in an order
+        # that violated foreign-key dependencies and broke fresh installs.
+        logger.info(f"Bootstrapping schema in database '{database}'...")
+        from database.bootstrap import bootstrap_database, BootstrapError
+        try:
+            bootstrap_report = bootstrap_database({
+                'host': host, 'port': port, 'user': user,
+                'password': password, 'database': database,
+            })
+        except BootstrapError as boot_error:
+            logger.error("Schema bootstrap failed: %s", boot_error)
+            return jsonify({
+                'error': str(boot_error),
+                'message': 'Failed to create the database schema. Check PostgreSQL settings.'
+            }), 500
         
         try:
-            logger.info("Creating database schema with standardized settings...")
-            create_schema(conn)
-            logger.info("Database schema created successfully")
-            
             # Mark setup as completed by creating a setup marker
             # This ensures setup only happens once
             try:
+                conn = psycopg2.connect(
+                    dbname=database, user=user, password=password,
+                    host=host, port=port
+                )
                 # Ensure autocommit is enabled for this operation
                 conn.autocommit = True
                 cursor = conn.cursor()
@@ -311,10 +318,13 @@ def setup_database():
             }
         }), 200
         
-    except Exception as e:
-        logger.error(f"Database setup error: {e}", exc_info=True)
+    except Exception:
+        # SEC-08: client-safe error; details logged server-side only.
+        from core.errors import new_correlation_id
+        logger.error("Database setup failed", exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'Failed to setup database. Check your PostgreSQL connection settings.',
+            'correlation_id': new_correlation_id(),
             'message': 'Failed to setup database. Please check your PostgreSQL connection settings.'
         }), 500
 
@@ -327,11 +337,10 @@ def check_setup_status():
         return jsonify({
             'initialized': initialized
         }), 200
-    except Exception as e:
-        logger.error(f"Error checking setup status: {e}")
+    except Exception:
+        logger.error("Error checking setup status", exc_info=True)
         return jsonify({
-            'initialized': False,
-            'error': str(e)
+            'initialized': False
         }), 200  # Return 200 so frontend can handle it
 
 

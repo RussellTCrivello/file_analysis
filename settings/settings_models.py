@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, Optional, List, Union
 from enum import Enum
 import re
+import os
 
 
 class SettingType(Enum):
@@ -224,18 +225,38 @@ class NotificationSettings:
 
 @dataclass
 class DatabaseConfig:
-    """Database connection configuration"""
+    """Database connection configuration.
+
+    Configuration precedence (ARCH-02): dataclass defaults < persisted
+    settings file < environment variables.  Credentials are never hardcoded
+    (SEC-07): the password must come from the ``DB_PASSWORD`` environment
+    variable or an explicitly saved settings file.
+    """
     host: str = "localhost"
     port: int = 5432
     database: str = "analysis"
     user: str = "postgres"
-    password: str = "eggarf123"
+    password: str = ""
     pool_min_conn: int = 2
     pool_max_conn: int = 25  # Increased default for concurrent operations (resource coordinator will adjust)
     pool_timeout: int = 30
     query_timeout: int = 60
     batch_size: int = 10000
     chunk_size: int = 10000
+
+    def __post_init__(self):
+        # Environment variables override persisted/default values (12-factor).
+        self.apply_env_overrides()
+
+    def apply_env_overrides(self) -> None:
+        """Apply DB_* environment variables on top of current values."""
+        self.host = os.environ.get("DB_HOST", self.host)
+        self.port = int(os.environ.get("DB_PORT", self.port))
+        self.database = os.environ.get("DB_NAME", self.database)
+        self.user = os.environ.get("DB_USER", self.user)
+        if os.environ.get("DB_PASSWORD") is not None:
+            self.password = os.environ["DB_PASSWORD"]
+
     
     def to_dict(self) -> Dict[str, Any]:
         # Don't expose password in dict

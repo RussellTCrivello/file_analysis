@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
 
-from utils.logger import get_logger
-from utils.exceptions import DataLoadException
+from apps.importing.utils.logger import get_logger
+from apps.importing.utils.exceptions import DataLoadException
 
 logger = get_logger(__name__)
 

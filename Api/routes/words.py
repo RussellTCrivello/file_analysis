@@ -11,6 +11,7 @@ from Api.utils import (
 )
 from datetime import datetime
 import logging
+from core.errors import client_error
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def register_words_routes(app):
                     return jsonify({'success': False, 'error': 'Failed to add word'}), 500
             except Exception as e:
                 logger.error(f"Error adding word: {e}")
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
         
         return render_template('Word/Word_add.html')
     
@@ -157,7 +158,7 @@ def register_words_routes(app):
             })
         except Exception as e:
             logger.error(f"API words error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
     
     @app.route('/api/words', methods=['POST'])
     def api_words_create():
@@ -200,7 +201,7 @@ def register_words_routes(app):
                 return jsonify({'success': False, 'error': 'Failed to create word'}), 500
         except Exception as e:
             logger.error(f"Error creating word: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
     
     @app.route('/api/words/<int:word_id>', methods=['GET'])
     def get_word(word_id):
@@ -217,7 +218,7 @@ def register_words_routes(app):
             })
         except Exception as e:
             logger.error(f"Error getting word {word_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
     
     @app.route('/api/words/<int:word_id>', methods=['PUT'])
     def update_word_api(word_id):
@@ -254,7 +255,7 @@ def register_words_routes(app):
             return jsonify({'success': True, 'message': 'Word updated successfully'})
         except Exception as e:
             logger.error(f"Error updating word {word_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
     
     @app.route('/api/words/<int:word_id>', methods=['DELETE'])
     def delete_word_api(word_id):
@@ -286,7 +287,7 @@ def register_words_routes(app):
             return jsonify({'success': True, 'message': 'Word deleted successfully'})
         except Exception as e:
             logger.error(f"Error deleting word {word_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
     
     @app.route('/api/words/bulk-delete', methods=['POST'])
     def api_words_bulk_delete():
@@ -331,5 +332,5 @@ def register_words_routes(app):
             })
         except Exception as e:
             logger.error(f"Error bulk deleting words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
 

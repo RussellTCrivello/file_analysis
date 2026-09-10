@@ -11,7 +11,7 @@ import threading
 import time
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Set
 
 parent_dir = Path(__file__).parent.parent.parent
 if str(parent_dir) not in sys.path:
@@ -71,7 +71,17 @@ class FileRouterService:
         self.file_reader_service = file_reader_service or FileReaderService()
         self._extraction_lock = threading.Lock()
         self.logger = logging.getLogger(self.__class__.__name__)
-    
+
+    def get_supported_extensions(self) -> Set[str]:
+        """Return all supported extensions, derived from registered readers.
+
+        READER-01: the single authoritative extension list is the union of
+        what the registered readers actually declare - fixing the
+        readiness-check interface mismatch (the router previously did not
+        expose this at all while verify_readiness.py called it).
+        """
+        return self.file_reader_service.get_supported_extensions()
+
     def process_file(
         self,
         file_info: Dict[str, Any],
@@ -79,11 +89,18 @@ class FileRouterService:
         depth: int = 0,
         storage_source: Optional[str] = None,
         storage_side: Optional[str] = None,
-        storage_pipeline: Optional[Any] = None
+        storage_pipeline: Optional[Any] = None,
+        store_result: bool = True
     ) -> Optional[Dict[str, Any]]:
         """
         Process a single file using appropriate reader.
-        
+
+        DATA-01: when ``store_result`` is False the caller (the storage
+        pipeline owner, IntegratedFileReader) persists the top-level file
+        itself; the router then only persists child artifacts (extracted
+        archive members, email messages/attachments). This removes the
+        historical double-store of the same file.
+
         Args:
             file_info: Dictionary containing file information
             collect: Whether to collect results
@@ -91,7 +108,8 @@ class FileRouterService:
             storage_source: Optional storage source name
             storage_side: Optional storage side name
             storage_pipeline: Optional storage pipeline instance
-        
+            store_result: Whether to persist the top-level file result
+
         Returns:
             Dictionary with processing result or None
         """
@@ -105,13 +123,14 @@ class FileRouterService:
                 0
             )
             # Store even if recursion depth exceeded
-            self._store_result_if_enabled(
-                file_info,
-                result,
-                storage_source,
-                storage_side,
-                storage_pipeline
-            )
+            if store_result:
+                self._store_result_if_enabled(
+                    file_info,
+                    result,
+                    storage_source,
+                    storage_side,
+                    storage_pipeline
+                )
             return result
         
         if file_info.get('type') != 'FILE':
@@ -132,13 +151,14 @@ class FileRouterService:
                 processing_time
             )
             # Store even if no extension found
-            self._store_result_if_enabled(
-                file_info,
-                result,
-                storage_source,
-                storage_side,
-                storage_pipeline
-            )
+            if store_result:
+                self._store_result_if_enabled(
+                    file_info,
+                    result,
+                    storage_source,
+                    storage_side,
+                    storage_pipeline
+                )
             return result
         
         content_data = None
@@ -194,13 +214,14 @@ class FileRouterService:
                     processing_time
                 )
                 # Store even if file type is unsupported
-                self._store_result_if_enabled(
-                    file_info,
-                    result,
-                    storage_source,
-                    storage_side,
-                    storage_pipeline
-                )
+                if store_result:
+                    self._store_result_if_enabled(
+                        file_info,
+                        result,
+                        storage_source,
+                        storage_side,
+                        storage_pipeline
+                    )
                 return result
                 
         except Exception as e:
@@ -221,13 +242,14 @@ class FileRouterService:
                 processing_time
             )
             # Store even if there's an error
-            self._store_result_if_enabled(
-                file_info,
-                result,
-                storage_source,
-                storage_side,
-                storage_pipeline
-            )
+            if store_result:
+                self._store_result_if_enabled(
+                    file_info,
+                    result,
+                    storage_source,
+                    storage_side,
+                    storage_pipeline
+                )
             return result
         
         processing_time = time.time() - start_time
@@ -237,14 +259,16 @@ class FileRouterService:
         calculate_file_processing_metrics(file_info, result)
         
         # Store the result automatically if storage is enabled
-        self._store_result_if_enabled(
-            file_info,
-            result,
-            storage_source,
-            storage_side,
-            storage_pipeline
-        )
-        
+        # (skipped when the caller owns persistence for the top-level file)
+        if store_result:
+            self._store_result_if_enabled(
+                file_info,
+                result,
+                storage_source,
+                storage_side,
+                storage_pipeline
+            )
+
         return result
     
     def process_file_list(

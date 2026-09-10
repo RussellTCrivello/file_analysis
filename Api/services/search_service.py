@@ -1032,11 +1032,13 @@ class SearchService:
                     if line_matches:
                         result['line_matches'] = line_matches
                         result['line_match_count'] = len(line_matches)
-                
-                    results.append(result)
-                
-                cursor.close()
-                return results, total_count
+                results.append(result)
+
+            cursor.close()
+            # PHASE 9 FIX: this return was previously nested inside the for
+            # loop, so an empty result set fell through and returned None,
+            # crashing the search endpoint with a 500.
+            return results, total_count
                 
         except Exception as e:
             logger.error(f"Advanced search error: {e}", exc_info=True)

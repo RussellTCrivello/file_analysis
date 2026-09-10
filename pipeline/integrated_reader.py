@@ -5,7 +5,6 @@ Uses concurrency managers for proper resource management and synchronization
 """
 
 import os
-import multiprocessing as mp
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
@@ -22,8 +21,8 @@ from Hdg_Err_Ex_Log import (
     ErrorCategory, ErrorSeverity
 )
 from concurrency import (
-    ConcurrencyHub, ThreadManager, ThreadPriority, ThreadState,
-    MultiprocessingManager, PoolPriority
+    ConcurrencyHub, ThreadPriority, ThreadState,
+    PoolPriority
 )
 
 logger = logging.getLogger(__name__)
@@ -124,7 +123,18 @@ class IntegratedFileReader:
             'failed': 0,
             'in_progress': 0
         }
-        
+
+        # JOB-SYSTEM: cooperative control hooks (used by the unified job
+        # manager; inert unless requested). Cancellation is cooperative -
+        # in-flight files finish, no *new* files are started. Pause behaves
+        # the same but the job can be resumed (checkpointing skips already
+        # processed files; deduplication makes re-scans safe).
+        self._cancel_event = threading.Event()
+        self._pause_event = threading.Event()
+        self._current_file = None
+        self._current_phase = None
+        self.progress_callback = None  # fn(stats_snapshot) -> None, throttled by caller
+
         # Initialize database if storage enabled
         self.db_hub = None
         self.storage_pipeline = None
@@ -173,6 +183,9 @@ class IntegratedFileReader:
             self.storage_pipeline = None
     
     def process_single_file(self, file_path: str) -> Optional[Dict[str, Any]]:
+        if self._control_requested():
+            logger.warning("Control requested: single-file processing not started")
+            return None
         """
         Process a single file
         
@@ -261,7 +274,11 @@ class IntegratedFileReader:
             
             # Process file
             try:
-                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0)
+                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0,
+                                          storage_source=getattr(self, 'storage_source', None),
+                                          storage_side=getattr(self, 'storage_side', None),
+                                          storage_pipeline=getattr(self, 'storage_pipeline', None),
+                                          store_result=False)
             except Exception as e:
                 handle_error(
                     e,
@@ -328,7 +345,7 @@ class IntegratedFileReader:
                         file_name = file_info.get('name', Path(file_path).name)
                         logger.error(f"❌ STORAGE FAILED: '{file_name}' was NOT stored in database")
                         logger.error(f"   File path: {file_path}")
-                        logger.error(f"   Check database connection and logs above for details")
+                        logger.error("   Check database connection and logs above for details")
                 except Exception as e:
                     handle_error(
                         e,
@@ -383,7 +400,7 @@ class IntegratedFileReader:
                 self.checkpoint_manager = None
         
         # PRODUCTION: Read directory tree with comprehensive error handling
-        print(f"\n📂 Reading directory tree...")
+        print("\n📂 Reading directory tree...")
         try:
             tree = read_tree(folder_path)
         except Exception as tree_err:
@@ -418,6 +435,11 @@ class IntegratedFileReader:
             files, skipped_count = self.checkpoint_manager.filter_processed_files(files)
             if skipped_count > 0:
                 print(f"Resuming: {skipped_count} files already processed, {len(files)} remaining")
+                # DATA-04: checkpoint-resumed files count as skipped, not discovered.
+                if self.storage_pipeline is not None:
+                    self.storage_pipeline.record_skipped(
+                        skipped_count, reason='checkpoint_already_processed'
+                    )
         
         if not files:
             if self.checkpoint_manager:
@@ -462,7 +484,12 @@ class IntegratedFileReader:
         with self._stats_lock:
             self._processing_stats['total'] = total_files
             self._processing_stats['in_progress'] = total_files
-        
+
+        # DATA-04: feed the persistent statistics service so dashboards and
+        # consistency checks see discovered counts (previously never wired).
+        if self.storage_pipeline is not None:
+            self.storage_pipeline.record_discovered(total_files)
+
         # Process files in three phases: priority files first, then PDFs, then images
         # Use continuous processing with batching for memory efficiency
         results = []
@@ -476,6 +503,9 @@ class IntegratedFileReader:
             if len(priority_files) > batch_size:
                 print(f"   Processing in batches of {batch_size} for continuous processing...")
                 for batch_start in range(0, len(priority_files), batch_size):
+                    if self._control_requested():
+                        logger.warning("Control requested: skipping remaining priority-file batches")
+                        break
                     batch_end = min(batch_start + batch_size, len(priority_files))
                     batch = priority_files[batch_start:batch_end]
                     print(f"   Batch {batch_start // batch_size + 1}: Processing files {batch_start + 1}-{batch_end}...")
@@ -506,13 +536,16 @@ class IntegratedFileReader:
             print(f"✅ PHASE 1 complete: {len([r for r in results if r])} priority files processed")
         
         # PHASE 2: Process all PDF files only after priority files are completely done
-        if pdf_files:
+        if pdf_files and not self._control_requested():
             print(f"\n📑 PHASE 2: Processing {len(pdf_files)} PDF files (after priority files are complete)...")
             
             # Process in batches for continuous processing
             if len(pdf_files) > batch_size:
                 print(f"   Processing in batches of {batch_size} for continuous processing...")
                 for batch_start in range(0, len(pdf_files), batch_size):
+                    if self._control_requested():
+                        logger.warning("Control requested: skipping remaining PDF batches")
+                        break
                     batch_end = min(batch_start + batch_size, len(pdf_files))
                     batch = pdf_files[batch_start:batch_end]
                     print(f"   Batch {batch_start // batch_size + 1}: Processing files {batch_start + 1}-{batch_end}...")
@@ -541,13 +574,16 @@ class IntegratedFileReader:
             print(f"✅ PHASE 2 complete: {len([r for r in results if r])} PDF files processed")
         
         # PHASE 3: Process all image files only after PDFs are completely done
-        if image_files:
+        if image_files and not self._control_requested():
             print(f"\n🖼️  PHASE 3: Processing {len(image_files)} image files (after all other files are complete)...")
             
             # Process in batches for continuous processing
             if len(image_files) > batch_size:
                 print(f"   Processing in batches of {batch_size} for continuous processing...")
                 for batch_start in range(0, len(image_files), batch_size):
+                    if self._control_requested():
+                        logger.warning("Control requested: skipping remaining image batches")
+                        break
                     batch_end = min(batch_start + batch_size, len(image_files))
                     batch = image_files[batch_start:batch_end]
                     print(f"   Batch {batch_start // batch_size + 1}: Processing files {batch_start + 1}-{batch_end}...")
@@ -590,7 +626,7 @@ class IntegratedFileReader:
             print(f"\n💾 Checkpoint saved: {checkpoint_stats['processed_count']} files processed")
         
         # PRODUCTION: Final summary
-        print(f"\n📊 Processing Summary:")
+        print("\n📊 Processing Summary:")
         print(f"   Total files found: {total_files}")
         print(f"   Files processed: {processed_count}")
         if failed_count > 0:
@@ -628,7 +664,13 @@ class IntegratedFileReader:
         
         # Submit all files as threads
         for idx, file_info in enumerate(files):
+            # JOB-SYSTEM: cooperative stop - no new files after cancel/pause
+            if self._control_requested():
+                logger.warning("Control requested (%s): stopping file submission after %d of %d files",
+                               'cancel' if self.is_cancel_requested() else 'pause', idx, len(files))
+                break
             file_path = file_info.get('path', f'file_{idx}')
+            self._set_current(file_path=file_path, phase='Processing files')
             priority = get_priority(file_info)
             
             thread_id = self.thread_manager.create_thread(
@@ -907,6 +949,8 @@ class IntegratedFileReader:
             with self._stats_lock:
                 self._processing_stats['completed'] = completed
                 self._processing_stats['in_progress'] = len(files) - completed
+            # JOB-SYSTEM: real progress signal for the unified job manager
+            self._notify_progress()
         
         print()  # New line after progress
         return results
@@ -977,6 +1021,8 @@ class IntegratedFileReader:
             with self._stats_lock:
                 self._processing_stats['completed'] = completed
                 self._processing_stats['in_progress'] = len(files) - completed
+            # JOB-SYSTEM: real progress signal for the unified job manager
+            self._notify_progress()
         
         print()  # New line after progress
         return results
@@ -1129,15 +1175,22 @@ class IntegratedFileReader:
             
             # Process file
             try:
-                # Pass storage parameters to the file reader so extracted files can be stored
+                # DATA-01/ARCH-04: storage context is passed explicitly (no
+                # function-attribute globals). The worker owns persistence of
+                # the top-level file (store_result=False); the router still
+                # persists child artifacts (extracted members, attachments).
                 if self.enable_storage:
-                    # Set storage parameters as attributes on the function so it can access them
-                    import reader_file.main_specify_method as reader_module
-                    reader_module.main_specify_method_of_reading_the_file._storage_source = self.storage_source
-                    reader_module.main_specify_method_of_reading_the_file._storage_side = self.storage_side
-                    reader_module.main_specify_method_of_reading_the_file._storage_pipeline = self.storage_pipeline
-                
-                result = main_specify_method_of_reading_the_file(file_info, collect=True, depth=0)
+                    result = main_specify_method_of_reading_the_file(
+                        file_info, collect=True, depth=0,
+                        storage_source=self.storage_source,
+                        storage_side=self.storage_side,
+                        storage_pipeline=self.storage_pipeline,
+                        store_result=False,
+                    )
+                else:
+                    result = main_specify_method_of_reading_the_file(
+                        file_info, collect=True, depth=0
+                    )
             except Exception as e:
                 handle_error(
                     e,
@@ -1336,6 +1389,61 @@ class IntegratedFileReader:
             except Exception as e:
                 logger.warning(f"Error during concurrency manager cleanup: {e}")
     
+    # ------------------------------------------------------------------
+    # JOB-SYSTEM: cooperative control + live progress API
+    # ------------------------------------------------------------------
+    def request_cancel(self) -> None:
+        """Cooperatively cancel: finish in-flight files, start no new ones."""
+        self._cancel_event.set()
+
+    def request_pause(self) -> None:
+        """Cooperatively pause: finish in-flight files, start no new ones."""
+        self._pause_event.set()
+
+    def clear_pause(self) -> None:
+        self._pause_event.clear()
+
+    def is_cancel_requested(self) -> bool:
+        return self._cancel_event.is_set()
+
+    def is_pause_requested(self) -> bool:
+        return self._pause_event.is_set()
+
+    def _control_requested(self) -> bool:
+        return self._cancel_event.is_set() or self._pause_event.is_set()
+
+    def get_live_progress(self) -> Dict[str, Any]:
+        """Real worker-state snapshot for the job system's progress panel."""
+        with self._stats_lock:
+            stats = dict(self._processing_stats)
+        total = stats.get('total', 0) or 0
+        done = stats.get('completed', 0) + stats.get('failed', 0)
+        percent = int((done / total) * 100) if total else 0
+        return {
+            'total_files': total,
+            'files_done': done,
+            'files_completed': stats.get('completed', 0),
+            'files_failed': stats.get('failed', 0),
+            'in_progress': stats.get('in_progress', 0),
+            'percent': min(100, max(0, percent)),
+            'current_file': self._current_file,
+            'current_phase': self._current_phase,
+        }
+
+    def _set_current(self, file_path: Optional[str] = None, phase: Optional[str] = None) -> None:
+        if file_path is not None:
+            self._current_file = file_path
+        if phase is not None:
+            self._current_phase = phase
+
+    def _notify_progress(self) -> None:
+        cb = self.progress_callback
+        if cb is not None:
+            try:
+                cb(self.get_live_progress())
+            except Exception:
+                logger.debug("progress callback raised", exc_info=True)
+
     def get_statistics(self) -> Dict[str, Any]:
         """Get processing statistics with concurrency metrics"""
         with self._stats_lock:

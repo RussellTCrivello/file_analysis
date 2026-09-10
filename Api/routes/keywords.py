@@ -17,6 +17,8 @@ from database.operations import get_category_operations, get_keyword_operations
 from Api.performance_utils import batch_load_keywords
 from datetime import datetime
 import logging
+from core.serialization import pack_int_list, unpack_int_list
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +146,6 @@ def register_keywords_routes(app):
                         })
             else:
                 # Multi-word phrase - check keywords table using the keyword operations
-                import pickle
                 # Get word IDs for the phrase
                 word_ids = []
                 for word in words:
@@ -155,7 +156,7 @@ def register_keywords_routes(app):
                     word_ids.append(word_id)
                 
                 # Create keyword blob
-                keyword_blob = pickle.dumps(word_ids)
+                keyword_blob = pack_int_list(word_ids)
                 
                 # Check if keyword exists
                 keyword_ops = get_keyword_operations()
@@ -171,7 +172,7 @@ def register_keywords_routes(app):
             
         except Exception as e:
             logger.error(f"Error checking keyword: {e}")
-            return jsonify({'exists': False, 'error': str(e)}), 500
+            return jsonify({'exists': False, 'error': client_safe_message(e, subsystem='Api.routes.keywords')}), 500
     
     @app.route('/keywords/add', methods=['GET', 'POST'])
     def keywords_add():
@@ -282,7 +283,7 @@ def register_keywords_routes(app):
                                 error_messages.append(f"'{term.strip()}': {result['message']}")
                         except Exception as e:
                             logger.error(f"Error processing term '{term}': {e}")
-                            error_messages.append(f"Error processing '{term}': {str(e)}")
+                            error_messages.append(f"Error processing '{term}': internal error (see server logs)")
                             continue
                 
                 is_ajax = request.headers.get('Content-Type', '').startswith('application/json') or \
@@ -471,7 +472,7 @@ def register_keywords_routes(app):
             )
         except Exception as e:
             logger.error(f"Email words error: {e}", exc_info=True)
-            flash(f"Error loading email words: {str(e)}", "error")
+            flash("Error loading email words: internal error (see server logs)", "error")
             return render_template('email_words/email_words.html',
                                    email_words=[],
                                    total_words=0,
@@ -660,11 +661,10 @@ def register_keywords_routes(app):
                     logger.error(f"⚠️ CRITICAL: All loading methods failed! Trying direct database query for first keyword...")
                     try:
                         test_id = keywords_rows[0][0]
-                        import pickle
                         result = execute_query("SELECT keyword FROM keywords WHERE id = %s", (test_id,), fetch="one", use_cache=False)
                         if result and result[0]:
                             keyword_bytes = result[0]
-                            word_ids = pickle.loads(bytes(keyword_bytes))
+                            word_ids = unpack_int_list(keyword_bytes)
                             logger.info(f"Direct DB access works! Keyword {test_id} has {len(word_ids)} word IDs")
                         else:
                             logger.error(f"Direct DB query returned no data for keyword {test_id}")
@@ -746,13 +746,12 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"API keywords error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/<int:keyword_id>', methods=['GET'])
     def get_keyword(keyword_id):
         """Get a specific keyword by ID with word IDs and category"""
         try:
-            import pickle
             
             # Get keyword data including category_id and keyword bytes
             keyword_data = execute_query("""
@@ -769,7 +768,7 @@ def register_keywords_routes(app):
             
             # Unpickle to get word IDs
             try:
-                word_ids = pickle.loads(bytes(keyword_bytes)) if keyword_bytes else []
+                word_ids = unpack_int_list(keyword_bytes) if keyword_bytes else []
             except Exception as e:
                 logger.error(f"Error unpickling keyword {keyword_id}: {e}")
                 word_ids = []
@@ -793,13 +792,12 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error getting keyword {keyword_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/<int:keyword_id>', methods=['PUT'])
     def update_keyword(keyword_id):
         """Update a keyword"""
         try:
-            import pickle
             data = request.get_json()
             if not data:
                 return jsonify({'success': False, 'error': 'JSON data is required'}), 400
@@ -811,7 +809,7 @@ def register_keywords_routes(app):
             
             # If word_ids provided, use them directly
             if word_ids and isinstance(word_ids, list) and len(word_ids) > 0:
-                keyword_blob = pickle.dumps(word_ids)
+                keyword_blob = pack_int_list(word_ids)
                 update_query = "UPDATE keywords SET keyword = %s"
                 update_params = [keyword_blob]
                 
@@ -847,7 +845,7 @@ def register_keywords_routes(app):
                 if not word_ids:
                     return jsonify({'success': False, 'error': 'Failed to process words'}), 500
                 
-                keyword_blob = pickle.dumps(word_ids)
+                keyword_blob = pack_int_list(word_ids)
                 update_query = "UPDATE keywords SET keyword = %s"
                 update_params = [keyword_blob]
                 
@@ -871,7 +869,7 @@ def register_keywords_routes(app):
             return jsonify({'success': True, 'message': 'Keyword updated successfully'})
         except Exception as e:
             logger.error(f"Error updating keyword {keyword_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/<int:keyword_id>', methods=['DELETE'])
     def delete_keyword_api(keyword_id):
@@ -881,7 +879,7 @@ def register_keywords_routes(app):
             return jsonify({'success': True, 'message': 'Keyword deleted successfully'})
         except Exception as e:
             logger.error(f"Error deleting keyword {keyword_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/<int:keyword_id>/delete', methods=['DELETE', 'POST'])
     def api_delete_keyword(keyword_id):
@@ -907,13 +905,12 @@ def register_keywords_routes(app):
             return jsonify({'success': True, 'message': 'Keyword deleted successfully'})
         except Exception as e:
             logger.error(f"Error deleting keyword {keyword_id}: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/update-associations', methods=['POST'])
     def update_keyword_associations():
         """Update keyword associations for all files in the database"""
         try:
-            import pickle
             import json
             import gzip
             import zlib
@@ -944,7 +941,7 @@ def register_keywords_routes(app):
                 keyword_bytes = row[1]
                 if keyword_bytes:
                     try:
-                        word_ids = pickle.loads(bytes(keyword_bytes))
+                        word_ids = unpack_int_list(keyword_bytes)
                         if word_ids and isinstance(word_ids, list) and len(word_ids) > 0:
                             keywords_dict[keyword_id] = word_ids
                     except Exception as e:
@@ -1087,7 +1084,7 @@ def register_keywords_routes(app):
             logger.error(f"Error updating keyword associations: {e}", exc_info=True)
             return jsonify({
                 'success': False,
-                'error': str(e)
+                'error': client_safe_message(e, subsystem='Api.routes.keywords')
             }), 500
     
     @app.route('/api/keywords/bulk-delete', methods=['POST'])
@@ -1132,7 +1129,7 @@ def register_keywords_routes(app):
                         errors.append(f"Keyword {keyword_id} not found")
                 except Exception as e:
                     logger.error(f"Error deleting keyword {keyword_id}: {e}")
-                    errors.append(f"Keyword {keyword_id}: {str(e)}")
+                    errors.append(f"Keyword {keyword_id}: update failed (see server logs)")
             
             # Clear cache after bulk delete
             try:
@@ -1149,7 +1146,7 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error in bulk delete: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/merge-duplicates', methods=['POST'])
     def merge_duplicates():
@@ -1177,7 +1174,6 @@ def register_keywords_routes(app):
             if any(pattern in keyword_text.lower() for pattern in dangerous_patterns):
                 return jsonify({'success': False, 'error': 'Invalid characters in keyword text'}), 400
             
-            import pickle
             from Api.utils import get_word_id
             
             # Convert keyword text to word IDs for matching
@@ -1195,7 +1191,7 @@ def register_keywords_routes(app):
                     }), 400
                 word_ids.append(word_id)
             
-            keyword_blob = pickle.dumps(word_ids)
+            keyword_blob = pack_int_list(word_ids)
             
             # Find all keywords with the same text (case-insensitive)
             keywords_query = """
@@ -1273,7 +1269,7 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error merging duplicates: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/merge-all-duplicates', methods=['POST'])
     def merge_all_duplicates():
@@ -1284,7 +1280,6 @@ def register_keywords_routes(app):
             if not csrf_token:
                 return jsonify({'success': False, 'error': 'CSRF token missing'}), 400
             
-            import pickle
             from collections import defaultdict
             
             # Load all keywords
@@ -1385,7 +1380,7 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error merging all duplicates: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/keywords/export', methods=['GET'])
     def export_keywords():
@@ -1444,7 +1439,7 @@ def register_keywords_routes(app):
             )
         except Exception as e:
             logger.error(f"Error exporting keywords: {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/email-words/all')
     def api_email_words_all():
@@ -1479,7 +1474,7 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error fetching all email words: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)
     
     @app.route('/api/email-words/files')
     def api_email_words_files():
@@ -1573,4 +1568,4 @@ def register_keywords_routes(app):
             })
         except Exception as e:
             logger.error(f"Error fetching files for email '{email}': {e}", exc_info=True)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.keywords', success_key='success', status=500)

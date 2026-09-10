@@ -5,12 +5,11 @@ Provides validation functions for data operations
 
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple
 import logging
 
 from Hdg_Err_Ex_Log import (
-    handle_error, format_validation_error,
-    ErrorCategory, ErrorSeverity
+    handle_error, ErrorCategory, ErrorSeverity
 )
 
 logger = logging.getLogger(__name__)

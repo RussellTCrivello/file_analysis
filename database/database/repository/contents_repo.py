@@ -1,7 +1,8 @@
 from .best_repo import BaseRepository
-import zlib, pickle
+import zlib
 from ..queries.content_queries import ContentQueries
 from ..queries.word_queries import WordQueries
+from core.serialization import pack_mapping, unpack_mapping
 
 class ContentsRepository(BaseRepository):
     """
@@ -83,7 +84,7 @@ class ContentsRepository(BaseRepository):
                     packed = zlib.decompress(compressed)
                     
                     # Load Pickle format symbol pairs
-                    symbol_pairs = pickle.loads(packed)
+                    symbol_pairs = unpack_mapping(packed)
                     if isinstance(symbol_pairs, list) and len(symbol_pairs) > 0:
                         # Extract word_ids from symbol pairs (first element of each tuple)
                         if isinstance(symbol_pairs[0], (tuple, list)) and len(symbol_pairs[0]) >= 1:
@@ -132,7 +133,7 @@ class ContentsRepository(BaseRepository):
                     packed = zlib.decompress(compressed)
                     
                     # Load Pickle format symbol pairs
-                    symbol_pairs = pickle.loads(packed)
+                    symbol_pairs = unpack_mapping(packed)
                     if isinstance(symbol_pairs, list) and len(symbol_pairs) > 0:
                         # Extract word_ids from symbol pairs (first element of each tuple)
                         if isinstance(symbol_pairs[0], (tuple, list)) and len(symbol_pairs[0]) >= 1:
@@ -265,7 +266,7 @@ class ContentsRepository(BaseRepository):
                 raise ValueError(f"Invalid symbol pair format: {pair}. Expected (word_id, punct_before_id, punct_after_id, spacing_id, char_position)")
         
         # Try to serialize and compress the entire content first
-        pickled_data = pickle.dumps(normalized_pairs)
+        pickled_data = pack_mapping(normalized_pairs)
         compressed = zlib.compress(pickled_data)
         
         # If compressed size is within limit, store as single chunk
@@ -301,7 +302,7 @@ class ContentsRepository(BaseRepository):
                 chunk_data = normalized_pairs[chunk_start:mid]
                 
                 # Serialize and compress this chunk
-                chunk_pickled = pickle.dumps(chunk_data)
+                chunk_pickled = pack_mapping(chunk_data)
                 chunk_compressed = zlib.compress(chunk_pickled)
                 
                 if len(chunk_compressed) <= max_chunk_size:
@@ -312,7 +313,7 @@ class ContentsRepository(BaseRepository):
             
             # Store the chunk
             chunk_data = normalized_pairs[chunk_start:best_chunk_end]
-            chunk_pickled = pickle.dumps(chunk_data)
+            chunk_pickled = pack_mapping(chunk_data)
             chunk_compressed = zlib.compress(chunk_pickled)
             
             try:
@@ -352,7 +353,7 @@ class ContentsRepository(BaseRepository):
                     packed = zlib.decompress(compressed)
                     
                     # Load Pickle format symbol pairs
-                    symbol_pairs = pickle.loads(packed)
+                    symbol_pairs = unpack_mapping(packed)
                     if isinstance(symbol_pairs, list):
                         # Validate and normalize symbol pairs
                         for pair in symbol_pairs:

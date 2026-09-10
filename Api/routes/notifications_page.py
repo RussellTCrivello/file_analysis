@@ -8,6 +8,7 @@ from flask_babel import gettext as _
 from core.monitoring.notification_service import get_notification_service, NotificationType
 from Api.utils import select_info_sources, select_info_sides, execute_query, get_file
 import logging
+from core.errors import client_error
 
 logger = logging.getLogger(__name__)
 
@@ -337,5 +338,5 @@ def register_notification_page_routes(app):
             
         except Exception as e:
             logger.error(f"Error getting paginated notifications: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return client_error(e, subsystem='Api.routes.notifications_page', success_key='success', status=500)
 

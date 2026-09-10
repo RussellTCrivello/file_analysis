@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import logging
 
 from Hdg_Err_Ex_Log import get_error_monitor, ErrorCategory, ErrorSeverity
+from core.errors import client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def get_error_metrics():
         logger.error(f"Error getting metrics: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': client_safe_message(e, subsystem='Api.routes.error_dashboard')
         }), 500
 
 
@@ -61,7 +62,7 @@ def get_recent_errors():
         logger.error(f"Error getting recent errors: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': client_safe_message(e, subsystem='Api.routes.error_dashboard')
         }), 500
 
 
@@ -89,7 +90,7 @@ def get_error_patterns():
         logger.error(f"Error getting patterns: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': client_safe_message(e, subsystem='Api.routes.error_dashboard')
         }), 500
 
 
@@ -142,6 +143,6 @@ def get_error_stats():
         logger.error(f"Error getting stats: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': client_safe_message(e, subsystem='Api.routes.error_dashboard')
         }), 500
 

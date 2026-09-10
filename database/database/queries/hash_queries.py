@@ -48,20 +48,33 @@ class HashQueries(BaseQueries):
     
     @staticmethod
     def check_duplicate() -> str:
-        """Check if file is duplicate"""
+        """Check if content is a duplicate.
+
+        DB-04/DB-05 semantics: a duplicate requires a *live path* referencing
+        the hash row. An orphaned hash row (all paths deleted) does not make
+        content a duplicate - otherwise a deleted file could never be
+        ingested again.
+        Returns the existing path id.
+        """
         return """
-            SELECT h.id
+            SELECT p.id
             FROM hashs h
+            JOIN paths p ON p.hash_id = h.id
             WHERE h.hash = %s AND h.source_id = %s AND h.side_id = %s
+            ORDER BY p.id
             LIMIT 1
         """
-    
+
     @staticmethod
     def check_hash_exists_for_source() -> str:
-        """Check if hash exists for given source (any side)"""
+        """Check if a hash with a live path exists for given source (any side).
+
+        DB-05: orphaned hash rows (zero referencing paths) do not count.
+        """
         return """
             SELECT h.id
             FROM hashs h
+            JOIN paths p ON p.hash_id = h.id
             WHERE h.hash = %s AND h.source_id = %s
             LIMIT 1
         """

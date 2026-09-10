@@ -70,7 +70,7 @@ if __name__ == "__main__":
     
     dbname = os.getenv('DB_NAME', 'analysis')
     user = os.getenv('DB_USER', 'postgres')
-    password = os.getenv('DB_PASSWORD', 'eggarf123')
+    password = os.getenv('DB_PASSWORD', '')
     host = os.getenv('DB_HOST', 'localhost')
     port = int(os.getenv('DB_PORT', '5432'))
     

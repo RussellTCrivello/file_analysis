@@ -4,11 +4,14 @@ All magic numbers and configuration values in one place
 """
 
 # Database Configuration
-DEFAULT_DB_HOST = 'localhost'
-DEFAULT_DB_PORT = 5432
-DEFAULT_DB_NAME = 'analysis'
-DEFAULT_DB_USER = 'postgres'
-DEFAULT_DB_PASSWORD = 'eggarf123'
+# SEC-07: credentials are never hardcoded. They come from the environment
+# (DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD) or the settings store.
+import os as _os
+DEFAULT_DB_HOST = _os.environ.get('DB_HOST', 'localhost')
+DEFAULT_DB_PORT = int(_os.environ.get('DB_PORT', '5432'))
+DEFAULT_DB_NAME = _os.environ.get('DB_NAME', 'analysis')
+DEFAULT_DB_USER = _os.environ.get('DB_USER', 'postgres')
+DEFAULT_DB_PASSWORD = _os.environ.get('DB_PASSWORD', '')
 
 # Connection Pool Settings
 MIN_POOL_CONNECTIONS = 5

@@ -8,6 +8,7 @@ from Api.cursor_pagination import get_cursor_paginator, SortDirection
 import json
 import logging
 import time
+from core.errors import client_error, client_safe_message
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +102,10 @@ def api_query_cursor():
         })
     
     except ValueError as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        return client_error(e, subsystem='Api.routes.cursor_api', success_key='success', status=400)
     except Exception as e:
         logger.error(f"Cursor query error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.cursor_api', success_key='success', status=500)
 
 
 @cursor_api_bp.route('/api/query/stream', methods=['GET', 'POST'])
@@ -216,7 +217,7 @@ def api_query_stream():
             
             except Exception as e:
                 logger.error(f"Streaming error: {e}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': client_safe_message(e, subsystem='Api.routes.cursor_api')})}\n\n"
         
         return Response(
             stream_with_context(generate_stream()),
@@ -230,7 +231,7 @@ def api_query_stream():
     
     except Exception as e:
         logger.error(f"Stream query error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.cursor_api', success_key='success', status=500)
 
 
 @cursor_api_bp.route('/api/query/integrity', methods=['GET'])
@@ -281,5 +282,5 @@ def api_query_integrity():
     
     except Exception as e:
         logger.error(f"Integrity check error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return client_error(e, subsystem='Api.routes.cursor_api', success_key='success', status=500)
 

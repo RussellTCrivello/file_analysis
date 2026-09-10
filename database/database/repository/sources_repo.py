@@ -1,5 +1,5 @@
 from .best_repo import BaseRepository
-from datetime import date, datetime
+from datetime import date
 from ..queries.source_queries import SourceQueries
 
 class SourcesRepository(BaseRepository):
