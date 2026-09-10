@@ -6,13 +6,13 @@ import sys
 import importlib
 from typing import Optional
 
-# Ensure UTF-8 encoding for stdout on Windows
+# Ensure UTF-8 encoding for stdout on Windows (emoji progress output)
 if sys.platform == 'win32':
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
     except (AttributeError, ValueError):
-        # Python < 3.7 or reconfigure not available
+        # reconfigure not available
         pass
 
 project_root = Path(__file__).parent.parent.parent

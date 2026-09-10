@@ -11,6 +11,14 @@ import sys
 import multiprocessing
 from pathlib import Path
 
+# Windows-native console safety (redirected output uses legacy code pages)
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
 # Set multiprocessing start method (Windows uses 'spawn' by default)
 if __name__ == '__main__':
     try:

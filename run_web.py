@@ -12,6 +12,17 @@ import sys
 import os
 from pathlib import Path
 
+# Windows-native console safety: when stdout/stderr are redirected (service
+# install, pipe, scheduled task) Python falls back to the legacy ANSI code
+# page and the engine's progress output (emoji) would raise
+# UnicodeEncodeError inside worker threads. Force UTF-8 with replacement.
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
 # Auto-install check: Only run if AUTO_INSTALL is not disabled
 if os.environ.get('AUTO_INSTALL', '1') == '1':
     try:

@@ -13,6 +13,14 @@ Usage:
 import sys
 from pathlib import Path
 
+# Windows-native console safety (redirected output uses legacy code pages)
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
 # Simplified initialization
 from core.init import (
     setup_project_path,

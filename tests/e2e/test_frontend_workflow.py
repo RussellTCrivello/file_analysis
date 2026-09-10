@@ -125,6 +125,36 @@ class TestFrontendIngestionWorkflow:
         # 6 files: 5 top-level + 1 nested (recursive)
         assert (job["statistics"]["files_succeeded"] or 0) == 6
 
+    def test_browser_multipart_direct_job(self, app, admin_client, roots):
+        """Regression: the browser Start button posts the files DIRECTLY to
+        POST /api/input/jobs as multipart/form-data (the upload staging
+        endpoint is only used by drag&drop). The job is created from the
+        staged copies in the same request, and form string booleans
+        ("false") must not coerce to True.
+        """
+        uid = uuid.uuid4().hex
+        admin_client.post("/api/input/sources", json={
+            "name": f"e2e-src3-{uid}", "job": "analyst", "country": "NL",
+        })
+        admin_client.post("/api/input/sides", json={"name": f"e2e-side3-{uid}"})
+
+        resp = admin_client.post("/api/input/jobs", data={
+            "source": f"e2e-src3-{uid}",
+            "side": f"e2e-side3-{uid}",
+            "recursive": "false",  # multipart form values are strings
+            "files": [
+                (io.BytesIO(f"direct multipart one {uid} falcon\n".encode() * 10), "one.txt"),
+                (io.BytesIO(f"direct multipart two {uid} falcon\n".encode() * 10), "two.txt"),
+            ],
+        }, content_type="multipart/form-data")
+        assert resp.status_code == 202, resp.get_data(as_text=True)
+        job_id = resp.get_json()["job"]["job_id"]
+
+        job = _wait_terminal(admin_client, job_id)
+        assert job["status"] in ("COMPLETED", "COMPLETED_WITH_WARNINGS"), job
+        # recursive=false honored: only the 2 top-level staged files
+        assert (job["statistics"]["files_succeeded"] or 0) == 2, job["statistics"]
+
 
 class TestFrontendImportWorkflow:
     def test_batch_import_preview_confirm(self, app, admin_client, roots):

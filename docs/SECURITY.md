@@ -79,10 +79,16 @@ management, backup/restore, and all administrative endpoints.
 
 ## Filesystem access (SEC-06)
 
-* Server-path batch import validates every path against `INGESTION_ROOTS`
-  (semicolon-separated). With no roots configured, server-path import is
+* Server-path ingestion validates every path against `INGESTION_ROOTS`
+  (semicolon-separated). With no roots configured, server-path ingestion is
   **disabled entirely** (fails closed); clients must upload files instead.
-* Drive-qualified (`C:\`) and UNC (`\\server`) paths are always rejected.
+* The security boundary is the explicit root allowlist. On Windows,
+  drive-qualified (`C:\data`) and UNC (`\\server\share`) candidates are
+  accepted when they resolve under a configured root; containment matching is
+  case-insensitive and separator-tolerant. On POSIX, Windows-shaped absolute
+  paths are rejected (they cannot refer to real POSIX locations).
+* Relative candidates resolve against the configured roots, never the server
+  process working directory.
 
 ## Secrets (SEC-07)
 

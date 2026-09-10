@@ -117,7 +117,10 @@ class IngestionService:
                 resolved = validate_ingestion_path(raw)
             except Exception as exc:
                 # Fail closed: without configured roots or with a bad path,
-                # server-side access is denied (SEC-06).
+                # server-side access is denied (SEC-06). Surface actionable
+                # guidance for the disabled-roots case.
+                if "disabled" in str(exc):
+                    raise IngestionValidationError(str(exc)) from exc
                 raise IngestionValidationError(
                     f"Path not allowed: {Path(str(raw)).name}"
                 ) from exc

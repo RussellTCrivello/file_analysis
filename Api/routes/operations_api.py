@@ -22,6 +22,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
+from core.path_safety import configured_ingestion_roots
 from core.security.flask_ext import admin_required, current_user
 from core.security.rate_limit import limiter
 from services.importing.backup_import_service import (
@@ -97,6 +98,24 @@ def _staged_uploads_dir() -> Path:
 # ===========================================================================
 # Sources & sides (Input page selects)
 # ===========================================================================
+@operations_bp.route("/api/input/options-info", methods=["GET"])
+def api_input_options_info():
+    """Capability info for the Input page (real backend facts only)."""
+    try:
+        roots = bool(configured_ingestion_roots())
+    except Exception:
+        roots = False
+    return jsonify({
+        "success": True,
+        "ingestion_roots_configured": roots,
+        "server_path_import_available": roots,
+        "upload_available": True,
+        "hashing": "sha256-streamed (always on)",
+        "deduplication": "identity=(hash,source,side) (always on)",
+        "archive_safety": "core.archive_safety (always on)",
+    })
+
+
 @operations_bp.route("/api/input/sources", methods=["GET"])
 def api_input_sources():
     q = (request.args.get("q") or "").strip()
@@ -195,6 +214,15 @@ def api_input_upload():
         "bytes": total,
         "expires_note": "Staged files are plain files; ingest or delete them.",
     }), 201
+
+
+def _as_bool(value, default: bool) -> bool:
+    """Boolean coercion for multipart form fields (string "false" → False)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
 def _parse_ingestion_payload() -> dict:

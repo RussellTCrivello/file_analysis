@@ -63,13 +63,65 @@ def test_traversal_escaping_root_rejected(roots):
 
 
 def test_drive_qualified_rejected(roots):
+    # Rejected because it is OUTSIDE the configured allowlist roots - drive
+    # letters are not banned per se (on Windows every absolute path is
+    # drive-qualified); containment under a configured root is the rule.
     with pytest.raises(PathSafetyError):
         validate_ingestion_path("C:\\Windows\\evil.txt")
 
 
 def test_unc_path_rejected(roots):
+    # Same allowlist semantics for UNC shares: rejected only when the
+    # resolved location is outside every configured root.
     with pytest.raises(PathSafetyError):
         validate_ingestion_path("\\\\server\\share\\x")
+
+
+def test_windows_containment_case_insensitive(monkeypatch):
+    """Windows containment is case-insensitive and separator-tolerant."""
+    monkeypatch.setattr("core.path_safety._WINDOWS", True)
+    from core.path_safety import _contained
+
+    root = Path("C:\\Data\\Evidence")
+    assert _contained(Path("C:\\Data\\Evidence\\a.txt"), root)
+    assert _contained(Path("C:\\data\\EVIDENCE\\sub\\b.txt"), root)
+    assert _contained(Path("C:/Data/Evidence/c.txt"), root)   # forward slashes
+    assert _contained(Path("C:\\Data\\Evidence"), root)        # root itself
+    assert not _contained(Path("C:\\Data\\Evil\\a.txt"), root)
+    # No partial-component match: evidence2 is a sibling, not inside Evidence
+    assert not _contained(Path("C:\\Data\\Evidence2\\a.txt"), root)
+
+
+def test_windows_unc_containment(monkeypatch):
+    """UNC paths validate through the same containment rule."""
+    monkeypatch.setattr("core.path_safety._WINDOWS", True)
+    from core.path_safety import _contained
+
+    root = Path("\\\\server\\share")
+    assert _contained(Path("\\\\SERVER\\Share\\cases\\a.txt"), root)
+    assert _contained(Path("//server/share/a.txt"), root)
+    assert not _contained(Path("\\\\server\\other\\a.txt"), root)
+    assert not _contained(Path("\\\\other\\share\\a.txt"), root)
+
+
+def test_relative_path_resolved_against_root_not_cwd(roots):
+    """Relative candidates resolve against configured roots, never the CWD."""
+    r1, _ = roots
+    resolved = validate_ingestion_path("sub/dir/file.txt")
+    assert str(resolved).startswith(str(r1))
+    assert resolved == (r1 / "sub" / "dir" / "file.txt").resolve()
+
+
+def test_no_roots_actionable_error(monkeypatch, tmp_path):
+    """Disabled server-path ingestion tells the operator how to enable it."""
+    monkeypatch.delenv("INGESTION_ROOTS", raising=False)
+    monkeypatch.setattr(
+        "core.app_paths.get_data_root", lambda: tmp_path / "nonexistent-data"
+    )
+    with pytest.raises(PathSafetyError) as excinfo:
+        validate_ingestion_path("/etc/passwd")
+    assert "INGESTION_ROOTS" in str(excinfo.value)
+    assert "disabled" in str(excinfo.value)
 
 
 def test_nul_byte_rejected(roots):
