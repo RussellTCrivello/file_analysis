@@ -257,13 +257,17 @@ class TestSecretsRemoved:
     def test_no_hardcoded_password_anywhere(self):
         import subprocess
 
+        # Build the needle from parts so this test file never contains the
+        # literal credential (a tracked file cannot match its own needle).
+        needle = "egg" + "arf" + "123"
         result = subprocess.run(
-            ["git", "grep", "-l", "eggarf123", "--", ":!docs"],
+            ["git", "grep", "-l", needle, "--", ":!tests/security/test_security_regressions.py", ":!docs"],
             cwd=PROJECT_ROOT, capture_output=True, text=True,
         )
         offenders = [ln for ln in result.stdout.strip().splitlines() if ln]
         assert not offenders, f"Credential found in: {offenders}"
 
     def test_env_example_has_no_real_password(self):
+        needle = "egg" + "arf" + "123"
         example = Path(PROJECT_ROOT / ".env.example").read_text()
-        assert "eggarf123" not in example
+        assert needle not in example
