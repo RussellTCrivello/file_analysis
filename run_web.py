@@ -112,4 +112,11 @@ def _run_main():
 
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
     port = int(os.environ.get('FLASK_PORT', '5000'))
+    print(f"[OK] Starting web server on http://127.0.0.1:{port} (press CTRL+C to stop)")
     app.run(debug=debug_mode, host=host, port=port)
+
+
+if __name__ == '__main__':
+    # `python run_web.py` must start the server (previously it imported the
+    # app and exited silently, leaving beginners at an empty prompt).
+    _run_main()

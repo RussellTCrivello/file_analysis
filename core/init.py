@@ -30,10 +30,14 @@ def setup_project_path(file_path: Optional[str] = None) -> Path:
     """
     Set up Python path by adding project root to sys.path.
     Simplified version that handles common cases.
-    
+
+    Also loads the project's ``.env`` file (if present) into the process
+    environment so that DB_*, FLASK_* and APP_* settings work out of the
+    box. Real OS environment variables always win over ``.env`` values.
+
     Args:
         file_path: Path to the file calling this function (usually __file__)
-    
+
     Returns:
         Path object to project root
     """
@@ -67,8 +71,41 @@ def setup_project_path(file_path: Optional[str] = None) -> Path:
                 del sys.modules['core.path_utils']
                 if 'core' in sys.modules and hasattr(sys.modules['core'], 'path_utils'):
                     delattr(sys.modules['core'], 'path_utils')
-    
+
+    # Load .env from the project root (beginner-friendly configuration).
+    # override=False preserves ARCH-02 precedence: real environment
+    # variables always beat values from the file.
+    _load_dotenv_file(project_root)
+
     return project_root
+
+
+def _load_dotenv_file(project_root: Path) -> None:
+    """
+    Load environment variables from ``<project_root>/.env`` if it exists.
+
+    Silently does nothing when python-dotenv is not installed or when no
+    ``.env`` file exists, so minimal/offline installs keep working.
+    """
+    try:
+        env_file = Path(project_root) / '.env'
+        if not env_file.exists():
+            return
+        from dotenv import load_dotenv  # python-dotenv is a core dependency
+        loaded = load_dotenv(env_file, override=False)
+        if loaded:
+            import logging
+            logging.getLogger(__name__).info(
+                "Loaded configuration from %s", env_file
+            )
+    except ImportError:
+        pass  # python-dotenv not installed yet (first-time setup)
+    except Exception as exc:  # never block startup on a config file issue
+        import logging
+        logging.getLogger(__name__).warning(
+            "Could not load .env file (%s); continuing with environment defaults",
+            exc,
+        )
 
 
 def initialize_settings(project_root: Path) -> None:
