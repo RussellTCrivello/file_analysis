@@ -186,3 +186,26 @@ class TestFrontendImportWorkflow:
         job = _wait_terminal(admin_client, resp.get_json()["job"]["job_id"])
         assert job["status"] in ("COMPLETED", "COMPLETED_WITH_WARNINGS"), job
         assert (job["statistics"]["files_succeeded"] or 0) == 2
+
+    def test_invalid_import_requests_fail_fast_without_doomed_jobs(
+        self, app, admin_client,
+    ):
+        """Regression: invalid import requests return structured 400s and do
+        NOT persist doomed job rows (validate-before-persist contract)."""
+        before = admin_client.get("/api/import/jobs?limit=200").get_json()["jobs"]
+        n_before = len(before)
+
+        resp = admin_client.post("/api/import/jobs", json={
+            "type": "backup_import",
+        })
+        assert resp.status_code == 400, resp.get_data(as_text=True)
+        assert resp.get_json()["success"] is False
+
+        resp = admin_client.post("/api/import/jobs", json={
+            "type": "domain_import",
+        })
+        assert resp.status_code == 400, resp.get_data(as_text=True)
+        assert resp.get_json()["success"] is False
+
+        after = admin_client.get("/api/import/jobs?limit=200").get_json()["jobs"]
+        assert len(after) == n_before, "doomed job rows were persisted"

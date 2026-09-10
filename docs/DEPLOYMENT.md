@@ -35,7 +35,7 @@ directory to be the repo root (`APP_DATA_DIR` anchors all runtime state).
 | `FLASK_SECRET_KEY` | session signing key (required in production) |
 | `FLASK_ENV=production`, `FLASK_DEBUG=0` | production mode; debug refused in production |
 | `APP_DATA_DIR` | runtime data root (uploads, logs, settings store) |
-| `INGESTION_ROOTS` | semicolon-separated allowlist of server dirs eligible for batch import; **empty = server-path import disabled** |
+| `INGESTION_ROOTS` | semicolon-separated allowlist of server dirs eligible for ingestion; **empty = server-path ingestion disabled** (uploads still work) |
 | `RATELIMIT_STORAGE_URI` | e.g. `redis://…` for multi-process rate limiting |
 
 ## 4. Running

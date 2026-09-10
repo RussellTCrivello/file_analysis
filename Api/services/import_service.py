@@ -39,17 +39,20 @@ class ImportService:
     ) -> Dict[str, Any]:
         """
         Import database backup.
-        
-        Note: This is a read-only operation that validates the backup.
-        Actual restoration would require database schema modifications,
-        which are not allowed per requirements.
-        
+
         Args:
             backup_file: BytesIO object containing backup ZIP file
-            restore_data: Whether to restore data (currently not implemented)
-        
+                (ZIP with a single ``backup.json`` member, as produced by
+                ``Api.services.export_service.ExportService``).
+            restore_data: When True, performs the restore: rows in
+                ``ALLOWED_TABLES`` are deleted and re-inserted from the
+                backup (bounded by MAX_BACKUP_ROWS_PER_TABLE). Only tables
+                in ``ALLOWED_TABLES`` are ever touched; schema is always
+                taken from the live information_schema. When False the
+                backup is only validated (dry run, no writes).
+
         Returns:
-            Dictionary with import validation results
+            Dictionary with import validation/restoration results
         """
         try:
             # Extract and validate backup
@@ -303,8 +306,61 @@ class ImportService:
 
         backup_tables = backup_data.get('tables', {})
 
-        for table_name, table_info in backup_tables.items():
-            if 'data' not in table_info or not table_info['data']:
+        # FK-aware ordering: children are deleted first (so no parent row is
+        # removed while still referenced) and parents are inserted first (so
+        # every FK target exists before its dependent). The order is derived
+        # from the LIVE pg_catalog constraints, never from the backup file.
+        restore_set = set()
+        for _tn, _ti in backup_tables.items():
+            if _ti.get('data'):
+                try:
+                    restore_set.add(ImportService._validate_identifier(_tn))
+                except ValueError:
+                    continue
+
+        cursor.execute(
+            "SELECT conrelid::regclass::text AS child,"
+            " confrelid::regclass::text AS parent"
+            " FROM pg_constraint"
+            " WHERE contype = 'f'"
+            " AND connamespace = 'public'::regnamespace"
+        )
+        edges = set()
+        for child, parent in cursor.fetchall():
+            child = child.split('.')[-1].strip('"')
+            parent = parent.split('.')[-1].strip('"')
+            if child != parent and child in restore_set and parent in restore_set:
+                edges.add((parent, child))  # parent must exist before child
+
+        # Kahn topological sort (parents first); self-references ignored.
+        indegree = {t: 0 for t in restore_set}
+        children_of = {t: [] for t in restore_set}
+        for parent, child in edges:
+            indegree[child] += 1
+            children_of[parent].append(child)
+        queue = sorted(t for t, d in indegree.items() if d == 0)
+        insert_order = []
+        while queue:
+            t = queue.pop(0)
+            insert_order.append(t)
+            for c in sorted(children_of[t]):
+                indegree[c] -= 1
+                if indegree[c] == 0:
+                    queue.append(c)
+        if len(insert_order) != len(restore_set):
+            raise ValueError(
+                "Backup tables contain a foreign-key cycle; restore refused"
+            )
+        delete_order = list(reversed(insert_order))
+
+        for _tn in delete_order:
+            cursor.execute(
+                pg_sql.SQL("DELETE FROM {}").format(pg_sql.Identifier(_tn))
+            )
+
+        for table_name in insert_order:
+            table_info = backup_tables[table_name]
+            if not table_info.get('data'):
                 continue
 
             try:
@@ -336,14 +392,24 @@ class ImportService:
                     errors.append(f"Table '{table_name}': No schema information available")
                     continue
 
-                # Clear existing data inside the same transaction. DELETE (not
-                # TRUNCATE) so the whole restore can be rolled back atomically.
+                # GENERATED ALWAYS identity columns reject explicit values
+                # unless the statement overrides them (backups always carry
+                # the original ids, and referential integrity needs them).
                 cursor.execute(
-                    pg_sql.SQL("DELETE FROM {}").format(pg_sql.Identifier(table_name))
+                    "SELECT column_name FROM information_schema.columns"
+                    " WHERE table_name = %s AND table_schema = 'public'"
+                    " AND is_identity = 'YES' AND identity_generation = 'ALWAYS'",
+                    (table_name,),
                 )
+                identity_columns = {row[0] for row in cursor.fetchall()}
+                overriding = ""
+                if identity_columns & set(validated_columns):
+                    overriding = " OVERRIDING SYSTEM VALUE"
 
                 # Safe identifier composition + parameterized values
-                query = pg_sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                query = pg_sql.SQL(
+                    "INSERT INTO {} ({})" + overriding + " VALUES ({})"
+                ).format(
                     pg_sql.Identifier(table_name),
                     pg_sql.SQL(", ").join(map(pg_sql.Identifier, validated_columns)),
                     pg_sql.SQL(", ").join(pg_sql.Placeholder() for _ in validated_columns),
@@ -378,6 +444,17 @@ class ImportService:
 
                     if batch_values:
                         cursor.executemany(query, batch_values)
+
+                # Resync identity sequences so post-restore inserts continue
+                # after the highest restored id instead of colliding.
+                for id_col in identity_columns:
+                    stmt = pg_sql.SQL(
+                        "SELECT setval(pg_get_serial_sequence(%s, %s),"
+                        " COALESCE((SELECT MAX({col}) FROM {tbl}), 0) + 1,"
+                        " false)"
+                    ).format(col=pg_sql.Identifier(id_col),
+                             tbl=pg_sql.Identifier(table_name))
+                    cursor.execute(stmt, (table_name, id_col))
 
                 restored_tables.append(table_name)
                 restored_rows += len(data_rows)

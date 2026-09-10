@@ -12,6 +12,7 @@ import logging
 from datetime import datetime
 from io import BytesIO
 from core.errors import client_error
+from core.security.flask_ext import admin_required
 from core.security.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -117,12 +118,16 @@ def batch_import_from_csv():
 
 @import_export_bp.route('/backup/export', methods=['GET', 'POST'])
 @limiter.limit("20 per minute")
+@admin_required
 def export_database_backup():
     """
     Export database backup.
-    
+
+    ADMIN-ONLY: a backup contains the full evidence tables. Backup export
+    and restore are administrator capabilities (SEC-02; docs/SECURITY.md).
+
     Query Parameters (GET) or JSON Body (POST):
-    - tables: Comma-separated list of table names (optional, all tables if not provided)
+    - tables: Comma-separated list of table names (optional, evidence tables if not provided)
     - include_data: Include data in backup (default: true)
     """
     try:
@@ -158,15 +163,19 @@ def export_database_backup():
 
 @import_export_bp.route('/backup/import', methods=['POST'])
 @limiter.limit("20 per minute")
+@admin_required
 def import_database_backup():
     """
     Import/validate database backup.
-    
+
+    ADMIN-ONLY: restoring replaces rows in the evidence tables (SEC-02;
+    docs/SECURITY.md).
+
     Form Data:
     - file: Backup ZIP file
-    
+
     Query Parameters:
-    - restore_data: Whether to restore data (default: false, not implemented)
+    - restore_data: Whether to restore data (default: false = validate only)
     """
     try:
         if 'file' not in request.files:

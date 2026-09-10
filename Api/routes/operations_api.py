@@ -418,6 +418,12 @@ def api_create_import_job():
             dest = staged_dir / name
             fs.save(dest)
             data["backup_path"] = str(dest)
+        if not data.get("backup_path"):
+            # Fail fast: no doomed job rows (same contract as the
+            # /api/import/validate endpoint).
+            return _validation_error(Exception("No backup file provided"))
+    if itype == "domain_import" and not data.get("data_file"):
+        return _validation_error(Exception("No data_file provided"))
     if itype == "batch_import":
         # accept staged uploads too
         fs_list = request.files.getlist("files")

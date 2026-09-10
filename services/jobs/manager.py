@@ -538,11 +538,21 @@ class JobManager:
         stale = self.repo.stale_running(stale_seconds or JobsConfig.stale_seconds())
         recovered = []
         for job in stale:
-            self._finish(job["job_id"], job_state.FAILED, errors=[
+            message = (
                 "Application restarted while the job was running; "
                 "the job was interrupted. Retry to continue (processed "
                 "files are not duplicated)."
-            ])
+            )
+            self._finish(job["job_id"], job_state.FAILED, errors=[message])
+            # Persist a terminal event so the audit trail reflects the
+            # recovery (the happy path persists JOB_COMPLETED the same way).
+            try:
+                self.repo.add_event(job["job_id"], "FAILED", {
+                    "reason": "crash_recovery", "errors": [message],
+                })
+            except Exception:
+                logger.exception("Failed to persist crash-recovery event for %s",
+                                 job["job_id"])
             recovered.append(job["job_id"])
         if recovered:
             logger.warning("Recovered %d stale jobs: %s", len(recovered), recovered)

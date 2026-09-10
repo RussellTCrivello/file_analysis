@@ -20,6 +20,15 @@ Restores a previously exported application backup (allowlist-validated JSON
 inside the export ZIP; transactional; see docs/SECURITY.md SEC-04).
 * Analysts receive HTTP 403 — enforced server-side, independent of UI.
 * Validate performs full validation without restoring.
+* Backups contain the evidence tables only (`ALLOWED_TABLES`): system tables
+  (users, sessions, audit_log, jobs, schema_migrations) are never exported
+  and never restored.
+* Restore is FK-aware: children are deleted before parents and parents are
+  inserted before children (order derived from the live pg_catalog
+  constraints); identity (`GENERATED ALWAYS`) columns are restored with
+  `OVERRIDING SYSTEM VALUE` and their sequences are resynced afterwards.
+* The legacy `/api/import-export/backup/*` surface is admin-only as well
+  (blueprint registered in `AUTH_ADMIN_BLUEPRINTS` + endpoint decorators).
 
 ## Server file batch import
 

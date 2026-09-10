@@ -85,9 +85,11 @@ def init_auth(app) -> None:
 
     #: Blueprints whose non-safe methods always require the admin role
     #: (system configuration, import/restore, user administration).
+    #: import_export: backup restore / batch import on the legacy surface.
     app.config.setdefault(
         "AUTH_ADMIN_BLUEPRINTS",
-        frozenset({"settings", "setup", "concurrency", "error_dashboard", "translations"}),
+        frozenset({"settings", "setup", "concurrency", "error_dashboard",
+                   "translations", "import_export"}),
     )
     #: Non-safe (mutating) methods requiring analyst/admin by default.
     app.config.setdefault("AUTH_WRITE_METHODS", frozenset({"POST", "PUT", "PATCH", "DELETE"}))

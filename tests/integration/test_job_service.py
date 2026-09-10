@@ -250,6 +250,79 @@ class TestIngestionJobs:
         assert recovered["status"] == job_state.FAILED
         assert "interrupted" in (recovered["errors"] or [""])[0].lower()
 
+    def test_crash_recovery_then_retry_no_duplicate_work(
+        self, sync_manager, corpus, app, monkeypatch,
+    ):
+        """Release acceptance (§14): interrupt -> restart -> recover -> retry.
+
+        A running job is interrupted by a simulated crash; on restart the
+        startup hook (apps.web.app._recover_jobs) marks it FAILED with the
+        documented message; the operator retries; the retry completes and a
+        re-run of the same corpus produces only duplicates - no work is
+        performed or recorded twice.
+        """
+        job = _make_job(sync_manager, corpus)
+        job_id = job["job_id"]
+
+        # Crash mid-run: RUNNING with a stale heartbeat.
+        from Api.utils.utils import get_connection, return_connection
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE jobs SET status = 'RUNNING', started_at = now(),"
+                    " updated_at = now() - interval '1 hour' WHERE job_id = %s",
+                    (job_id,),
+                )
+            conn.commit()
+        finally:
+            return_connection(conn)
+
+        # "Restart": the startup hook runs the same recovery call.
+        monkeypatch.setattr(
+            "services.jobs.manager.JobsConfig.stale_seconds", lambda: 60
+        )
+        from apps.web.app import _recover_jobs
+        with app.app_context():
+            _recover_jobs()
+
+        recovered = sync_manager.get(job_id)
+        assert recovered["status"] == job_state.FAILED
+        # Events survived the crash (history is never deleted).
+        kinds = [e["event_type"] for e in sync_manager.events(job_id)]
+        assert "JOB_CREATED" in kinds
+        assert "FAILED" in kinds  # recovery publishes the terminal status
+
+        # Operator retries after the restart.
+        retry = sync_manager.retry(job_id, created_by="tester")
+        assert retry["job_id"] != job_id
+        deadline = time.time() + 180
+        while time.time() < deadline:
+            cur = sync_manager.get(retry["job_id"])
+            if job_state.is_terminal(cur["status"]):
+                break
+            time.sleep(0.2)
+        assert cur["status"] in (job_state.COMPLETED, job_state.COMPLETED_WITH_WARNINGS)
+        stats = cur["stats"] or {}
+        stored = int(stats.get("files_stored") or 0)
+        dupes = int(stats.get("files_duplicates") or 0)
+        # The simulated crash hit AFTER the engine stored the corpus (the
+        # synchronous manager runs inline), so the retry must recognize the
+        # already-stored work as duplicates - never process it twice.
+        assert dupes >= 2 and stored == 0, stats
+
+        # And a further re-run stays duplicate-safe (§16).
+        again = _make_job(sync_manager, corpus)
+        deadline = time.time() + 180
+        while time.time() < deadline:
+            cur = sync_manager.get(again["job_id"])
+            if job_state.is_terminal(cur["status"]):
+                break
+            time.sleep(0.2)
+        stats2 = cur["stats"] or {}
+        assert int(stats2.get("files_duplicates") or 0) >= 3
+        assert int(stats2.get("files_stored") or 0) == 0
+
     def test_validation_rejects_bad_requests(self, app):
         svc = IngestionService()
         with pytest.raises(IngestionValidationError):
