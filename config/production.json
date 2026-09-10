@@ -1,0 +1,47 @@
+{
+  "_environment": "production",
+  "_description": "Production environment — strict security, conservative resource limits.",
+  "_usage": "Set FLASK_ENV=production in .env (default) to activate.",
+
+  "environment": "production",
+
+  "app": {
+    "debug_mode": false,
+    "log_level": "WARNING"
+  },
+
+  "web": {
+    "session": {
+      "cookie_secure": true
+    }
+  },
+
+  "database": {
+    "pool": {
+      "min_connections": 5,
+      "max_connections": 30
+    }
+  },
+
+  "security": {
+    "max_failed_logins": 3,
+    "lockout_minutes": 30,
+    "session_hours": 8,
+    "session_idle_hours": 2,
+    "rate_limit": {
+      "per_minute": 30,
+      "per_hour": 300
+    }
+  },
+
+  "processing": {
+    "max_workers": 8,
+    "file_processing_timeout": 1200
+  },
+
+  "logging": {
+    "level": "WARNING",
+    "console": false,
+    "audit_log_to_database": true
+  }
+}

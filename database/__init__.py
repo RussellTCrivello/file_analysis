@@ -49,8 +49,9 @@ from database.queries import (
 
 logger = logging.getLogger(__name__)
 
-# Database initialization functions
-from database.init_database import create_database
+# Database initialization — use database.bootstrap.bootstrap_database()
+# (database/init_database.py was removed; bootstrap.py is the single
+# authoritative database creation path)
 
 # Backward compatibility: DatabaseHub (wrapper around Database)
 class DatabaseHub:
@@ -307,25 +308,6 @@ def database_exists(dbname, password=None, user=None, host=None, port=None):
         return exists
     except Exception:
         return False
-
-def create_schema(conn=None):
-    """Create the database schema via the versioned migration system (DB-01/DB-02).
-
-    This delegates to the single authoritative bootstrap:
-    ``database.bootstrap.bootstrap_database``.  The previous implementation
-    executed table DDL in an order that violated foreign-key dependencies
-    (``words_paths`` before ``paths``), which made fresh installation fail,
-    and relied on a module that ran DDL with hardcoded credentials at import
-    time.  Both defects are removed.
-    """
-    from settings.config import get_db_config
-    from database.bootstrap import bootstrap_database, BootstrapError
-
-    cfg = get_db_config()
-    report = bootstrap_database(cfg)
-    if report.get("applied_migrations"):
-        logger.info("Schema bootstrap applied migrations: %s", report["applied_migrations"])
-    return True
 
 def get_postgres_connection(**kwargs):
     """Get a PostgreSQL connection"""
@@ -1105,9 +1087,7 @@ __all__ = [
     'EnhancedQueryCache',
     
     # Helper functions
-    'create_database',
     'database_exists',
-    'create_schema',
     'get_postgres_connection',
     'get_db_connection',
     'get_db_config',

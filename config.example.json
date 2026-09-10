@@ -1,0 +1,208 @@
+{
+  "_comment": "File Analysis — Project Configuration Template",
+  "_description": "Copy to config.json and customize. Environment variables and .env always take precedence.",
+  "_docs": "See INSTALL.md, docs/DEPLOYMENT.md, and docs/SECURITY.md.",
+
+  "environment": "production",
+
+  "app": {
+    "name": "File Analysis System",
+    "version": "2.0.0",
+    "icon": "bi-file-earmark-text",
+    "logo": "",
+    "language": "en",
+    "timezone": "UTC",
+    "date_format": "YYYY-MM-DD",
+    "time_format": "24h",
+    "debug_mode": false,
+    "log_level": "INFO",
+    "action_logging_enabled": true,
+    "performance_monitoring": true,
+    "startup_check_database": true,
+    "startup_check_migrations": true
+  },
+
+  "database": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "password": "",
+    "database": "analysis",
+    "pool": {
+      "min_connections": 2,
+      "max_connections": 25,
+      "timeout": 30
+    },
+    "query_timeout": 60,
+    "connect_timeout": 10,
+    "batch_size": 10000,
+    "chunk_size": 10000,
+    "migrations": {
+      "auto_migrate_on_startup": true,
+      "backup_before_migrate": true
+    }
+  },
+
+  "web": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "base_url": "",
+    "request_timeout": 300,
+    "max_content_length_mb": 500,
+    "allowed_hosts": [],
+    "cors": {
+      "enabled": false,
+      "allowed_origins": []
+    },
+    "session": {
+      "cookie_secure": "auto",
+      "cookie_httponly": true,
+      "cookie_samesite": "Lax",
+      "permanent_session_lifetime_hours": 12
+    },
+    "tls": {
+      "enabled": false,
+      "cert_file": "",
+      "key_file": ""
+    }
+  },
+
+  "security": {
+    "secret_key": "",
+    "max_failed_logins": 5,
+    "lockout_minutes": 15,
+    "session_hours": 12,
+    "session_idle_hours": 6,
+    "password_min_length": 12,
+    "password_require_uppercase": true,
+    "password_require_lowercase": true,
+    "password_require_digit": true,
+    "csrf_enabled": true,
+    "security_headers": {
+      "content_security_policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'",
+      "referrer_policy": "strict-origin-when-cross-origin",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff"
+    },
+    "rate_limit": {
+      "per_minute": 60,
+      "per_hour": 600,
+      "storage_uri": "memory://"
+    }
+  },
+
+  "admin": {
+    "username": "admin",
+    "password": "",
+    "must_change_password": true,
+    "bootstrap_on_startup": true,
+    "roles": {
+      "admin": "Full system access",
+      "analyst": "Read and write data",
+      "viewer": "Read-only access"
+    }
+  },
+
+  "processing": {
+    "max_workers": 8,
+    "chunk_size": 10485760,
+    "file_processing_timeout": 1200,
+    "parallel_processing": true,
+    "auto_process_uploads": true,
+    "extract_archives": true,
+    "extract_attachments": true,
+    "process_nested": true,
+    "calculate_hashes": true,
+    "extract_text": true,
+    "extract_metadata": true,
+    "max_depth": 10,
+    "monitoring": {
+      "enabled": true,
+      "interval": 5.0
+    }
+  },
+
+  "search": {
+    "default_type": "basic",
+    "case_sensitive": false,
+    "highlight_results": true,
+    "search_in_content": true,
+    "search_in_filename": true,
+    "search_in_metadata": false,
+    "max_results": 1000,
+    "enable_history": true,
+    "enable_saved_searches": true
+  },
+
+  "notifications": {
+    "enabled": true,
+    "email_notifications": false,
+    "email_smtp": {
+      "host": "",
+      "port": 587,
+      "username": "",
+      "password": "",
+      "use_tls": true
+    },
+    "browser_notifications": true,
+    "processing_complete": true,
+    "batch_complete": true,
+    "errors_only": false,
+    "similar_files_enabled": true,
+    "future_dates_enabled": true,
+    "future_events_enabled": true,
+    "auto_analyze_files": true,
+    "upcoming_events_days": 30
+  },
+
+  "ingestion": {
+    "roots": [],
+    "max_file_size_mb": 0,
+    "allowed_extensions": [],
+    "blocked_extensions": ["exe", "bat", "cmd", "sh", "ps1"]
+  },
+
+  "logging": {
+    "level": "INFO",
+    "console": true,
+    "file": true,
+    "file_path": "",
+    "max_file_size_mb": 50,
+    "backup_count": 5,
+    "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+    "audit_log": true,
+    "audit_log_to_database": true
+  },
+
+  "storage": {
+    "data_dir": "",
+    "uploads_dir": "uploads",
+    "logs_dir": "logs",
+    "cache_dir": "cache",
+    "checkpoints_dir": "checkpoints",
+    "extracted_dir": "extracted",
+    "runtime_dir": "runtime",
+    "temp_dir": "",
+    "exports_dir": "exports"
+  },
+
+  "backup": {
+    "enabled": false,
+    "schedule": "daily",
+    "retain_count": 7,
+    "include_database": true,
+    "include_uploads": true,
+    "include_settings": true,
+    "destination": ""
+  },
+
+  "theme": {
+    "primary_color": "#4f46e5",
+    "secondary_color": "#06b6d4",
+    "success_color": "#10b981",
+    "danger_color": "#ef4444",
+    "warning_color": "#f59e0b",
+    "info_color": "#3b82f6"
+  }
+}

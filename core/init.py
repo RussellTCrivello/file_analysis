@@ -77,6 +77,9 @@ def setup_project_path(file_path: Optional[str] = None) -> Path:
     # variables always beat values from the file.
     _load_dotenv_file(project_root)
 
+    # Apply the environment-specific config overlay (config/{FLASK_ENV}.json).
+    _apply_environment_overlay(project_root)
+
     return project_root
 
 
@@ -105,6 +108,33 @@ def _load_dotenv_file(project_root: Path) -> None:
         logging.getLogger(__name__).warning(
             "Could not load .env file (%s); continuing with environment defaults",
             exc,
+        )
+
+
+def _apply_environment_overlay(project_root: Path) -> None:
+    """
+    Load and apply the environment-specific config overlay.
+
+    The overlay lives in ``config/{FLASK_ENV}.json`` and is merged on top
+    of the project-level ``config.json`` and ``.env`` values.  This gives
+    per-environment tuning (e.g. stricter rate limits in production) without
+    touching the user's ``.env`` or ``config.json``.
+    """
+    try:
+        from config import load_effective_config, validate_config, get_environment
+        effective = load_effective_config()
+        valid, errors = validate_config(effective)
+        if not valid:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Configuration validation warnings: %s", "; ".join(errors)
+            )
+    except ImportError:
+        pass  # config module not available (very early in setup)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug(
+            "Environment overlay not applied: %s", exc
         )
 
 

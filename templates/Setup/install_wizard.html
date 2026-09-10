@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Installation Wizard — File Analysis</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='icons/bootstrap-icons.css') }}" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box}
+        body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:30px 15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif}
+        .wizard{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:720px;width:100%;padding:0;overflow:hidden}
+        .wizard-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:28px 32px;text-align:center}
+        .wizard-header h1{font-size:1.6rem;margin:0 0 4px}
+        .wizard-header p{opacity:.85;font-size:.95rem;margin:0}
+        /* Stepper */
+        .stepper{display:flex;justify-content:center;gap:8px;padding:20px 24px 0;flex-wrap:wrap}
+        .step-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:600;background:#f0f0f0;color:#888;transition:all .3s}
+        .step-pill.active{background:#667eea;color:#fff}
+        .step-pill.done{background:#10b981;color:#fff}
+        .step-pill .num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;background:inherit}
+        /* Body */
+        .wizard-body{padding:28px 32px}
+        .wizard-body h4{margin-bottom:18px;color:#333}
+        .step-panel{display:none}
+        .step-panel.active{display:block}
+        /* Check items */
+        .check-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:8px;background:#f8f9fa;transition:background .3s}
+        .check-item.ok{background:#ecfdf5}
+        .check-item.fail{background:#fef2f2}
+        .check-item .icon{font-size:1.1rem;width:24px;text-align:center}
+        .check-item .label{font-weight:600;font-size:.9rem}
+        .check-item .detail{font-size:.82rem;color:#666;margin-left:auto}
+        /* Forms */
+        .form-group{margin-bottom:16px}
+        .form-group label{font-weight:600;color:#333;font-size:.9rem;display:block;margin-bottom:5px}
+        .form-control{border:2px solid #e0e0e0;border-radius:8px;padding:10px 12px;font-size:.95rem;transition:border-color .3s}
+        .form-control:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1);outline:none}
+        .form-control:read-only{background:#f5f5f5}
+        .form-text{font-size:.82rem;color:#888;margin-top:4px}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media(max-width:520px){.form-row{grid-template-columns:1fr}}
+        /* Progress */
+        .install-progress{margin:18px 0}
+        .install-step{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:.9rem;border-bottom:1px solid #f0f0f0}
+        .install-step .isp-icon{width:22px;text-align:center}
+        .install-step.pending{color:#aaa}
+        .install-step.running{color:#667eea;font-weight:600}
+        .install-step.ok{color:#10b981}
+        .install-step.err{color:#ef4444}
+        /* Footer */
+        .wizard-footer{padding:18px 32px 24px;display:flex;justify-content:space-between;gap:12px}
+        .btn-wiz{border-radius:8px;padding:10px 28px;font-weight:600;font-size:.95rem;border:none;cursor:pointer;transition:all .2s}
+        .btn-wiz:disabled{opacity:.5;cursor:not-allowed}
+        .btn-back{background:#f0f0f0;color:#555}
+        .btn-back:hover:not(:disabled){background:#e0e0e0}
+        .btn-next{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+        .btn-next:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 15px rgba(102,126,234,.4)}
+        /* Alerts */
+        .alert{border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:.9rem}
+        /* Password strength */
+        .pw-bar{height:4px;border-radius:2px;background:#e0e0e0;margin-top:6px;overflow:hidden}
+        .pw-bar-fill{height:100%;border-radius:2px;transition:width .3s,background .3s}
+        /* Test result */
+        .test-result{padding:12px;border-radius:8px;margin-top:10px;display:none;font-size:.9rem}
+        .test-result.ok{display:block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+        .test-result.fail{display:block;background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+        /* Completion */
+        .completion{text-align:center;padding:20px 0}
+        .completion .big-icon{font-size:4rem;margin-bottom:16px}
+        .completion h3{margin-bottom:8px}
+        .completion p{color:#666}
+    </style>
+</head>
+<body>
+
+<div class="wizard">
+    <!-- Header -->
+    <div class="wizard-header">
+        <h1><i class="bi bi-gear-fill"></i> File Analysis — Installation</h1>
+        <p>Complete setup in your browser — no command line needed</p>
+    </div>
+
+    <!-- Stepper -->
+    <div class="stepper" id="stepper">
+        <div class="step-pill active" data-step="1"><span class="num">1</span> System Check</div>
+        <div class="step-pill" data-step="2"><span class="num">2</span> Database</div>
+        <div class="step-pill" data-step="3"><span class="num">3</span> Admin &amp; Security</div>
+        <div class="step-pill" data-step="4"><span class="num">4</span> Settings</div>
+        <div class="step-pill" data-step="5"><span class="num">5</span> Install</div>
+    </div>
+
+    <div class="wizard-body">
+
+        <!-- ==================== STEP 1: System Check ==================== -->
+        <div class="step-panel active" id="step-1">
+            <h4><i class="bi bi-pc-display-horizontal"></i> System Prerequisites</h4>
+            <p class="text-muted" style="margin-bottom:18px">Checking that your system meets the requirements…</p>
+            <div id="system-checks">
+                <div class="check-item" id="chk-python"><span class="icon">⏳</span><span class="label">Python</span><span class="detail">Checking…</span></div>
+                <div class="check-item" id="chk-packages"><span class="icon">⏳</span><span class="label">Dependencies</span><span class="detail">Checking…</span></div>
+                <div class="check-item" id="chk-postgresql"><span class="icon">⏳</span><span class="label">PostgreSQL</span><span class="detail">Checking…</span></div>
+                <div class="check-item" id="chk-disk"><span class="icon">⏳</span><span class="label">Disk Space</span><span class="detail">Checking…</span></div>
+                <div class="check-item" id="chk-os"><span class="icon">⏳</span><span class="label">Operating System</span><span class="detail">Checking…</span></div>
+            </div>
+            <div id="step1-alert"></div>
+        </div>
+
+        <!-- ==================== STEP 2: Database ==================== -->
+        <div class="step-panel" id="step-2">
+            <h4><i class="bi bi-database"></i> Database Configuration</h4>
+            <p class="text-muted" style="margin-bottom:18px">Enter your PostgreSQL connection details. The database and tables will be created automatically.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Host</label>
+                    <input type="text" class="form-control" id="db_host" value="localhost">
+                    <div class="form-text">PostgreSQL server address</div>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" class="form-control" id="db_port" value="5432" min="1" max="65535">
+                    <div class="form-text">Default: 5432</div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" class="form-control" id="db_user" value="postgres">
+                    <div class="form-text">PostgreSQL superuser</div>
+                </div>
+                <div class="form-group">
+                    <label>Database Name</label>
+                    <input type="text" class="form-control" id="db_name" value="analysis">
+                    <div class="form-text">Created automatically if missing</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password <span style="color:red">*</span></label>
+                <input type="password" class="form-control" id="db_password" placeholder="Enter your PostgreSQL password">
+                <div class="form-text">The password you set during PostgreSQL installation</div>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-test-db" style="border-radius:6px">
+                <i class="bi bi-lightning"></i> Test Connection
+            </button>
+            <div class="test-result" id="db-test-result"></div>
+        </div>
+
+        <!-- ==================== STEP 3: Admin & Security ==================== -->
+        <div class="step-panel" id="step-3">
+            <h4><i class="bi bi-shield-lock"></i> Administrator &amp; Security</h4>
+            <p class="text-muted" style="margin-bottom:18px">Create the initial administrator account and configure security policies.</p>
+
+            <h6 class="text-uppercase text-muted" style="font-size:.78rem;letter-spacing:.5px;margin-bottom:12px">Administrator Account</h6>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Admin Username <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" id="admin_username" value="admin" maxlength="64">
+                </div>
+                <div class="form-group">
+                    <label>Admin Password <span style="color:red">*</span></label>
+                    <input type="password" class="form-control" id="admin_password" placeholder="Min 12 characters">
+                    <div class="pw-bar"><div class="pw-bar-fill" id="pw-strength" style="width:0"></div></div>
+                    <div class="form-text" id="pw-hint">Minimum 12 characters</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password <span style="color:red">*</span></label>
+                <input type="password" class="form-control" id="admin_password2" placeholder="Re-enter password">
+            </div>
+
+            <hr style="margin:20px 0">
+            <h6 class="text-uppercase text-muted" style="font-size:.78rem;letter-spacing:.5px;margin-bottom:12px">Security Policies</h6>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Max Failed Logins</label>
+                    <input type="number" class="form-control" id="sec_max_failed" value="5" min="1" max="20">
+                    <div class="form-text">Account locked after this many failures</div>
+                </div>
+                <div class="form-group">
+                    <label>Lockout Duration (min)</label>
+                    <input type="number" class="form-control" id="sec_lockout" value="15" min="1" max="1440">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Session Lifetime (hours)</label>
+                    <input type="number" class="form-control" id="sec_session" value="12" min="1" max="720">
+                </div>
+                <div class="form-group">
+                    <label>Idle Timeout (hours)</label>
+                    <input type="number" class="form-control" id="sec_idle" value="6" min="1" max="720">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Min Password Length</label>
+                    <input type="number" class="form-control" id="sec_pw_min" value="12" min="8" max="128">
+                </div>
+                <div class="form-group">
+                    <label>Rate Limit (req/min)</label>
+                    <input type="number" class="form-control" id="sec_rate_min" value="60" min="1">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Rate Limit (req/hour)</label>
+                <input type="number" class="form-control" id="sec_rate_hour" value="600" min="1" style="max-width:200px">
+            </div>
+        </div>
+
+        <!-- ==================== STEP 4: Settings ==================== -->
+        <div class="step-panel" id="step-4">
+            <h4><i class="bi bi-sliders"></i> Application Settings</h4>
+            <p class="text-muted" style="margin-bottom:18px">Configure the application environment and processing options.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Environment</label>
+                    <select class="form-control" id="app_env">
+                        <option value="production" selected>Production (recommended)</option>
+                        <option value="staging">Staging</option>
+                        <option value="development">Development</option>
+                    </select>
+                    <div class="form-text">Affects security defaults, logging, and rate limits</div>
+                </div>
+                <div class="form-group">
+                    <label>Log Level</label>
+                    <select class="form-control" id="app_loglevel">
+                        <option value="INFO" selected>INFO (recommended)</option>
+                        <option value="DEBUG">DEBUG (verbose)</option>
+                        <option value="WARNING">WARNING (quiet)</option>
+                        <option value="ERROR">ERROR (minimal)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Web Port</label>
+                    <input type="number" class="form-control" id="app_port" value="5000" min="1" max="65535">
+                    <div class="form-text">Default: 5000</div>
+                </div>
+                <div class="form-group">
+                    <label>Bind Address</label>
+                    <input type="text" class="form-control" id="app_host" value="0.0.0.0">
+                    <div class="form-text">0.0.0.0 = all interfaces; 127.0.0.1 = local only</div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Max Processing Workers</label>
+                    <input type="number" class="form-control" id="app_workers" value="8" min="1" max="32">
+                    <div class="form-text">Concurrent file analysis threads</div>
+                </div>
+                <div class="form-group">
+                    <label>Processing Timeout (sec)</label>
+                    <input type="number" class="form-control" id="app_timeout" value="1200" min="30" max="7200">
+                    <div class="form-text">Per-file timeout</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Ingestion Roots <span class="text-muted" style="font-weight:normal">(optional)</span></label>
+                <input type="text" class="form-control" id="app_ingestion" placeholder="C:\data;D:\evidence  or  /data;/srv/inbox">
+                <div class="form-text">Semicolon-separated server directories the app may read. Leave empty for uploads only.</div>
+            </div>
+        </div>
+
+        <!-- ==================== STEP 5: Install ==================== -->
+        <div class="step-panel" id="step-5">
+            <h4><i class="bi bi-rocket-takeoff"></i> Installing…</h4>
+            <p class="text-muted" style="margin-bottom:18px">Setting up your File Analysis system. This takes 15–60 seconds.</p>
+            <div class="install-progress" id="install-progress"></div>
+            <div id="install-result"></div>
+        </div>
+
+        <!-- ==================== Completion (hidden until done) ==================== -->
+        <div class="step-panel" id="step-done">
+            <div class="completion">
+                <div class="big-icon">🎉</div>
+                <h3>Installation Complete!</h3>
+                <p>Your File Analysis system is ready to use.</p>
+                <div id="completion-summary" style="text-align:left;margin:20px auto;max-width:400px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="wizard-footer" id="wizard-footer">
+        <button type="button" class="btn-wiz btn-back" id="btn-back" disabled>
+            <i class="bi bi-arrow-left"></i> Back
+        </button>
+        <button type="button" class="btn-wiz btn-next" id="btn-next">
+            Next <i class="bi bi-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const HEADERS = {'Content-Type': 'application/json', 'X-CSRFToken': CSRF};
+
+    let currentStep = 1;
+    const TOTAL_STEPS = 5;
+
+    // ── DOM refs ──
+    const btnBack = document.getElementById('btn-back');
+    const btnNext = document.getElementById('btn-next');
+    const panels = document.querySelectorAll('.step-panel');
+    const pills  = document.querySelectorAll('.step-pill');
+
+    // ── Navigation ──
+    function goTo(n) {
+        if (n < 1 || n > TOTAL_STEPS + 1) return;
+        panels.forEach(p => p.classList.remove('active'));
+        pills.forEach(p => { p.classList.remove('active','done'); });
+        if (n <= TOTAL_STEPS) {
+            document.getElementById('step-' + n).classList.add('active');
+        }
+        for (let i = 1; i <= TOTAL_STEPS; i++) {
+            const pill = document.querySelector(`.step-pill[data-step="${i}"]`);
+            if (i < n) pill.classList.add('done');
+            else if (i === n) pill.classList.add('active');
+        }
+        currentStep = n;
+        btnBack.disabled = (n === 1 || n === TOTAL_STEPS + 1);
+        if (n === TOTAL_STEPS) {
+            btnNext.style.display = 'none';
+            btnBack.style.display = 'none';
+        } else if (n === TOTAL_STEPS + 1) {
+            btnNext.style.display = 'none';
+            btnBack.style.display = 'none';
+            document.getElementById('step-done').classList.add('active');
+        } else {
+            btnNext.style.display = '';
+            btnBack.style.display = '';
+            btnNext.innerHTML = n === TOTAL_STEPS - 1
+                ? '<i class="bi bi-rocket-takeoff"></i> Install'
+                : 'Next <i class="bi bi-arrow-right"></i>';
+        }
+    }
+
+    btnBack.addEventListener('click', () => goTo(currentStep - 1));
+    btnNext.addEventListener('click', () => {
+        if (!validateStep(currentStep)) return;
+        if (currentStep === 4) { runInstallation(); return; }
+        if (currentStep === 1) { runSystemCheck().then(() => goTo(2)); return; }
+        goTo(currentStep + 1);
+    });
+
+    // ── Validation ──
+    function validateStep(n) {
+        if (n === 2) {
+            if (!document.getElementById('db_password').value) {
+                showDbTest('fail', 'Please enter the database password.');
+                return false;
+            }
+        }
+        if (n === 3) {
+            const pw = document.getElementById('admin_password').value;
+            const pw2 = document.getElementById('admin_password2').value;
+            const minLen = parseInt(document.getElementById('sec_pw_min').value) || 12;
+            if (!document.getElementById('admin_username').value.trim()) {
+                alert('Admin username is required.'); return false;
+            }
+            if (pw.length < minLen) {
+                alert('Admin password must be at least ' + minLen + ' characters.'); return false;
+            }
+            if (pw !== pw2) {
+                alert('Passwords do not match.'); return false;
+            }
+        }
+        return true;
+    }
+
+    // ── Step 1: System check ──
+    async function runSystemCheck() {
+        const items = {
+            python:    document.getElementById('chk-python'),
+            packages:  document.getElementById('chk-packages'),
+            postgresql:document.getElementById('chk-postgresql'),
+            disk:      document.getElementById('chk-disk'),
+            os:        document.getElementById('chk-os'),
+        };
+        for (const el of Object.values(items)) {
+            el.className = 'check-item'; el.querySelector('.icon').textContent = '⏳';
+            el.querySelector('.detail').textContent = 'Checking…';
+        }
+        try {
+            const r = await fetch('/api/setup/system-check');
+            const d = await r.json();
+            const c = d.checks;
+
+            setCheck(items.python, c.python.ok, c.python.version, c.python.message);
+            setCheck(items.packages, c.packages.ok,
+                c.packages.ok ? 'All imported' : c.packages.missing.join(', '),
+                c.packages.message);
+            setCheck(items.postgresql, c.postgresql.ok,
+                c.postgresql.ok ? 'Running' : 'Not available',
+                c.postgresql.message);
+            setCheck(items.disk, c.disk.ok,
+                c.disk.free_mb > 0 ? c.disk.free_mb + ' MB free' : '',
+                c.disk.message);
+            setCheck(items.os, true, c.os.name + ' ' + c.os.arch, '');
+
+            if (!d.all_ok) {
+                document.getElementById('step1-alert').innerHTML =
+                    '<div class="alert alert-warning" style="margin-top:14px">' +
+                    '<strong>Some checks failed.</strong> You can still proceed, but ' +
+                    'you may need to install missing components before the database step ' +
+                    'will succeed. See INSTALL.md for help.</div>';
+            }
+        } catch(e) {
+            document.getElementById('step1-alert').innerHTML =
+                '<div class="alert alert-danger">Could not reach the server: ' + e.message + '</div>';
+        }
+    }
+
+    function setCheck(el, ok, detail, message) {
+        el.className = 'check-item ' + (ok ? 'ok' : 'fail');
+        el.querySelector('.icon').textContent = ok ? '✅' : '❌';
+        el.querySelector('.detail').textContent = detail || message || '';
+    }
+
+    // ── Step 2: Test database ──
+    document.getElementById('btn-test-db').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-test-db');
+        btn.disabled = true; btn.textContent = 'Testing…';
+        try {
+            const r = await fetch('/api/setup/test-database', {
+                method: 'POST', headers: HEADERS,
+                body: JSON.stringify({
+                    host: document.getElementById('db_host').value,
+                    port: document.getElementById('db_port').value,
+                    user: document.getElementById('db_user').value,
+                    password: document.getElementById('db_password').value,
+                    database: document.getElementById('db_name').value,
+                })
+            });
+            const d = await r.json();
+            if (d.ok) {
+                let extra = '';
+                if (d.database_exists) extra = ` · ${d.table_count} existing tables`;
+                showDbTest('ok', d.message + extra);
+            } else {
+                showDbTest('fail', d.message);
+            }
+        } catch(e) {
+            showDbTest('fail', 'Network error: ' + e.message);
+        }
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-lightning"></i> Test Connection';
+    });
+
+    function showDbTest(type, msg) {
+        const el = document.getElementById('db-test-result');
+        el.className = 'test-result ' + type;
+        el.textContent = msg;
+    }
+
+    // ── Password strength indicator ──
+    document.getElementById('admin_password').addEventListener('input', function() {
+        const pw = this.value;
+        let score = 0;
+        if (pw.length >= 12) score++;
+        if (pw.length >= 16) score++;
+        if (/[A-Z]/.test(pw)) score++;
+        if (/[0-9]/.test(pw)) score++;
+        if (/[^A-Za-z0-9]/.test(pw)) score++;
+        const pct = Math.min(100, score * 20);
+        const colors = ['#ef4444','#f59e0b','#f59e0b','#10b981','#10b981','#10b981'];
+        const bar = document.getElementById('pw-strength');
+        bar.style.width = pct + '%';
+        bar.style.background = colors[score] || '#e0e0e0';
+        document.getElementById('pw-hint').textContent =
+            score < 2 ? 'Weak' : score < 4 ? 'Fair' : 'Strong';
+    });
+
+    // ── Step 5: Run installation ──
+    async function runInstallation() {
+        goTo(5);
+        const container = document.getElementById('install-progress');
+        const resultEl = document.getElementById('install-result');
+        container.innerHTML = ''; resultEl.innerHTML = '';
+
+        const stepNames = [
+            'Write configuration', 'Save database config', 'Create database',
+            'Schema migrations', 'Create administrator', 'Runtime directories', 'Finalize'
+        ];
+        for (const name of stepNames) {
+            container.innerHTML += '<div class="install-step pending" data-name="' + name + '">' +
+                '<span class="isp-icon">⏳</span><span>' + name + '</span></div>';
+        }
+
+        // Animate running state on first item
+        const items = container.querySelectorAll('.install-step');
+        items[0].className = 'install-step running';
+        items[0].querySelector('.isp-icon').textContent = '⚙️';
+
+        try {
+            const body = {
+                db_host:   document.getElementById('db_host').value,
+                db_port:   document.getElementById('db_port').value,
+                db_user:   document.getElementById('db_user').value,
+                db_password: document.getElementById('db_password').value,
+                db_name:   document.getElementById('db_name').value,
+                admin_username: document.getElementById('admin_username').value.trim(),
+                admin_password: document.getElementById('admin_password').value,
+                environment: document.getElementById('app_env').value,
+                flask_port: document.getElementById('app_port').value,
+                flask_host: document.getElementById('app_host').value,
+                max_workers: document.getElementById('app_workers').value,
+                log_level: document.getElementById('app_loglevel').value,
+                ingestion_roots: document.getElementById('app_ingestion').value,
+                max_failed_logins: document.getElementById('sec_max_failed').value,
+                lockout_minutes: document.getElementById('sec_lockout').value,
+                session_hours: document.getElementById('sec_session').value,
+                session_idle_hours: document.getElementById('sec_idle').value,
+                password_min_length: document.getElementById('sec_pw_min').value,
+                rate_limit_per_minute: document.getElementById('sec_rate_min').value,
+                rate_limit_per_hour: document.getElementById('sec_rate_hour').value,
+            };
+
+            const r = await fetch('/api/setup/install', {
+                method: 'POST', headers: HEADERS,
+                body: JSON.stringify(body),
+            });
+            const d = await r.json();
+
+            // Animate results
+            for (let i = 0; i < stepNames.length; i++) {
+                const match = (d.steps || []).find(s => s.name === stepNames[i]);
+                const el = items[i];
+                if (match) {
+                    el.className = 'install-step ' + (match.ok ? 'ok' : 'err');
+                    el.querySelector('.isp-icon').textContent = match.ok ? '✅' : '❌';
+                    if (match.detail) {
+                        el.innerHTML += '<span style="margin-left:auto;font-size:.82rem;color:#888">' +
+                            match.detail + '</span>';
+                    }
+                } else {
+                    el.className = 'install-step pending';
+                    el.querySelector('.isp-icon').textContent = '⏭️';
+                }
+                // Stagger animation
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            if (d.ok) {
+                resultEl.innerHTML = '<div class="alert alert-success" style="margin-top:16px">' +
+                    '<strong>✅ Installation complete!</strong> Redirecting to login…</div>';
+                // Clear sensitive fields
+                document.getElementById('db_password').value = '';
+                document.getElementById('admin_password').value = '';
+                document.getElementById('admin_password2').value = '';
+                // Show completion
+                setTimeout(() => {
+                    document.getElementById('step-5').classList.remove('active');
+                    document.getElementById('step-done').classList.add('active');
+                    btnNext.style.display = 'none';
+                    btnBack.style.display = 'none';
+                    pills.forEach(p => p.classList.add('done'));
+                    document.getElementById('completion-summary').innerHTML =
+                        '<div class="alert alert-success">' +
+                        '<p><strong>Database:</strong> Created and migrated</p>' +
+                        '<p><strong>Admin:</strong> ' + body.admin_username + '</p>' +
+                        '<p><strong>Environment:</strong> ' + body.environment + '</p>' +
+                        '<p><strong>Address:</strong> http://127.0.0.1:' + body.flask_port + '</p>' +
+                        '</div>' +
+                        '<a href="/" class="btn btn-next btn-wiz" style="display:block;text-align:center;text-decoration:none;margin-top:12px">' +
+                        '<i class="bi bi-box-arrow-in-right"></i> Go to Login</a>';
+                    // Auto-redirect after 5s
+                    setTimeout(() => { window.location.href = '/'; }, 5000);
+                }, 1500);
+            } else {
+                resultEl.innerHTML = '<div class="alert alert-danger" style="margin-top:16px">' +
+                    '<strong>❌ Installation failed.</strong> ' + (d.error || 'Check the steps above for details.') +
+                    '<br><small>You can fix the issue and <a href="/setup">retry</a>.</small></div>';
+                btnBack.style.display = '';
+                btnBack.disabled = false;
+            }
+        } catch(e) {
+            resultEl.innerHTML = '<div class="alert alert-danger" style="margin-top:16px">' +
+                '<strong>Network error:</strong> ' + e.message +
+                '<br><small>Fix the issue and <a href="/setup">retry</a>.</small></div>';
+            btnBack.style.display = '';
+            btnBack.disabled = false;
+        }
+    }
+
+    // ── Auto-run system check on page load ──
+    runSystemCheck();
+
+})();
+</script>
+</body>
+</html>

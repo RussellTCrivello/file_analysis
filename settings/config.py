@@ -181,15 +181,18 @@ def save_database_config_to_file(config_path=None):
 def load_database_config_from_file(config_path=None) -> bool:
     """
     Load database configuration from a file.
-    
+
+    Uses the SettingsManager's validated set path rather than directly
+    mutating database config attributes.
+
     Args:
         config_path: Path to config file (defaults to checking multiple locations)
-    
+
     Returns:
         True if config was loaded successfully, False otherwise
     """
     settings = get_settings()
-    
+
     if config_path is None:
         # Check multiple possible locations
         if settings.project_root:
@@ -202,57 +205,49 @@ def load_database_config_from_file(config_path=None) -> bool:
                 project_root = current_file.parent.parent
             else:
                 project_root = current_file.parent.parent
-        
+
         possible_paths = [
             project_root / 'data' / '.db_config.json',
             project_root / '.db_config.json',
         ]
-        
+
         # Try each path until we find one that exists
         config_path = None
         for path in possible_paths:
             if path.exists():
                 config_path = path
                 break
-        
+
         if config_path is None:
             logger.debug("Database config file not found in any of the checked locations")
             return False
     else:
         config_path = Path(config_path)
-    
+
     if not config_path.exists():
         return False
-    
+
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = json.load(f)
-        
-        # Update database config in unified settings
-        db_config = settings.database
-        db_config.host = config_data.get('host', db_config.host)
-        db_config.port = config_data.get('port', db_config.port)
-        db_config.database = config_data.get('database', db_config.database)
-        db_config.user = config_data.get('user', db_config.user)
-        db_config.password = config_data.get('password', db_config.password)
-        db_config.pool_min_conn = config_data.get('pool_min_conn', db_config.pool_min_conn)
-        db_config.pool_max_conn = config_data.get('pool_max_conn', db_config.pool_max_conn)
-        db_config.pool_timeout = config_data.get('pool_timeout', db_config.pool_timeout)
-        db_config.query_timeout = config_data.get('query_timeout', db_config.query_timeout)
-        db_config.batch_size = config_data.get('batch_size', db_config.batch_size)
-        db_config.chunk_size = config_data.get('chunk_size', db_config.chunk_size)
-        
-        # Update environment variables
-        os.environ['DB_HOST'] = str(db_config.host)
-        os.environ['DB_PORT'] = str(db_config.port)
-        os.environ['DB_NAME'] = str(db_config.database)
-        os.environ['DB_USER'] = str(db_config.user)
-        if db_config.password:
-            os.environ['DB_PASSWORD'] = str(db_config.password)
-        
-        # Save to unified settings file
-        settings._save_to_file()
-        
+
+        # Use the validated set_setting path
+        for key in ['host', 'port', 'database', 'user', 'password',
+                     'pool_min_conn', 'pool_max_conn', 'pool_timeout',
+                     'query_timeout', 'batch_size', 'chunk_size']:
+            val = config_data.get(key)
+            if val is not None:
+                settings.set_setting(f'database.{key}', val)
+
+        # Sync to environment variables
+        db = settings.database
+        os.environ['DB_HOST'] = str(db.host)
+        os.environ['DB_PORT'] = str(db.port)
+        os.environ['DB_NAME'] = str(db.database)
+        os.environ['DB_USER'] = str(db.user)
+        if db.password:
+            os.environ['DB_PASSWORD'] = str(db.password)
+
         logger.info(f"Database configuration loaded from {config_path}")
         return True
     except Exception as e:

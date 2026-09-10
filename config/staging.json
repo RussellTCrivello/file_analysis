@@ -1,0 +1,33 @@
+{
+  "_environment": "staging",
+  "_description": "Staging environment — mirrors production with slightly relaxed limits for testing.",
+  "_usage": "Set FLASK_ENV=staging in .env to activate.",
+
+  "environment": "staging",
+
+  "app": {
+    "debug_mode": false,
+    "log_level": "DEBUG"
+  },
+
+  "database": {
+    "pool": {
+      "min_connections": 2,
+      "max_connections": 20
+    }
+  },
+
+  "security": {
+    "max_failed_logins": 5,
+    "lockout_minutes": 15,
+    "rate_limit": {
+      "per_minute": 120,
+      "per_hour": 1200
+    }
+  },
+
+  "processing": {
+    "max_workers": 4,
+    "file_processing_timeout": 600
+  }
+}

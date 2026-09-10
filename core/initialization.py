@@ -152,50 +152,54 @@ def initialize_paths(config: Dict[str, Any]):
 
 
 def initialize_database_config(config: Dict[str, Any], skip_connection_test: bool = True):
-    """
-    Initialize database configuration from config.json
-    
+    """Initialize database configuration from config.json.
+
+    Uses the SettingsManager's validated set_setting() path rather than
+    directly mutating database config attributes (which bypasses validation).
+
     Args:
         config: Configuration dictionary
         skip_connection_test: If True, don't test database connection (for first startup)
     """
     try:
-        if 'database' in config:
-            db_config_data = config['database']
-            settings = get_settings()
-            db_config = settings.database  # Use unified settings
-            
-            # Update database config (but don't overwrite existing password if set)
-            db_config.host = db_config_data.get('host', db_config.host)
-            db_config.port = db_config_data.get('port', db_config.port)
-            db_config.database = db_config_data.get('database', db_config.database)
-            db_config.user = db_config_data.get('user', db_config.user)
-            
-            # Only update password if provided in config and not already set
-            if 'password' in db_config_data and db_config_data['password']:
-                db_config.password = db_config_data['password']
-            
-            # Update pool settings
-            db_config.pool_min_conn = db_config_data.get('pool_min_conn', db_config.pool_min_conn)
-            db_config.pool_max_conn = db_config_data.get('pool_max_conn', db_config.pool_max_conn)
-            db_config.pool_timeout = db_config_data.get('pool_timeout', db_config.pool_timeout)
-            db_config.query_timeout = db_config_data.get('query_timeout', db_config.query_timeout)
-            db_config.batch_size = db_config_data.get('batch_size', db_config.batch_size)
-            db_config.chunk_size = db_config_data.get('chunk_size', db_config.chunk_size)
-            
-            # Update environment variables
-            os.environ['DB_HOST'] = str(db_config.host)
-            os.environ['DB_PORT'] = str(db_config.port)
-            os.environ['DB_USER'] = str(db_config.user)
-            os.environ['DB_NAME'] = str(db_config.database)
-            if db_config.password:
-                os.environ['DB_PASSWORD'] = str(db_config.password)
-            
-            # Save to unified settings file
-            settings._save_to_file()
-            
-            logger.info("Database configuration initialized from config.json (connection test skipped for first startup)")
-        
+        if 'database' not in config:
+            return
+
+        db_config_data = config['database']
+        settings = get_settings()
+
+        # Use the validated set_setting path — goes through SettingsManager.set()
+        for key, env_key in [
+            ('host', 'DB_HOST'), ('port', 'DB_PORT'),
+            ('database', 'DB_NAME'), ('user', 'DB_USER'),
+        ]:
+            val = db_config_data.get(key)
+            if val is not None:
+                settings.set_setting(f'database.{key}', val)
+
+        # Only update password if provided and non-empty
+        pw = db_config_data.get('password', '')
+        if pw:
+            settings.set_setting('database.password', pw)
+
+        # Pool settings
+        for key in ['pool_min_conn', 'pool_max_conn', 'pool_timeout',
+                     'query_timeout', 'batch_size', 'chunk_size']:
+            val = db_config_data.get(key)
+            if val is not None:
+                settings.set_setting(f'database.{key}', val)
+
+        # Sync to environment variables (for code that reads os.environ directly)
+        db = settings.database
+        os.environ['DB_HOST'] = str(db.host)
+        os.environ['DB_PORT'] = str(db.port)
+        os.environ['DB_USER'] = str(db.user)
+        os.environ['DB_NAME'] = str(db.database)
+        if db.password:
+            os.environ['DB_PASSWORD'] = str(db.password)
+
+        logger.info("Database configuration initialized from config.json")
+
     except Exception as e:
         logger.error(f"Error initializing database config: {e}")
 

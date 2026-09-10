@@ -141,7 +141,8 @@ def register_common_routes(app, babel_instance):
         if (request.endpoint and 
             request.endpoint != 'static' and 
             not request.path.startswith('/api/') and
-            request.endpoint not in ('setup.setup_page', 'setup.setup_database', 'setup.check_setup_status', 
+            request.endpoint not in ('setup.setup_page', 'setup.system_check', 'setup.test_database',
+                                     'setup.run_installation', 'setup.check_setup_status',
                                      'settings_page', 'settings_page_direct', 'settings_api.settings_page',
                                      'settings_api.get_interfaces', 'settings_api.toggle_interface', 
                                      'settings_api.reset_interfaces', 'settings_api.get_all_settings',

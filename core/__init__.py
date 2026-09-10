@@ -3,19 +3,26 @@ Core utilities module at project root
 Provides path setup and other core functionality
 """
 
-# Export configuration functions for easy access
-from .config import (
-    get_config,
-    set_config,
-    reset_config,
-    get_processing_config,
-    get_storage_config,
-    get_database_config,
-    AppConfig,
-    ProcessingConfig,
-    StorageConfig,
-    DatabaseConfig
-)
+# Export configuration functions — authoritative source is settings/
+import sys as _sys
+_settings = _sys.modules.get("settings")
+if _settings is None:
+    try:
+        import settings as _settings
+    except ImportError:
+        _settings = None
+
+if _settings is not None:
+    get_config = _settings.get_config
+    set_config = _settings.set_config
+    reset_config = _settings.reset_config
+    get_processing_config = _settings.get_processing_config
+    get_storage_config = _settings.get_storage_config
+    get_database_config = _settings.get_database_config
+    AppConfig = _settings.AppConfig
+    ProcessingConfig = _settings.ProcessingConfig
+    StorageConfig = _settings.StorageConfig
+    DatabaseConfig = _settings.DatabaseConfig
 
 """
 Core utilities module - Common toolkit for shared functions
