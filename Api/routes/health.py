@@ -5,14 +5,20 @@ and the installer's verification phase.
 
 GET /health → 200 if the app can start, 503 if a critical dependency fails.
 
-Uses a single shared psycopg2 connection (not a pool) for the DB probe —
-this is a lightweight connectivity check, not a query workload.  The
-connection is created lazily and reused across requests.
+Thread-safety: uses ``threading.local()`` so each thread gets its own
+connection.  A module-level ``psycopg2`` connection shared across threads
+is unsafe because psycopg2 connections are not thread-safe for concurrent
+cursor operations.  ``threading.local()`` gives each request-handling
+thread its own connection with independent lifecycle and stale-connection
+handling.
+
+The connection is lightweight (single ``SELECT 1`` probe), not a pool.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 import time
 
 from flask import Blueprint, jsonify
@@ -23,40 +29,68 @@ health_bp = Blueprint("health", __name__)
 
 _start_time = time.time()
 
-# Shared health-check connection (lazily created, not a pool).
-_health_conn = None
+# Thread-local storage for health-check connections.
+# Each thread (i.e., each concurrent request handler) gets its own
+# psycopg2 connection.  This eliminates the shared-state race that a
+# module-level connection would have under Flask's threaded mode.
+_local = threading.local()
+
+# Lock for connection creation — prevents thundering-herd on startup
+# when multiple health probes arrive before any connection exists.
+_connect_lock = threading.Lock()
 
 
 def _get_health_connection():
-    """Return a reusable psycopg2 connection for health probes.
+    """Return a thread-local psycopg2 connection for health probes.
 
-    Creates a lightweight single connection (not a pool) that is reused
-    across health-check requests.  Reconnects automatically on failure.
+    Each thread gets its own connection.  Stale connections (closed by the
+    server, idle timeout, network reset) are detected by a ``SELECT 1``
+    probe and replaced transparently.
+
+    Returns a valid open connection, or raises if PostgreSQL is unreachable.
     """
-    global _health_conn
-    if _health_conn is not None:
+    conn = getattr(_local, "health_conn", None)
+
+    # Fast path: existing connection, test liveness.
+    if conn is not None:
         try:
-            if _health_conn.closed:
-                _health_conn = None
+            if conn.closed:
+                conn = None
             else:
-                # Quick liveness probe
-                cur = _health_conn.cursor()
+                cur = conn.cursor()
                 cur.execute("SELECT 1")
                 cur.close()
-                return _health_conn
+                return conn
         except Exception:
+            # Connection stale — close and fall through to create a new one.
             try:
-                _health_conn.close()
+                conn.close()
             except Exception:
                 pass
-            _health_conn = None
+            _local.health_conn = None
+            conn = None
 
-    # Create new connection
-    try:
+    # Slow path: create a new connection (serialized to avoid thundering herd).
+    with _connect_lock:
+        # Double-check: another thread may have created one while we waited.
+        conn = getattr(_local, "health_conn", None)
+        if conn is not None and not conn.closed:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT 1")
+                cur.close()
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                _local.health_conn = None
+
         import psycopg2
         from database import get_db_config
         cfg = get_db_config()
-        _health_conn = psycopg2.connect(
+        conn = psycopg2.connect(
             host=cfg.get("host", "localhost"),
             port=int(cfg.get("port", 5432)),
             user=cfg.get("user", "postgres"),
@@ -64,10 +98,8 @@ def _get_health_connection():
             dbname=cfg.get("database", "analysis"),
             connect_timeout=5,
         )
-        return _health_conn
-    except Exception:
-        _health_conn = None
-        raise
+        _local.health_conn = conn
+        return conn
 
 
 @health_bp.route("/health", methods=["GET"])
@@ -80,8 +112,7 @@ def health():
     checks: dict = {}
     all_ok = True
 
-    # Database connectivity — uses a shared lightweight connection,
-    # NOT a new Database() pool per request.
+    # Database connectivity — thread-local connection, no shared state.
     try:
         conn = _get_health_connection()
         cur = conn.cursor()

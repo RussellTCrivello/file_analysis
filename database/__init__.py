@@ -266,49 +266,6 @@ class TransactionManager:
                 self.db.putconn(conn)
 
 # Helper functions for backward compatibility
-def database_exists(dbname, password=None, user=None, host=None, port=None):
-    """
-    Check if database exists.
-    
-    Args:
-        dbname: Database name
-        password: Database password (optional)
-        user: Database user (optional, defaults to config)
-        host: Database host (optional, defaults to config)
-        port: Database port (optional, defaults to config)
-    """
-    import psycopg2
-    try:
-        from settings import get_database_config
-        db_config = get_database_config()
-        user = user or db_config.user
-        password = password or db_config.password
-        host = host or db_config.host
-        port = port or db_config.port
-    except:
-        import os
-        user = user or os.getenv('DB_USER', 'postgres')
-        password = password or os.getenv('DB_PASSWORD', '')
-        host = host or os.getenv('DB_HOST', 'localhost')
-        port = port or int(os.getenv('DB_PORT', '5432'))
-    
-    try:
-        conn = psycopg2.connect(
-            dbname="postgres",
-            user=user,
-            password=password,
-            host=host,
-            port=port
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,))
-        exists = cursor.fetchone() is not None
-        cursor.close()
-        conn.close()
-        return exists
-    except Exception:
-        return False
-
 def get_postgres_connection(**kwargs):
     """Get a PostgreSQL connection"""
     db = Database()
@@ -1087,7 +1044,6 @@ __all__ = [
     'EnhancedQueryCache',
     
     # Helper functions
-    'database_exists',
     'get_postgres_connection',
     'get_db_connection',
     'get_db_config',

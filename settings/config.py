@@ -136,48 +136,6 @@ def reset_config():
     # Reset is handled by settings manager
 
 
-def save_database_config_to_file(config_path=None):
-    """
-    Save database configuration to a file for persistence.
-    
-    Args:
-        config_path: Path to config file (defaults to project_root/.db_config.json)
-    """
-    settings = get_settings()
-    db_config = settings.database
-    
-    if config_path is None:
-        if settings.project_root:
-            config_path = settings.project_root / '.db_config.json'
-        else:
-            config_path = Path('.db_config.json')
-    
-    try:
-        config_data = {
-            'host': db_config.host,
-            'port': db_config.port,
-            'database': db_config.database,
-            'user': db_config.user,
-            'password': db_config.password,
-            'pool_min_conn': db_config.pool_min_conn,
-            'pool_max_conn': db_config.pool_max_conn,
-            'pool_timeout': db_config.pool_timeout,
-            'query_timeout': db_config.query_timeout,
-            'batch_size': db_config.batch_size,
-            'chunk_size': db_config.chunk_size
-        }
-        
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_data, f, indent=2)
-        
-        logger.info(f"Database configuration saved to {config_path}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to save database configuration: {e}")
-        return False
-
-
 def load_database_config_from_file(config_path=None) -> bool:
     """
     Load database configuration from a file.

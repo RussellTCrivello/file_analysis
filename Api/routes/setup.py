@@ -15,18 +15,24 @@ Endpoints:
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
 setup_bp = Blueprint("setup", __name__)
 
+# Installation lock: prevents concurrent installation requests from
+# racing.  Only one installation can execute at a time across all
+# threads.  The second request receives a deterministic 409 response.
+_install_lock = threading.Lock()
+
 
 def _is_initialized():
     """Authoritative initialization-state check.
 
-    The system is considered initialized when ALL critical tables exist
-    in the application database.  This is the single source of truth —
-    filesystem markers are used only as a fast-path cache.
+    The system is considered initialized when the filesystem marker exists
+    AND the critical tables exist in the application database.  The
+    filesystem marker is the fast-path; the table check is authoritative.
 
     Returns True if initialized, False if not, False on any error
     (fail-safe: an errored check should not block legitimate setup).
@@ -130,57 +136,71 @@ def test_database():
 # ── Step 5: Full installation ──
 @setup_bp.route("/api/setup/install", methods=["POST"])
 def run_installation():
-    # GUARD: reject if system is already initialized
+    # GUARD 1: reject if system is already initialized
     guard_response = _reject_if_initialized()
     if guard_response is not None:
         return guard_response
 
-    from core.installer import run_installation as _run
-    data = request.get_json() or {}
+    # GUARD 2: serialize installation — only one request at a time.
+    # Non-blocking acquire: if another request is already installing,
+    # return 409 immediately rather than waiting or racing.
+    acquired = _install_lock.acquire(blocking=False)
+    if not acquired:
+        return jsonify({
+            "ok": False,
+            "error": "Installation is already in progress. "
+                     "Please wait for it to complete."
+        }), 409
 
-    # Validate required fields
-    db_password = data.get("db_password", "")
-    admin_username = data.get("admin_username", "admin").strip()
-    admin_password = data.get("admin_password", "")
-    pw_min = int(data.get("password_min_length", 12))
+    try:
+        from core.installer import run_installation as _run
+        data = request.get_json() or {}
 
-    if not db_password:
-        return jsonify({"ok": False, "error": "Database password is required"}), 400
-    if not admin_password or len(admin_password) < pw_min:
-        return jsonify({"ok": False,
-                        "error": f"Admin password must be at least {pw_min} characters"}), 400
-    if not admin_username:
-        return jsonify({"ok": False, "error": "Admin username is required"}), 400
+        # Validate required fields
+        db_password = data.get("db_password", "")
+        admin_username = data.get("admin_username", "admin").strip()
+        admin_password = data.get("admin_password", "")
+        pw_min = int(data.get("password_min_length", 12))
 
-    # Map frontend field names → .env key names
-    config = {
-        "DB_HOST": data.get("db_host", "localhost"),
-        "DB_PORT": str(data.get("db_port", 5432)),
-        "DB_USER": data.get("db_user", "postgres"),
-        "DB_PASSWORD": db_password,
-        "DB_NAME": data.get("db_name", "analysis"),
-        "APP_ADMIN_USERNAME": admin_username,
-        "APP_ADMIN_PASSWORD": admin_password,
-        "FLASK_ENV": data.get("environment", "production"),
-        "FLASK_PORT": str(data.get("flask_port", 5000)),
-        "FLASK_HOST": data.get("flask_host", "0.0.0.0"),
-        "MAX_WORKERS": str(data.get("max_workers", 8)),
-        "LOG_LEVEL": data.get("log_level", "INFO"),
-        "INGESTION_ROOTS": data.get("ingestion_roots", ""),
-        "SECURITY_MAX_FAILED_LOGINS": str(data.get("max_failed_logins", 5)),
-        "SECURITY_LOCKOUT_MINUTES": str(data.get("lockout_minutes", 15)),
-        "SECURITY_SESSION_HOURS": str(data.get("session_hours", 12)),
-        "SECURITY_SESSION_IDLE_HOURS": str(data.get("session_idle_hours", 6)),
-        "PASSWORD_MIN_LENGTH": str(pw_min),
-        "RATE_LIMIT_PER_MINUTE": str(data.get("rate_limit_per_minute", 60)),
-        "RATE_LIMIT_PER_HOUR": str(data.get("rate_limit_per_hour", 600)),
-        "FILE_PROCESSING_TIMEOUT": str(data.get("file_processing_timeout", 1200)),
-    }
+        if not db_password:
+            return jsonify({"ok": False, "error": "Database password is required"}), 400
+        if not admin_password or len(admin_password) < pw_min:
+            return jsonify({"ok": False,
+                            "error": f"Admin password must be at least {pw_min} characters"}), 400
+        if not admin_username:
+            return jsonify({"ok": False, "error": "Admin username is required"}), 400
 
-    result = _run(config)
-    result["redirect"] = url_for("index")
-    status = 200 if result.get("ok") else 500
-    return jsonify(result), status
+        # Map frontend field names → .env key names
+        config = {
+            "DB_HOST": data.get("db_host", "localhost"),
+            "DB_PORT": str(data.get("db_port", 5432)),
+            "DB_USER": data.get("db_user", "postgres"),
+            "DB_PASSWORD": db_password,
+            "DB_NAME": data.get("db_name", "analysis"),
+            "APP_ADMIN_USERNAME": admin_username,
+            "APP_ADMIN_PASSWORD": admin_password,
+            "FLASK_ENV": data.get("environment", "production"),
+            "FLASK_PORT": str(data.get("flask_port", 5000)),
+            "FLASK_HOST": data.get("flask_host", "0.0.0.0"),
+            "MAX_WORKERS": str(data.get("max_workers", 8)),
+            "LOG_LEVEL": data.get("log_level", "INFO"),
+            "INGESTION_ROOTS": data.get("ingestion_roots", ""),
+            "SECURITY_MAX_FAILED_LOGINS": str(data.get("max_failed_logins", 5)),
+            "SECURITY_LOCKOUT_MINUTES": str(data.get("lockout_minutes", 15)),
+            "SECURITY_SESSION_HOURS": str(data.get("session_hours", 12)),
+            "SECURITY_SESSION_IDLE_HOURS": str(data.get("session_idle_hours", 6)),
+            "PASSWORD_MIN_LENGTH": str(pw_min),
+            "RATE_LIMIT_PER_MINUTE": str(data.get("rate_limit_per_minute", 60)),
+            "RATE_LIMIT_PER_HOUR": str(data.get("rate_limit_per_hour", 600)),
+            "FILE_PROCESSING_TIMEOUT": str(data.get("file_processing_timeout", 1200)),
+        }
+
+        result = _run(config)
+        result["redirect"] = url_for("index")
+        status = 200 if result.get("ok") else 500
+        return jsonify(result), status
+    finally:
+        _install_lock.release()
 
 
 # ── Status check ──

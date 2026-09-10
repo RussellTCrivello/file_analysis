@@ -59,14 +59,19 @@ def deep_merge(base: Dict, overlay: Dict) -> Dict:
 
 
 def load_effective_config() -> Dict[str, Any]:
-    """
-    Load the effective configuration by merging:
-    1. config.example.json (project defaults)
-    2. config.json (user overrides)
-    3. Environment-specific overlay (config/{env}.json)
+    """Load and merge configuration files for validation/diagnostics only.
 
-    Environment variables always take precedence (applied at read time
-    by the settings system, not here).
+    Merges: config.example.json → config.json → config/{env}.json.
+
+    This function is used for:
+    - Startup validation (warnings on invalid config)
+    - Diagnostic display (print_config_summary)
+    - Utility lookups (get_config_value)
+
+    It is NOT the authoritative runtime configuration source.  The
+    authoritative source is the SettingsManager (settings/settings_manager.py)
+    combined with environment variables.  This function reads raw JSON files
+    and returns a merged dict; it does not update the running system.
     """
     # 1. Project defaults
     defaults_path = _PROJECT_ROOT / "config.example.json"
