@@ -44,7 +44,9 @@ PUBLIC_ENDPOINTS = frozenset(
         "favicon",
         "health.health",
         "setup.setup_page",  # gated: only functional before DB initialization
-        "setup.setup_database",
+        "setup.system_check",
+        "setup.test_database",
+        "setup.run_installation",
         "setup.check_setup_status",
     }
 )

@@ -1,0 +1,45 @@
+{
+  "_environment": "development",
+  "_description": "Development environment — relaxed settings for local iteration.",
+  "_usage": "Set FLASK_ENV=development in .env to activate.",
+
+  "environment": "development",
+
+  "app": {
+    "debug_mode": true,
+    "log_level": "DEBUG"
+  },
+
+  "web": {
+    "session": {
+      "cookie_secure": false
+    }
+  },
+
+  "database": {
+    "pool": {
+      "min_connections": 1,
+      "max_connections": 10
+    }
+  },
+
+  "security": {
+    "max_failed_logins": 10,
+    "lockout_minutes": 5,
+    "session_hours": 24,
+    "rate_limit": {
+      "per_minute": 300,
+      "per_hour": 6000
+    }
+  },
+
+  "processing": {
+    "max_workers": 2,
+    "file_processing_timeout": 300
+  },
+
+  "logging": {
+    "level": "DEBUG",
+    "console": true
+  }
+}

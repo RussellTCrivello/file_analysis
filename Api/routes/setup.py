@@ -1,384 +1,238 @@
 """
-Database setup routes for initial installation
+Web-based installation wizard routes.
+
+The page at /setup renders a multi-step wizard (install_wizard.html).
+Each step calls an API endpoint that delegates to the shared installer
+services in core.installer — no business logic lives here.
+
+Endpoints:
+    GET  /setup                  → wizard page
+    GET  /api/setup/system-check → prerequisite checks
+    POST /api/setup/test-database→ DB connectivity test
+    POST /api/setup/install      → execute full installation
+    GET  /api/setup/check        → is the system initialized?
 """
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
-from database import (
-    database_exists, create_database, create_schema,
-    get_postgres_connection, get_db_connection
-)
-from settings import get_database_config, DatabaseConfig
-from settings.config import set_config, AppConfig
 import logging
-import os
-import psycopg2
+import threading
 
 logger = logging.getLogger(__name__)
 
-setup_bp = Blueprint('setup', __name__)
+setup_bp = Blueprint("setup", __name__)
+
+# Installation lock: prevents concurrent installation requests from
+# racing.  Only one installation can execute at a time across all
+# threads.  The second request receives a deterministic 409 response.
+_install_lock = threading.Lock()
 
 
-def check_database_initialized():
+def _is_initialized():
+    """Authoritative initialization-state check.
+
+    The system is considered initialized when the filesystem marker exists
+    AND the critical tables exist in the application database.  The
+    filesystem marker is the fast-path; the table check is authoritative.
+
+    Returns True if initialized, False if not, False on any error
+    (fail-safe: an errored check should not block legitimate setup).
     """
-    Check if database is initialized.
-    First checks the system initialization marker file (fastest),
-    then falls back to database checks if needed.
-    """
-    # First check: System initialization marker file (fastest and most reliable)
+    # Fast-path: filesystem marker (written at end of successful install)
     try:
         from core.initialization import is_system_initialized
-        if is_system_initialized():
-            logger.debug("System initialization marker found - database is initialized")
-            return True
-    except Exception as e:
-        logger.debug(f"Could not check system initialization marker: {e}")
-    
-    # Second check: Try database connection and setup marker
-    try:
-        from database import get_db_config, database_exists
-        db_config = get_db_config()
-        
-        # First check if database exists
-        try:
-            if not database_exists(db_config['database'], db_config.get('password', '')):
-                logger.debug("Database does not exist")
-                return False
-        except Exception as e:
-            logger.debug(f"Could not check if database exists: {e}")
-            # If we can't check, assume it doesn't exist
+        if not is_system_initialized():
             return False
-        
-        # Try to connect to the database
-        try:
-            conn = psycopg2.connect(
-                dbname=db_config.get('database', 'analysis'),
-                user=db_config.get('user', 'postgres'),
-                password=db_config.get('password', ''),
-                host=db_config.get('host', 'localhost'),
-                port=db_config.get('port', 5432)
-            )
-            cursor = conn.cursor()
-            
-            # Check if setup marker exists (most reliable indicator)
-            try:
-                cursor.execute("""
-                    SELECT COUNT(*) 
-                    FROM information_schema.tables 
-                    WHERE table_schema = 'public' AND table_name = '_setup_completed'
-                """)
-                setup_marker_exists = cursor.fetchone()[0] > 0
-                
-                if setup_marker_exists:
-                    cursor.close()
-                    conn.close()
-                    logger.debug("Setup marker found in database - database is initialized")
-                    return True
-            except Exception:
-                pass
-            
-            # Fallback: Check if any application tables exist
-            cursor.execute("""
-                SELECT COUNT(*) 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public'
-                AND table_name IN ('words', 'files', 'content', 'categories')
-            """)
-            table_count = cursor.fetchone()[0]
-            
-            cursor.close()
-            conn.close()
-            
-            if table_count > 0:
-                logger.debug(f"Found {table_count} application tables - database is initialized")
-                return True
-            
-            return False
-        except Exception as conn_error:
-            # If connection fails, check if it's just a password issue
-            # If system marker exists, assume initialized (password can be fixed in settings)
-            try:
-                from core.initialization import is_system_initialized
-                if is_system_initialized():
-                    logger.debug("System initialized but database connection failed (may need password update)")
-                    return True
-            except:
-                pass
-            
-            logger.debug(f"Could not connect to database: {conn_error}")
-            return False
-            
-    except Exception as e:
-        logger.debug(f"Database check failed: {e}")
-        # If system marker exists, assume initialized
-        try:
-            from core.initialization import is_system_initialized
-            if is_system_initialized():
-                return True
-        except:
-            pass
+        # Marker exists, but verify DB is actually ready too
+    except Exception:
         return False
 
-
-@setup_bp.route('/setup', methods=['GET'])
-def setup_page():
-    """Display database setup page"""
-    # Check if already initialized
-    if check_database_initialized():
-        return redirect(url_for('index'))
-    
-    return render_template('Setup/database_setup.html')
-
-
-@setup_bp.route('/api/setup/database', methods=['POST'])
-def setup_database():
-    """Handle database setup request - uses standardized settings"""
+    # Authoritative check: do the critical tables exist?
     try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        # Standardized database configuration - fixed values, no variations
-        # Only password is required from user
-        host = 'localhost'  # Fixed
-        port = 5432  # Fixed
-        user = 'postgres'  # Fixed
-        database = 'analysis'  # Fixed
-        password = data.get('password', '')
-        
-        if not password:
-            return jsonify({'error': 'Database password is required'}), 400
-        
-        # First, try to verify if setup is truly complete by checking for critical tables
-        # This allows re-setup if tables are missing (e.g., alerts table)
-        setup_complete = False
-        try:
-            # Try to connect to check if database and critical tables exist
-            conn_check = psycopg2.connect(
-                dbname=database,
-                user=user,
-                password=password,
-                host=host,
-                port=port
-            )
-            cursor_check = conn_check.cursor()
-            
-            # Check if alerts table exists (required by notification service)
-            cursor_check.execute("""
-                SELECT COUNT(*) 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public' AND table_name = 'alerts'
-            """)
-            alerts_exists = cursor_check.fetchone()[0] > 0
-            
-            # Check for other critical tables
-            cursor_check.execute("""
-                SELECT COUNT(*) 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name IN ('words', 'categorys', 'paths', 'contents')
-            """)
-            critical_tables_count = cursor_check.fetchone()[0]
-            
-            cursor_check.close()
-            conn_check.close()
-            
-            # Setup is complete only if alerts table exists AND all critical tables exist
-            setup_complete = alerts_exists and critical_tables_count >= 4
-            
-            if not setup_complete:
-                logger.warning(f"Database connection successful but critical tables missing (alerts: {alerts_exists}, critical: {critical_tables_count}/4). Allowing setup to complete.")
-        except psycopg2.OperationalError as e:
-            # Database doesn't exist or connection failed - allow setup
-            logger.info(f"Database connection failed (may not exist yet): {e}. Allowing setup.")
-            setup_complete = False
-        except Exception as check_error:
-            # Any other error - allow setup to proceed (safer to allow than block)
-            logger.warning(f"Could not verify table existence: {check_error}. Allowing setup.")
-            setup_complete = False
-        
-        # Only block if setup is truly complete (all tables exist)
-        if setup_complete:
-            return jsonify({
-                'error': 'Database is already initialized. Setup can only be performed once.',
-                'message': 'If you need to reconfigure, please use the Settings page.'
-            }), 400
-        
-        # Update global configuration
-        db_config = DatabaseConfig(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database
+        import psycopg2
+        from database import get_db_config
+        cfg = get_db_config()
+        conn = psycopg2.connect(
+            dbname=cfg.get("database", "analysis"),
+            user=cfg.get("user", "postgres"),
+            password=cfg.get("password", ""),
+            host=cfg.get("host", "localhost"),
+            port=cfg.get("port", 5432),
+            connect_timeout=5,
         )
-        
-        # Update the global config
-        app_config = get_database_config()
-        app_config.host = host
-        app_config.port = port
-        app_config.user = user
-        app_config.password = password
-        app_config.database = database
-        
-        # Also set environment variables for persistence
-        os.environ['DB_HOST'] = host
-        os.environ['DB_PORT'] = str(port)
-        os.environ['DB_USER'] = user
-        os.environ['DB_PASSWORD'] = password
-        os.environ['DB_NAME'] = database
-        
-        # Save configuration to file for persistence
         try:
-            from settings.config import save_database_config_to_file
-            save_database_config_to_file()
-        except Exception as e:
-            logger.warning(f"Could not save database config to file: {e}")
-        
-        # Check if database exists
-        db_exists = database_exists(database, password)
-        database_created = False
-        
-        if not db_exists:
-            # Create database
-            logger.info(f"Creating database '{database}'...")
-            if create_database(database, user, password, host, port):
-                database_created = True
-                logger.info(f"Database '{database}' created successfully")
-            else:
-                return jsonify({'error': 'Failed to create database'}), 500
-        
-        # Create the schema through the versioned migration bootstrap (DB-01).
-        # The legacy inline DDL path was removed: it ran statements in an order
-        # that violated foreign-key dependencies and broke fresh installs.
-        logger.info(f"Bootstrapping schema in database '{database}'...")
-        from database.bootstrap import bootstrap_database, BootstrapError
-        try:
-            bootstrap_report = bootstrap_database({
-                'host': host, 'port': port, 'user': user,
-                'password': password, 'database': database,
-            })
-        except BootstrapError as boot_error:
-            logger.error("Schema bootstrap failed: %s", boot_error)
-            return jsonify({
-                'error': str(boot_error),
-                'message': 'Failed to create the database schema. Check PostgreSQL settings.'
-            }), 500
-        
-        try:
-            # Mark setup as completed by creating a setup marker
-            # This ensures setup only happens once
-            try:
-                conn = psycopg2.connect(
-                    dbname=database, user=user, password=password,
-                    host=host, port=port
-                )
-                # Ensure autocommit is enabled for this operation
-                conn.autocommit = True
-                cursor = conn.cursor()
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS _setup_completed (
-                        id SERIAL PRIMARY KEY,
-                        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        host VARCHAR(255),
-                        port INTEGER,
-                        user_name VARCHAR(255),
-                        database_name VARCHAR(255)
-                    );
-                """)
-                # Check if setup marker already exists
-                cursor.execute("SELECT COUNT(*) FROM _setup_completed")
-                if cursor.fetchone()[0] == 0:
-                    cursor.execute("""
-                        INSERT INTO _setup_completed (host, port, user_name, database_name)
-                        VALUES (%s, %s, %s, %s)
-                    """, (host, port, user, database))
-                cursor.close()
-                
-                # Also mark system as initialized in file system
-                from core.initialization import mark_system_initialized
-                mark_system_initialized()
-                logger.info("✅ System marked as initialized after database setup")
-            except Exception as e:
-                logger.debug(f"Could not create setup marker: {e}")
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                "WHERE table_schema='public' "
+                "AND table_name IN ('words','paths','contents','users')")
+            count = cur.fetchone()[0]
+            cur.close()
+            return count >= 4
         finally:
             conn.close()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Database setup completed successfully with standardized settings',
-            'database_created': database_created,
-            'database': database,
-            'redirect': url_for('index'),  # Redirect to dashboard after setup
-            'settings': {
-                'host': host,
-                'port': port,
-                'user': user,
-                'database': database
-            }
-        }), 200
-        
     except Exception:
-        # SEC-08: client-safe error; details logged server-side only.
-        from core.errors import new_correlation_id
-        logger.error("Database setup failed", exc_info=True)
-        return jsonify({
-            'error': 'Failed to setup database. Check your PostgreSQL connection settings.',
-            'correlation_id': new_correlation_id(),
-            'message': 'Failed to setup database. Please check your PostgreSQL connection settings.'
-        }), 500
+        # DB unreachable — if marker exists, trust it (partial recovery case)
+        return True
 
 
-@setup_bp.route('/api/setup/check', methods=['GET'])
-def check_setup_status():
-    """Check if database is initialized"""
+def _reject_if_initialized():
+    """Return an error response if the system is already initialized.
+
+    Used as a guard on mutating setup endpoints.  Returns None if the
+    system is NOT initialized (i.e., installation is allowed).
+    """
     try:
-        initialized = check_database_initialized()
+        if _is_initialized():
+            return jsonify({
+                "ok": False,
+                "error": "System is already initialized. "
+                         "Re-installation is not permitted through this endpoint."
+            }), 409  # 409 Conflict
+    except Exception as e:
+        # If we cannot determine state, block installation as a safety measure.
+        # The admin can always use CLI for recovery.
+        logger.error("Initialization check failed: %s", e)
         return jsonify({
-            'initialized': initialized
-        }), 200
+            "ok": False,
+            "error": "Cannot verify system state. "
+                     "Installation blocked for safety. Use CLI for recovery."
+        }), 503
+    return None
+
+
+# ── Page ──
+@setup_bp.route("/setup", methods=["GET"])
+def setup_page():
+    if _is_initialized():
+        return redirect(url_for("index"))
+    return render_template("Setup/install_wizard.html")
+
+
+# ── Step 1: System check ──
+@setup_bp.route("/api/setup/system-check", methods=["GET"])
+def system_check():
+    from core.installer import check_system
+    checks = check_system()
+    all_ok = all(c.get("ok", False) for c in checks.values())
+    return jsonify({"all_ok": all_ok, "checks": checks})
+
+
+# ── Step 2: Test database ──
+@setup_bp.route("/api/setup/test-database", methods=["POST"])
+def test_database():
+    from core.installer import test_database_connection
+    data = request.get_json() or {}
+    result = test_database_connection(
+        host=data.get("host", "localhost"),
+        port=int(data.get("port", 5432)),
+        user=data.get("user", "postgres"),
+        password=data.get("password", ""),
+        database=data.get("database", "analysis"),
+    )
+    status = 200 if result.get("ok", True) else 400
+    return jsonify(result), status
+
+
+# ── Step 5: Full installation ──
+@setup_bp.route("/api/setup/install", methods=["POST"])
+def run_installation():
+    # GUARD 1: reject if system is already initialized
+    guard_response = _reject_if_initialized()
+    if guard_response is not None:
+        return guard_response
+
+    # GUARD 2: serialize installation — only one request at a time.
+    # Non-blocking acquire: if another request is already installing,
+    # return 409 immediately rather than waiting or racing.
+    acquired = _install_lock.acquire(blocking=False)
+    if not acquired:
+        return jsonify({
+            "ok": False,
+            "error": "Installation is already in progress. "
+                     "Please wait for it to complete."
+        }), 409
+
+    try:
+        from core.installer import run_installation as _run
+        data = request.get_json() or {}
+
+        # Validate required fields
+        db_password = data.get("db_password", "")
+        admin_username = data.get("admin_username", "admin").strip()
+        admin_password = data.get("admin_password", "")
+        pw_min = int(data.get("password_min_length", 12))
+
+        if not db_password:
+            return jsonify({"ok": False, "error": "Database password is required"}), 400
+        if not admin_password or len(admin_password) < pw_min:
+            return jsonify({"ok": False,
+                            "error": f"Admin password must be at least {pw_min} characters"}), 400
+        if not admin_username:
+            return jsonify({"ok": False, "error": "Admin username is required"}), 400
+
+        # Map frontend field names → .env key names
+        config = {
+            "DB_HOST": data.get("db_host", "localhost"),
+            "DB_PORT": str(data.get("db_port", 5432)),
+            "DB_USER": data.get("db_user", "postgres"),
+            "DB_PASSWORD": db_password,
+            "DB_NAME": data.get("db_name", "analysis"),
+            "APP_ADMIN_USERNAME": admin_username,
+            "APP_ADMIN_PASSWORD": admin_password,
+            "FLASK_ENV": data.get("environment", "production"),
+            "FLASK_PORT": str(data.get("flask_port", 5000)),
+            "FLASK_HOST": data.get("flask_host", "0.0.0.0"),
+            "MAX_WORKERS": str(data.get("max_workers", 8)),
+            "LOG_LEVEL": data.get("log_level", "INFO"),
+            "INGESTION_ROOTS": data.get("ingestion_roots", ""),
+            "SECURITY_MAX_FAILED_LOGINS": str(data.get("max_failed_logins", 5)),
+            "SECURITY_LOCKOUT_MINUTES": str(data.get("lockout_minutes", 15)),
+            "SECURITY_SESSION_HOURS": str(data.get("session_hours", 12)),
+            "SECURITY_SESSION_IDLE_HOURS": str(data.get("session_idle_hours", 6)),
+            "PASSWORD_MIN_LENGTH": str(pw_min),
+            "RATE_LIMIT_PER_MINUTE": str(data.get("rate_limit_per_minute", 60)),
+            "RATE_LIMIT_PER_HOUR": str(data.get("rate_limit_per_hour", 600)),
+            "FILE_PROCESSING_TIMEOUT": str(data.get("file_processing_timeout", 1200)),
+        }
+
+        result = _run(config)
+        result["redirect"] = url_for("index")
+        status = 200 if result.get("ok") else 500
+        return jsonify(result), status
+    finally:
+        _install_lock.release()
+
+
+# ── Status check ──
+@setup_bp.route("/api/setup/check", methods=["GET"])
+def check_setup_status():
+    try:
+        return jsonify({"initialized": _is_initialized()}), 200
     except Exception:
-        logger.error("Error checking setup status", exc_info=True)
-        return jsonify({
-            'initialized': False
-        }), 200  # Return 200 so frontend can handle it
+        return jsonify({"initialized": False}), 200
 
 
+# ── Registration ──
 def register_setup_routes(app):
-    """Register setup routes with the Flask app"""
     app.register_blueprint(setup_bp)
-    # Note: CSRF exemption is handled in app.py after routes are registered
-    
-    # Add before_request handler to check database initialization
-    # This MUST run before any other handlers to catch setup requirement early
-    @app.before_request
-    def check_database_setup():
-        """Redirect to setup page if database is not initialized"""
-        # Skip check for setup routes and static files
-        if request.endpoint in ('setup.setup_page', 'setup.setup_database', 'setup.check_setup_status', 'static'):
-            return None
-        
-        # Skip check for API setup endpoints
-        if request.path.startswith('/api/setup/'):
-            return None
-        
-        # Skip check for error handlers
-        if request.endpoint in ('_internal_error', 'not_found'):
-            return None
-        
-        # Check if database is initialized
-        try:
-            initialized = check_database_initialized()
-            if not initialized:
-                # Redirect to setup page - this is the first-time setup
-                if request.path != '/setup' and not request.path.startswith('/static'):
-                    logger.info("Database not initialized, redirecting to setup page")
-                    return redirect(url_for('setup.setup_page'))
-        except Exception as e:
-            # If check fails (e.g., database doesn't exist), redirect to setup
-            logger.debug(f"Database check failed (likely not initialized): {e}")
-            if request.path != '/setup' and not request.path.startswith('/api/setup/') and not request.path.startswith('/static'):
-                return redirect(url_for('setup.setup_page'))
-        
-        return None
 
+    @app.before_request
+    def _check_database_setup():
+        if request.endpoint in (
+            "setup.setup_page", "setup.system_check",
+            "setup.test_database", "setup.run_installation",
+            "setup.check_setup_status", "static",
+        ):
+            return None
+        if request.path.startswith("/api/setup/") or request.path.startswith("/static/"):
+            return None
+        if request.endpoint in ("_internal_error", "not_found", "favicon"):
+            return None
+        try:
+            if _is_initialized():
+                return None
+        except Exception:
+            pass
+        if request.path != "/setup":
+            return redirect(url_for("setup.setup_page"))
+        return None

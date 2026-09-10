@@ -42,6 +42,40 @@ That's it. Everything below is just the one-time setup to get there.
 
 ---
 
+## Quick Install — The Interactive Installer (Recommended)
+
+The project includes an interactive installer that handles everything:
+
+```bash
+# After cloning/downloading the project:
+cd file_analysis
+python install.py
+```
+
+The installer will:
+1. ✅ Check Python version and all dependencies
+2. ✅ Verify PostgreSQL is installed and running
+3. ✅ Guide you through every configuration value
+4. ✅ Write `.env` and `config.json` with your settings
+5. ✅ Create the database and run schema migrations
+6. ✅ Set up directories and file permissions
+7. ✅ Verify the complete installation
+
+### Installer options
+
+```bash
+python install.py                    # Full interactive installation
+python install.py --check            # Prerequisites check only
+python install.py --configure        # Reconfigure an existing installation
+python install.py --verify           # Post-install verification only
+python install.py --env production   # Set environment non-interactively
+python install.py --non-interactive  # Use defaults/env vars (CI/unattended)
+```
+
+The rest of this guide covers manual installation and detailed explanations.
+
+---
+
 ## PART A — Windows installation, step by step
 
 ### Step 1 — Install Python
@@ -242,7 +276,7 @@ you remember. The temporary password file is then deleted automatically.
 - **Follow jobs:** **Operations → Jobs** shows live progress of long analyses
   (cancel / pause / resume supported).
 - **Daily routine:** double-click `start.bat`, use the browser, press CTRL+C
-  in the black window when done.
+  in the black window when finished.
 
 🎉 **Done! The installation is complete.**
 
@@ -275,10 +309,35 @@ The steps are the same; only the commands differ.
 
 ---
 
-## PART C — Configuration reference (`.env` file)
+## PART C — Configuration Reference
 
-Your personal settings live in the `.env` file in the app folder (created from
-`.env.example` by the setup script). The most important entries:
+The application uses a layered configuration system with clear precedence:
+
+### Configuration precedence (highest wins)
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 | **OS environment variables** | Always win — set in shell, Docker, or CI |
+| 2 | **`.env` file** | Project-local, loaded at startup, git-ignored |
+| 3 | **`config.json`** | Structured JSON config, git-ignored |
+| 4 | **`config/{env}.json`** | Environment overlay (staging, production) |
+| 5 | **`config.example.json`** | Project defaults, tracked in git |
+| 6 | **Dataclass defaults** | Built into the source code |
+
+### Configuration files
+
+| File | Purpose | Git-tracked? |
+|------|---------|:------------:|
+| `.env.example` | Template for `.env` — all settings documented | ✅ Yes |
+| `.env` | Your personal settings (secrets live here) | ❌ No |
+| `config.example.json` | JSON config template with all defaults | ✅ Yes |
+| `config.json` | Your JSON config (may contain credentials) | ❌ No |
+| `config/development.json` | Development environment overlay | ✅ Yes |
+| `config/staging.json` | Staging environment overlay | ✅ Yes |
+| `config/production.json` | Production environment overlay | ✅ Yes |
+| `data/settings.json` | Runtime settings (managed by the app) | ❌ No |
+
+### `.env` file settings
 
 | Setting | Example | Meaning |
 |---------|---------|---------|
@@ -288,12 +347,48 @@ Your personal settings live in the `.env` file in the app folder (created from
 | `DB_USER` | `postgres` | Database user (default — don't change) |
 | `DB_PASSWORD` | `your-password` | ⚠️ **Must match the Step 2 password** |
 | `APP_ADMIN_USERNAME` / `APP_ADMIN_PASSWORD` | `admin` / `…` | Optional: choose the first admin login yourself |
+| `PASSWORD_MIN_LENGTH` | `12` | Minimum password length for all accounts |
 | `INGESTION_ROOTS` | `D:\cases;E:\evidence` | Folders the app may read from disk (`;`-separated; empty = uploads only) |
 | `APP_DATA_DIR` | `C:\fileanalysis\data` | Where uploads/logs/settings are stored (default: your user profile — usually fine) |
 | `FLASK_SECRET_KEY` | *(long random text)* | Signs login sessions; auto-generated if empty |
+| `FLASK_ENV` | `production` | Deployment environment: development, staging, production |
+| `FLASK_DEBUG` | `false` | Debug mode — **must** be false in production |
 | `FLASK_PORT` | `5000` | Change if port 5000 is already used on your PC |
+| `FLASK_HOST` | `0.0.0.0` | Network binding address |
+| `MAX_WORKERS` | `8` | Concurrent file processing workers |
+| `FILE_PROCESSING_TIMEOUT` | `1200` | Per-file processing timeout (seconds) |
+| `SECURITY_MAX_FAILED_LOGINS` | `5` | Account lockout after this many failures |
+| `SECURITY_LOCKOUT_MINUTES` | `15` | Lockout duration |
+| `SECURITY_SESSION_HOURS` | `12` | Session lifetime (hours) |
+| `SECURITY_SESSION_IDLE_HOURS` | `6` | Idle session timeout (hours) |
+| `RATE_LIMIT_PER_MINUTE` | `60` | API rate limit (requests/min/client) |
+| `RATE_LIMIT_PER_HOUR` | `600` | API rate limit (requests/hour/client) |
+| `LOG_LEVEL` | `INFO` | Logging verbosity: DEBUG, INFO, WARNING, ERROR |
+| `DB_POOL_MIN_CONNECTIONS` | `2` | Minimum database connections |
+| `DB_POOL_MAX_CONNECTIONS` | `25` | Maximum database connections |
 
 After editing `.env`, **restart** the server (CTRL+C, then `start.bat` again).
+
+### Environment-specific settings
+
+The `config/` directory contains per-environment overlays. These are applied
+on top of `config.json` based on the `FLASK_ENV` setting:
+
+| Environment | Purpose | Debug | Rate Limit | Session |
+|-------------|---------|:-----:|:----------:|:-------:|
+| `development` | Local iteration | ✅ On | 300/min | 12h |
+| `staging` | Pre-production testing | ❌ Off | 120/min | 12h |
+| `production` | Live deployment (default) | ❌ Off | 30/min | 8h |
+
+### Updating configuration after installation
+
+You can modify settings without re-running the full installer:
+
+1. **Quick change:** Edit `.env` → restart server.
+2. **Structured change:** Edit `config.json` → restart server.
+3. **Reconfigure interactively:** `python install.py --configure`
+4. **Web UI:** Login as admin → Settings page (most runtime settings).
+5. **Environment switch:** Change `FLASK_ENV` in `.env` → restart.
 
 ---
 
@@ -334,6 +429,7 @@ the app tried to reach PostgreSQL but has no password yet.
      postgres password from Step 2, click Setup. Done.
   2. *Alternative:* put the password in `.env` (`DB_PASSWORD=...`, see Step 5)
      and restart the server.
+  3. *Interactive:* run `python install.py --configure` to reconfigure.
 - If the message **persists after setup**, the password is wrong: check
   Step 2's password, or change it (Windows: open **pgAdmin** → Servers →
   PostgreSQL → Login/Group Roles → postgres → Definition → new password →
@@ -347,8 +443,8 @@ update to the latest code and use **`start.bat`**.
 
 ### E3. `python` is not recognized / `py` not found
 
-Python isn't installed or not on PATH. Re-run the Python installer → **Modify**
-→ tick **"Add python.exe to PATH"** → restart the computer → retry.
+Python isn't installed or not on PATH. Re-run the Python installer → **Modify** →
+tick **"Add python.exe to PATH"** → restart the computer → retry.
 
 ### E4. `pip install` fails (red errors)
 
@@ -433,6 +529,13 @@ Anything else: read the message, find it in this guide, or check
   The app only needs *local* access — never expose port 5000 to the internet
   unless you know what you're doing (see `docs/SECURITY.md`).
 
+### E14. CSRF token is missing or invalid (setup page)
+
+If the setup page returns "CSRF token is missing or invalid", ensure you are
+running the latest version of the code. This was a known issue in earlier
+versions where the setup page template did not include the CSRF token. Update
+to the latest code, hard-refresh the browser (CTRL+F5), and retry.
+
 ---
 
 ## PART F — Uninstall / moving the app
@@ -456,7 +559,7 @@ FIRST TIME ONLY:
   1. Install Python 3.11   (tick "Add python.exe to PATH")
   2. Install PostgreSQL     (remember the postgres password, port 5432)
   3. Extract the app to C:\fileanalysis
-  4. Double-click setup.bat
+  4. Double-click setup.bat          (or: python install.py)
   5. Double-click start.bat
   6. Browser → http://127.0.0.1:5000 → enter postgres password
   7. Log in as admin (password in %LOCALAPPDATA%\file-analysis\runtime\)
@@ -465,6 +568,9 @@ EVERY DAY:
   1. Double-click start.bat (leave the black window open)
   2. Browser → http://127.0.0.1:5000
   3. CTRL+C in the black window when finished
+
+RECONFIGURE:
+  python install.py --configure
 ```
 
 Further reading for advanced topics: `docs/` folder —

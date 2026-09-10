@@ -25,10 +25,20 @@ ROLE_ANALYST = "analyst"
 ROLE_VIEWER = "viewer"
 ALL_ROLES = (ROLE_ADMIN, ROLE_ANALYST, ROLE_VIEWER)
 
-MAX_FAILED_LOGINS = 5
-LOCKOUT_MINUTES = 15
-DEFAULT_SESSION_HOURS = 12
-SESSION_IDLE_HOURS = 6
+
+def _get_security_config() -> Dict[str, int]:
+    """Read security configuration at call time — never frozen at import.
+
+    This ensures that values from .env (loaded after module import) are
+    always used.  Called on every login/session operation, not once at import.
+    """
+    import os
+    return {
+        "max_failed_logins": int(os.environ.get("SECURITY_MAX_FAILED_LOGINS", "5")),
+        "lockout_minutes": int(os.environ.get("SECURITY_LOCKOUT_MINUTES", "15")),
+        "session_hours": int(os.environ.get("SECURITY_SESSION_HOURS", "12")),
+        "session_idle_hours": int(os.environ.get("SECURITY_SESSION_IDLE_HOURS", "6")),
+    }
 
 
 class AuthError(Exception):
@@ -192,8 +202,10 @@ class AuthService:
 
     @staticmethod
     def _validate_password_strength(password: str) -> None:
-        if not isinstance(password, str) or len(password) < 12:
-            raise AuthError("Password must be at least 12 characters", "weak_password")
+        import os as _os
+        min_len = int(_os.environ.get("PASSWORD_MIN_LENGTH", "12"))
+        if not isinstance(password, str) or len(password) < min_len:
+            raise AuthError(f"Password must be at least {min_len} characters", "weak_password")
         if len(password) > 256:
             raise AuthError("Password too long", "invalid_password")
 
@@ -318,11 +330,12 @@ class AuthService:
         # Failed attempt: increment, lock if threshold reached.
         failed = (user_row.get("failed_login_count") or 0) + 1
         locked_until = None
-        if failed >= MAX_FAILED_LOGINS:
-            locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+        sec = _get_security_config()
+        if failed >= sec["max_failed_logins"]:
+            locked_until = now + timedelta(minutes=sec["lockout_minutes"])
             logger.warning(
                 "Account %s locked for %s minutes after %d failed logins",
-                username, LOCKOUT_MINUTES, failed,
+                username, sec["lockout_minutes"], failed,
             )
         with self._conn() as conn, conn.cursor() as cur:
             cur.execute(
@@ -332,7 +345,7 @@ class AuthService:
             )
             conn.commit()
         if locked_until is not None:
-            raise AccountLocked(LOCKOUT_MINUTES)
+            raise AccountLocked(_get_security_config()["lockout_minutes"])
         raise InvalidCredentials()
 
     def _get_user_row_by_username(self, username: str) -> Optional[Dict[str, Any]]:
@@ -341,9 +354,14 @@ class AuthService:
             row = cur.fetchone()
         return dict(row) if row else None
 
-    def create_session(self, user_id: int, hours: int = DEFAULT_SESSION_HOURS) -> SessionRecord:
+    def create_session(self, user_id: int, hours: Optional[int] = None) -> SessionRecord:
         """Create a session; returns the record whose ``session_id`` attribute
-        is the **hashed** token; the raw token is provided as ``raw_token``."""
+        is the **hashed** token; the raw token is provided as ``raw_token``.
+
+        Session duration is read from environment at call time (not frozen at import).
+        """
+        if hours is None:
+            hours = _get_security_config()["session_hours"]
         raw_token = secrets.token_urlsafe(32)
         token_hash = _hash_token(raw_token)
         expires = _utcnow() + timedelta(hours=hours)
@@ -385,8 +403,9 @@ class AuthService:
             if row["revoked_at"] is not None or expires < now or not row["is_active"]:
                 return None
             # Sliding expiry: extend while the user remains active.
+            idle_hours = _get_security_config()["session_idle_hours"]
             new_expiry = min(
-                now + timedelta(hours=SESSION_IDLE_HOURS),
+                now + timedelta(hours=idle_hours),
                 expires if expires > now else expires,
             )
             cur.execute(

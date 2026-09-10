@@ -221,6 +221,12 @@ logger.info("✅ CSRF protection enabled")
 # ---------------------------------------------------------------------------
 limiter.init_app(app)
 app.config['RATELIMITER'] = limiter
+# Re-read rate limits from environment (may have been set by .env load)
+try:
+    from core.security.rate_limit import refresh_limits
+    refresh_limits()
+except Exception:
+    pass
 
 # Crash recovery for the unified job system (spec: interrupted jobs must be
 # identifiable; each file commits its own transaction so the DB stays
@@ -383,6 +389,10 @@ logger.info("✅ Concurrency monitoring dashboard registered")
 from Api.routes.translations import register_translation_routes
 register_translation_routes(app)
 logger.info("✅ Translation API routes registered")
+
+# Register health check endpoint (public, unauthenticated)
+from Api.routes.health import register_health_routes
+register_health_routes(app)
 
 # Register error dashboard routes
 from Api.routes.error_dashboard import error_dashboard_bp

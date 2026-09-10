@@ -49,8 +49,9 @@ from database.queries import (
 
 logger = logging.getLogger(__name__)
 
-# Database initialization functions
-from database.init_database import create_database
+# Database initialization — use database.bootstrap.bootstrap_database()
+# (database/init_database.py was removed; bootstrap.py is the single
+# authoritative database creation path)
 
 # Backward compatibility: DatabaseHub (wrapper around Database)
 class DatabaseHub:
@@ -265,68 +266,6 @@ class TransactionManager:
                 self.db.putconn(conn)
 
 # Helper functions for backward compatibility
-def database_exists(dbname, password=None, user=None, host=None, port=None):
-    """
-    Check if database exists.
-    
-    Args:
-        dbname: Database name
-        password: Database password (optional)
-        user: Database user (optional, defaults to config)
-        host: Database host (optional, defaults to config)
-        port: Database port (optional, defaults to config)
-    """
-    import psycopg2
-    try:
-        from settings import get_database_config
-        db_config = get_database_config()
-        user = user or db_config.user
-        password = password or db_config.password
-        host = host or db_config.host
-        port = port or db_config.port
-    except:
-        import os
-        user = user or os.getenv('DB_USER', 'postgres')
-        password = password or os.getenv('DB_PASSWORD', '')
-        host = host or os.getenv('DB_HOST', 'localhost')
-        port = port or int(os.getenv('DB_PORT', '5432'))
-    
-    try:
-        conn = psycopg2.connect(
-            dbname="postgres",
-            user=user,
-            password=password,
-            host=host,
-            port=port
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,))
-        exists = cursor.fetchone() is not None
-        cursor.close()
-        conn.close()
-        return exists
-    except Exception:
-        return False
-
-def create_schema(conn=None):
-    """Create the database schema via the versioned migration system (DB-01/DB-02).
-
-    This delegates to the single authoritative bootstrap:
-    ``database.bootstrap.bootstrap_database``.  The previous implementation
-    executed table DDL in an order that violated foreign-key dependencies
-    (``words_paths`` before ``paths``), which made fresh installation fail,
-    and relied on a module that ran DDL with hardcoded credentials at import
-    time.  Both defects are removed.
-    """
-    from settings.config import get_db_config
-    from database.bootstrap import bootstrap_database, BootstrapError
-
-    cfg = get_db_config()
-    report = bootstrap_database(cfg)
-    if report.get("applied_migrations"):
-        logger.info("Schema bootstrap applied migrations: %s", report["applied_migrations"])
-    return True
-
 def get_postgres_connection(**kwargs):
     """Get a PostgreSQL connection"""
     db = Database()
@@ -1105,9 +1044,6 @@ __all__ = [
     'EnhancedQueryCache',
     
     # Helper functions
-    'create_database',
-    'database_exists',
-    'create_schema',
     'get_postgres_connection',
     'get_db_connection',
     'get_db_config',
