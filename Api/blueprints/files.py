@@ -242,11 +242,31 @@ def upload_process_path():
         
         if not source_id or not side_id:
             return jsonify({'error': 'Source and Side are required'}), 400
-        
-        # Validate path exists
-        if not os.path.exists(file_path):
+
+        # SECURITY (SEC-06): server-path ingestion must be contained to the
+        # configured INGESTION_ROOTS (plus the app's own upload staging
+        # directory). Without this check any analyst/admin could point the
+        # reader at an arbitrary file the server can read (e.g. /etc/passwd,
+        # .env, .flask_secret_key) and have its contents stored in the
+        # database, where any authenticated user can search and read them.
+        # ``validate_ingestion_path`` fails closed when no roots are
+        # configured, which is the documented behaviour of this feature.
+        from core.path_safety import validate_ingestion_path, PathSafetyError
+
+        try:
+            resolved_path = validate_ingestion_path(file_path)
+        except PathSafetyError as exc:
+            logger.warning("Rejected server path ingestion for %r: %s", file_path, exc)
+            return jsonify({'error': str(exc)}), 403
+        except Exception as exc:
+            logger.warning("Could not validate server path %r: %s", file_path, exc)
+            return jsonify({'error': 'Path could not be validated'}), 400
+
+        if not resolved_path.exists():
             return jsonify({'error': f'Path does not exist: {file_path}'}), 400
-        
+
+        file_path = str(resolved_path)
+
         # Import task manager
         from Api.task_manager import get_task_manager
         
@@ -1773,8 +1793,14 @@ def bulk_delete_files():
                 hash_usage = execute_query("""
                     SELECT COUNT(*) FROM paths WHERE hash_id = %s
                 """, (hash_id,), fetch="one")
-                
-                if hash_usage and hash_usage == 0:
+
+                # DB-05 (same defect already fixed in delete_file above):
+                # ``hash_usage`` is a 1-tuple like (0,); comparing the tuple to
+                # an int never fired, so bulk deletes left orphaned ``hashs``
+                # rows behind. Extract the count properly.
+                hash_refcount = hash_usage[0] if hash_usage else 0
+
+                if hash_refcount == 0:
                     execute_query("DELETE FROM hashs WHERE id = %s", (hash_id,), fetch=None)
                 
                 deleted_count += 1

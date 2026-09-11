@@ -422,9 +422,36 @@ def search_categories(search_query=None, page=1, per_page=20):
         return [], 0
 
 def list_categories(limit=50):
-    """List categories"""
+    """List categories.
+
+    AUDIT (API-02): this delegated to ``categorys_repo.list_categories()``,
+    which does not exist - every caller (``/api/categories/all-words`` and
+    ``get_categorys_word_id()``) raised AttributeError and returned 500.
+    The repository exposes ``search_categories`` / ``get_categories_with_stats``
+    but neither returns ``word_id``, which callers require, so reuse the
+    existing ``list_all_join`` query and return dicts (callers index by name).
+    """
+    from database.database.queries.category_queries import CategoryQueries
+
     db_service = ContentDBService()
-    return db_service.categorys_repo.list_categories(limit)
+    rows = db_service.categorys_repo.execute(
+        CategoryQueries.list_all_join(), (limit,), fetchall=True
+    )
+    categories = []
+    for row in rows or []:
+        if isinstance(row, dict):
+            categories.append(dict(row))
+            continue
+        category_id, name, word_id = row[0], row[1], (row[2] if len(row) > 2 else None)
+        categories.append(
+            {
+                "id": category_id,
+                "name": name,
+                "category_name": name,
+                "word_id": word_id,
+            }
+        )
+    return categories
 
 def get_categories_for_dropdown():
     """Get categories for dropdown in format (id, name) tuples"""
@@ -485,6 +512,17 @@ def get_statistics_query():
             cur.execute("SELECT COALESCE(SUM(file_size), 0) FROM paths")
             total_storage_bytes = cur.fetchone()[0] or 0
             
+            # Get total categories count
+            # DB-AUDIT: the dashboard template and /api/dashboard/stats both read
+            # 'total_categories'/'total_keywords', but this dict never provided
+            # them, so those KPI cards were hard-wired to 0.
+            cur.execute("SELECT COUNT(*) FROM categorys")
+            total_categories = cur.fetchone()[0] or 0
+
+            # Get total keywords count
+            cur.execute("SELECT COUNT(*) FROM keywords")
+            total_keywords = cur.fetchone()[0] or 0
+
             # Get database size (PostgreSQL)
             try:
                 cur.execute("SELECT pg_database_size(current_database())")
@@ -497,6 +535,8 @@ def get_statistics_query():
         return {
             'total_files': total_files or 0,
             'total_words': total_words or 0,
+            'total_categories': total_categories or 0,
+            'total_keywords': total_keywords or 0,
             'unique_file_types': unique_file_types or 0,
             'total_storage_bytes': total_storage_bytes or 0,
             'database_size_bytes': database_size_bytes or 0,
@@ -509,6 +549,8 @@ def get_statistics_query():
         return {
             'total_files': 0,
             'total_words': 0,
+            'total_categories': 0,
+            'total_keywords': 0,
             'unique_file_types': 0,
             'total_storage_bytes': 0,
             'database_size_bytes': 0,
@@ -581,9 +623,17 @@ def get_processing_statistics_query():
                     'files': row[1] or 0
                 })
         
+        # DB-AUDIT: the dashboard reads 'processed_count' to drive the
+        # "Processed Files" card; derive it from the per-type roll-up so no
+        # extra query is needed.
+        processed_count = sum(entry['processed'] for entry in by_type)
+        unprocessed_count = sum(entry['unprocessed'] for entry in by_type)
+
         return {
             'by_type': by_type,
-            'daily_speed': daily_speed
+            'daily_speed': daily_speed,
+            'processed_count': processed_count,
+            'unprocessed_count': unprocessed_count
         }
     except Exception as e:
         import logging
@@ -591,7 +641,9 @@ def get_processing_statistics_query():
         logger.error(f"Error getting processing statistics: {e}", exc_info=True)
         return {
             'by_type': [],
-            'daily_speed': []
+            'daily_speed': [],
+            'processed_count': 0,
+            'unprocessed_count': 0
         }
 
 def get_category_statistics_detailed_query():

@@ -2251,4 +2251,24 @@ if (typeof window.translations === 'undefined') {
 
     // Initialize the application
     init();
+
+    // AUDIT (UI-01): /keywords/add used to render a missing template (500).
+    // It now redirects here with ?add=1 (optionally ?keyword_id=N for edit),
+    // so open the existing modal instead of a second, parallel add page.
+    (function openAddFromQueryString() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('add') !== '1') return;
+            const keywordId = parseInt(params.get('keyword_id'), 10);
+            setTimeout(() => {
+                if (keywordId && typeof editKeywordInModal === 'function') {
+                    editKeywordInModal(keywordId);
+                } else {
+                    openAddKeywordModal();
+                }
+            }, 250);
+        } catch (e) {
+            console.warn('Could not auto-open the keyword modal:', e);
+        }
+    })();
 })();

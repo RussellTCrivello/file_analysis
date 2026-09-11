@@ -219,6 +219,12 @@ def api_update_user(user_id: int):
         return jsonify({"error": "Insufficient permissions"}), 403
     data = request.get_json(silent=True) or {}
     auth = get_auth_service()
+    # AUDIT-01: ``UPDATE ... WHERE id = %s`` against a missing id affects zero
+    # rows and raises nothing, so the handler used to answer
+    # ``200 {"success": true, "user": null}`` - reporting success for a change
+    # that was never applied. Resolve the target first and 404 if absent.
+    if auth.get_user_by_id(user_id) is None:
+        return jsonify({"error": "User not found", "code": "user_not_found"}), 404
     try:
         if "role" in data:
             auth.set_role(user_id, data["role"])
@@ -243,6 +249,11 @@ def api_reset_password(user_id: int):
     if not (is_authenticated() and current_user().is_admin):
         return jsonify({"error": "Insufficient permissions"}), 403
     import secrets as _secrets
+
+    # AUDIT-01: same zero-row hazard - never mint and return a temporary
+    # password for an account that does not exist.
+    if get_auth_service().get_user_by_id(user_id) is None:
+        return jsonify({"error": "User not found", "code": "user_not_found"}), 404
 
     temporary = _secrets.token_urlsafe(12)
     try:

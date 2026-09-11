@@ -342,25 +342,15 @@ def register_keywords_routes(app):
                     return jsonify({'success': False, 'error': error_msg}), 500
                 flash(error_msg, "error")
         
-        try:
-            words_data = get_words_for_dropdown(limit=200, min_frequency=5)
-            words_dropdown = [{'value': word, 'text': f"{word} ({freq})"} for word, freq in (words_data or [])]
-            
-            categories_data = get_categories_for_dropdown()
-            # get_categories_for_dropdown returns list of dicts, not tuples
-            if categories_data:
-                categories_dropdown = [{'value': cat.get('id'), 'text': cat.get('name')} for cat in categories_data if isinstance(cat, dict)]
-            else:
-                categories_dropdown = []
-            
-        except Exception as e:
-            logger.error(f"Error loading dropdown data: {e}")
-            words_dropdown = []
-            categories_dropdown = []
-        
-        return render_template('Keyword/keywords_add_edit.html',
-                             words_dropdown=words_dropdown,
-                             categories_dropdown=categories_dropdown)
+        # AUDIT (UI-01): 'Keyword/keywords_add_edit.html' does not exist on
+        # disk, so this page rendered a 500 for every visitor (it is linked
+        # from the Keywords page and from the keyword detail "Edit" button).
+        # The Keywords list already ships working add/edit modals, so hand
+        # off to it rather than adding a second, parallel add form.
+        keyword_id = request.args.get('keyword_id', type=int)
+        if keyword_id:
+            return redirect(url_for('keywords_list', add=1, keyword_id=keyword_id))
+        return redirect(url_for('keywords_list', add=1))
     
     @app.route('/keywords/<int:keyword_id>')
     def keyword_detail(keyword_id):

@@ -4,6 +4,7 @@ Provides advanced search capabilities including full-text search, sorting, and f
 Now includes Google-like search algorithms: BM25, query expansion, fuzzy matching, autocomplete
 """
 
+import html
 import logging
 import re
 from typing import Dict, List, Optional, Tuple, Any
@@ -14,6 +15,30 @@ from Api.services.search_algorithms import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _escape_like(value: str) -> str:
+    """Escape ILIKE/LIKE wildcards in user input.
+
+    AUDIT (SEC-05 / API-05): search patterns were built by string formatting
+    (``f'%{term}%'``) and passed as bound parameters, so a query containing
+    ``%`` or ``_`` acted as a wildcard instead of a literal - ``%%`` returned
+    every row in the corpus. Conversely ``simple_search`` doubled single
+    quotes (``term.replace("'", "''")``) even though the value is already a
+    bound parameter, so searching for ``O'Brien`` could never match.
+
+    Only the wildcard characters need escaping; quotes are handled by the
+    driver. Note the escaping must also be applied where the pattern is
+    compared, i.e. ``LIKE %s ESCAPE '\\'`` is not needed here because the
+    default escape character for LIKE is backslash.
+    """
+    if value is None:
+        return ""
+    text = str(value)
+    text = text.replace("\\", "\\\\")
+    text = text.replace("%", "\\%")
+    text = text.replace("_", "\\_")
+    return text
 
 
 class SearchService:
@@ -35,6 +60,12 @@ class SearchService:
     - Saved searches management
     """
     
+    #: PERF-01: how many in-content line matches to collect per file.
+    #: ``None`` used to mean "scan every line of every result", which made
+    #: response time grow linearly with ``per_page`` (measured: 0.17 s at
+    #: per_page=5 vs 0.71 s at per_page=50 on 59 files).
+    MAX_LINE_MATCHES_PER_FILE = 10
+
     # Initialize algorithm components (singleton pattern)
     _search_ranker = None
     _query_expander = None
@@ -130,8 +161,7 @@ class SearchService:
                 # 2. Words in file content containing the term (partial match)
                 for term in search_terms:
                     # Escape special characters for ILIKE
-                    term_escaped = term.replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-                    term_pattern = f'%{term_escaped}%'
+                    term_pattern = f'%{_escape_like(term)}%'
                     
                     # Search in file names
                     search_conditions.append(f"p.file_name ILIKE %s")
@@ -351,7 +381,12 @@ class SearchService:
                 # Find matching lines in content if query is provided
                 # Return all matching lines (no limit for comprehensive search)
                 if query and len(query.strip()) >= 2:
-                    line_matches = SearchService._find_matching_lines(row[0], query, max_matches=None)
+                    # PERF-01: line enrichment loads and scans the whole file
+                    # per result (N+1). Bound it: the UI only renders the
+                    # first three matches and shows "+N more" afterwards.
+                    line_matches = SearchService._find_matching_lines(
+                        row[0], query, max_matches=SearchService.MAX_LINE_MATCHES_PER_FILE
+                    )
                     if line_matches:
                         result['line_matches'] = line_matches
                         result['line_match_count'] = len(line_matches)
@@ -424,11 +459,18 @@ class SearchService:
                     context_before = lines[line_num - 2] if line_num > 1 else None
                     context_after = lines[line_num] if line_num < len(lines) else None
                     
-                    # Highlight the entire phrase in the line
-                    # Find all occurrences and highlight them
+                    # Highlight the entire phrase in the line.
+                    # AUDIT (SEC-04): the line is file content and must be
+                    # HTML-escaped before <mark> is injected. This field is
+                    # rendered with innerHTML by
+                    # static/js/modules/search/advanced-search.js
+                    # (``match.highlighted_line || escapeHtml(match.line_text)``)
+                    # while the sibling ``line_text`` IS escaped - so any
+                    # content carrying HTML metacharacters was injected into
+                    # the DOM unescaped.
                     highlighted_line = pattern.sub(
-                        lambda m: f'<mark>{m.group()}</mark>',
-                        line
+                        lambda m: f'<mark>{html.escape(m.group())}</mark>',
+                        html.escape(line)
                     )
                     
                     matches.append({
@@ -512,9 +554,8 @@ class SearchService:
             search_params = []
             
             for term in search_terms:
-                # Escape special characters for ILIKE
-                term_escaped = term.replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-                term_pattern = f'%{term_escaped}%'
+                # Escape ILIKE wildcards only (see _escape_like).
+                term_pattern = f'%{_escape_like(term)}%'
                 
                 # Search in file names
                 search_conditions.append("p.file_name ILIKE %s")
@@ -692,7 +733,7 @@ class SearchService:
                                     AND w.word ILIKE %s
                                 )
                             """)
-                            phrase_pattern = f'%{phrase}%'
+                            phrase_pattern = f'%{_escape_like(phrase)}%'
                             params.extend([phrase_pattern, phrase_pattern])
                             query_conditions.append(f"({' OR '.join(phrase_conditions)})")
                     
@@ -714,7 +755,7 @@ class SearchService:
                                     )
                                 )
                             """
-                            term_pattern = f'%{term}%'
+                            term_pattern = f'%{_escape_like(term)}%'
                             params.extend([term_pattern, term_pattern])
                             
                             if operator == 'OR':
@@ -742,7 +783,7 @@ class SearchService:
                                     )
                                 )
                             """)
-                            exclude_pattern = f'%{exclude_term}%'
+                            exclude_pattern = f'%{_escape_like(exclude_term)}%'
                             params.extend([exclude_pattern, exclude_pattern])
                         
                         if exclude_conditions:
@@ -789,7 +830,7 @@ class SearchService:
                             )
                         )
                     """)
-                    like_pattern = f'%{search_terms[0]}%'
+                    like_pattern = f'%{_escape_like(search_terms[0])}%'
                     params.extend([tsquery_terms, like_pattern, tsquery_terms, like_pattern])
                 else:
                     # Multi-word search - use AND logic (all words must appear)
@@ -797,7 +838,7 @@ class SearchService:
                     tsquery_terms = ' & '.join([term.replace("'", "''") for term in search_terms])
                     
                     # Also create ILIKE patterns for each term (fallback for better multi-word matching)
-                    like_patterns = [f'%{term}%' for term in search_terms]
+                    like_patterns = [f'%{_escape_like(term)}%' for term in search_terms]
                     
                     # Build condition: all terms must appear in file name OR all terms appear in content
                     where_conditions.append("""
@@ -1067,7 +1108,7 @@ class SearchService:
                 cursor = conn.cursor()
                 
                 query_lower = query.strip().lower()
-                pattern = f'{query_lower}%'
+                pattern = f'{_escape_like(query_lower)}%'
                 
                 # Get suggestions from file names
                 suggestions_query = """

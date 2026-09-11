@@ -90,8 +90,45 @@ def init_auth(app) -> None:
     #: import_export: backup restore / batch import on the legacy surface.
     app.config.setdefault(
         "AUTH_ADMIN_BLUEPRINTS",
-        frozenset({"settings", "setup", "concurrency", "error_dashboard",
-                   "translations", "import_export"}),
+        frozenset({"settings", "settings_api", "setup", "concurrency",
+                   "error_dashboard", "translations", "import_export"}),
+    )
+    #: Blueprints whose *safe* methods also require the admin role, because
+    #: they return system configuration (DB host/user, storage, secrets flags).
+    app.config.setdefault(
+        "AUTH_ADMIN_READ_BLUEPRINTS",
+        # AUTHZ-01: ``concurrency`` and ``error_dashboard`` are operator
+        # diagnostics that expose internal runtime state (thread, process and
+        # pool metrics, captured error payloads). They are already admin-only
+        # for writes and have no navigation entry, but their *reads* were open
+        # to every authenticated role by direct URL, so a ``viewer`` could pull
+        # /concurrency/ or /api/errors/recent. Aligned with the settings
+        # blueprints, which are admin-read for the same reason.
+        frozenset({"settings", "settings_api", "concurrency", "error_dashboard"}),
+    )
+    #: Individual endpoints outside those blueprints that expose configuration.
+    app.config.setdefault(
+        "AUTH_ADMIN_READ_ENDPOINTS",
+        frozenset({"settings_page_direct"}),
+    )
+    #: Settings paths every authenticated user may *read*.
+    #: ``/api/settings/theme`` is rendered inline into base.html for every
+    #: user already, so gating it buys no confidentiality - but static/js/
+    #: modules/ui/theme-manager.js fetches it on every page, so gating it
+    #: does break theming for non-admins.
+    app.config.setdefault(
+        "AUTH_SETTINGS_ANY_USER_READ_PATHS",
+        frozenset({"/api/settings/theme"}),
+    )
+    #: Settings mutations every authenticated user may perform. Only paths
+    #: whose *identical* effect is already reachable through a non-settings
+    #: route may be listed. ``/set_language/<lang>`` (app-level, GET) already
+    #: performs this exact global mutation for any authenticated user, so
+    #: gating the API equivalent would break the sidebar language switcher
+    #: without adding any security.
+    app.config.setdefault(
+        "AUTH_SETTINGS_ANY_USER_WRITE_PATHS",
+        frozenset({"/api/settings/system/language"}),
     )
     #: Non-safe (mutating) methods requiring analyst/admin by default.
     app.config.setdefault("AUTH_WRITE_METHODS", frozenset({"POST", "PUT", "PATCH", "DELETE"}))
@@ -157,9 +194,24 @@ def init_auth(app) -> None:
 
         if request.method in ("GET", "HEAD", "OPTIONS"):
             # Settings pages/config can expose system configuration.
-            if full_endpoint.startswith("settings."):
-                if not g.user.has_role(ROLE_ADMIN):
-                    return _forbidden()
+            # AUDIT (SEC-03): the original test was
+            # ``full_endpoint.startswith("settings.")``, but the settings
+            # blueprint is registered as ``settings_api`` and the settings page
+            # is an app-level ``settings_page_direct`` route - so the check
+            # never matched anything. Any authenticated user (including a
+            # ``viewer``) could read /settings and /api/settings/database, and
+            # any ``analyst`` could POST /api/settings/* (app name, DB
+            # credentials, custom CSS). Match on the configured sets instead.
+            blueprint = full_endpoint.split(".")[0]
+            if (
+                blueprint in app.config["AUTH_ADMIN_READ_BLUEPRINTS"]
+                or full_endpoint in app.config["AUTH_ADMIN_READ_ENDPOINTS"]
+                or full_endpoint.startswith("settings.")
+                or full_endpoint.startswith("settings_api.")
+            ):
+                if request.path not in app.config["AUTH_SETTINGS_ANY_USER_READ_PATHS"]:
+                    if not g.user.has_role(ROLE_ADMIN):
+                        return _forbidden()
             return None
 
         if request.method not in app.config["AUTH_WRITE_METHODS"]:
@@ -167,6 +219,20 @@ def init_auth(app) -> None:
 
         blueprint = full_endpoint.split(".")[0]
         if blueprint in app.config["AUTH_ADMIN_BLUEPRINTS"]:
+            exempt = (
+                blueprint in ("settings", "settings_api")
+                and request.path in app.config["AUTH_SETTINGS_ANY_USER_WRITE_PATHS"]
+            )
+            if exempt:
+                # AUTH-01: paths in AUTH_SETTINGS_ANY_USER_WRITE_PATHS are
+                # documented as reachable by *any* authenticated user, because
+                # an equivalent non-settings route already performs the same
+                # mutation for them. Returning here is what actually implements
+                # that; falling through to the analyst check below silently
+                # downgraded the exemption to "analyst or admin" and broke the
+                # sidebar language switcher (static/js/modules/core/
+                # language-switcher.js) for viewers with a 403.
+                return None
             if not g.user.has_role(ROLE_ADMIN):
                 return _forbidden()
         if not g.user.has_role(ROLE_ADMIN, ROLE_ANALYST):

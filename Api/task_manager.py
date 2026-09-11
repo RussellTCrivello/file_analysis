@@ -73,7 +73,20 @@ class FileProcessingTaskManager:
         
         # Thread-safe locks (still needed for task management)
         import threading
-        self._task_lock = threading.Lock()
+        # AUDIT (CONC-02): ``_task_lock`` is acquired recursively in six
+        # places - ``_update_task_error``, ``pause_task``, ``resume_task`` and
+        # three terminal branches of ``_process_task`` all call
+        # ``_add_task_log`` (which locks again) while already holding it. With
+        # a plain Lock the first task to reach any terminal state
+        # self-deadlocked and permanently wedged ``_task_lock``, so every
+        # later /upload/* request (create_task, get_task_progress, pause,
+        # resume, cancel) blocked forever and leaked a worker thread.
+        #
+        # LOCK ORDER (mandatory everywhere): ``_pause_lock`` -> ``_task_lock``.
+        # ``wait_if_paused`` runs inside every processing loop and takes them
+        # in that order; taking them the other way round deadlocks against it
+        # (ABBA), which RLock alone cannot fix.
+        self._task_lock = threading.RLock()
         self._active_thread_ids: Dict[str, str] = {}  # Map task_id -> thread_id
         self._thread_lock = threading.Lock()
         # Pause control: track paused tasks and their pause events
@@ -164,28 +177,30 @@ class FileProcessingTaskManager:
         Returns:
             True if task was paused, False if not found or cannot be paused
         """
-        with self._task_lock:
-            if task_id not in self._tasks:
-                return False
-            
-            progress = self._tasks[task_id]
-            if progress.status not in (TaskStatus.RUNNING, TaskStatus.PENDING):
-                return False
-            
-            # Set status to paused
-            progress.status = TaskStatus.PAUSED
-            progress.message = "Task paused by user"
-            
-            # Create or get pause event
-            with self._pause_lock:
-                if task_id not in self._paused_tasks:
-                    self._paused_tasks[task_id] = threading.Event()
-                # Set the event to signal pause
-                self._paused_tasks[task_id].set()
-            
-            self._add_task_log(task_id, 'info', 'Task paused by user')
-            logger.info(f"Task {task_id} paused")
-            return True
+        # AUDIT (CONC-02): lock order _pause_lock -> _task_lock (see the
+        # constructor note). Logging moved outside both critical sections.
+        with self._pause_lock:
+            with self._task_lock:
+                if task_id not in self._tasks:
+                    return False
+
+                progress = self._tasks[task_id]
+                if progress.status not in (TaskStatus.RUNNING, TaskStatus.PENDING):
+                    return False
+
+                # Set status to paused
+                progress.status = TaskStatus.PAUSED
+                progress.message = "Task paused by user"
+
+            # Create or get pause event (held under _pause_lock only)
+            if task_id not in self._paused_tasks:
+                self._paused_tasks[task_id] = threading.Event()
+            # Set the event to signal pause
+            self._paused_tasks[task_id].set()
+
+        self._add_task_log(task_id, 'info', 'Task paused by user')
+        logger.info(f"Task {task_id} paused")
+        return True
     
     def resume_task(self, task_id: str) -> bool:
         """
@@ -197,26 +212,28 @@ class FileProcessingTaskManager:
         Returns:
             True if task was resumed, False if not found or cannot be resumed
         """
-        with self._task_lock:
-            if task_id not in self._tasks:
-                return False
-            
-            progress = self._tasks[task_id]
-            if progress.status != TaskStatus.PAUSED:
-                return False
-            
-            # Set status back to running
-            progress.status = TaskStatus.RUNNING
-            progress.message = "Task resumed by user"
-            
+        # AUDIT (CONC-02): lock order _pause_lock -> _task_lock; logging
+        # outside both critical sections.
+        with self._pause_lock:
+            with self._task_lock:
+                if task_id not in self._tasks:
+                    return False
+
+                progress = self._tasks[task_id]
+                if progress.status != TaskStatus.PAUSED:
+                    return False
+
+                # Set status back to running
+                progress.status = TaskStatus.RUNNING
+                progress.message = "Task resumed by user"
+
             # Clear the pause event to allow processing to continue
-            with self._pause_lock:
-                if task_id in self._paused_tasks:
-                    self._paused_tasks[task_id].clear()
-            
-            self._add_task_log(task_id, 'info', 'Task resumed by user')
-            logger.info(f"Task {task_id} resumed")
-            return True
+            if task_id in self._paused_tasks:
+                self._paused_tasks[task_id].clear()
+
+        self._add_task_log(task_id, 'info', 'Task resumed by user')
+        logger.info(f"Task {task_id} resumed")
+        return True
     
     def is_task_paused(self, task_id: str) -> bool:
         """
@@ -247,28 +264,60 @@ class FileProcessingTaskManager:
         with self._task_lock:
             if task_id not in self._tasks:
                 return False
-            
+
             progress = self._tasks[task_id]
             if progress.status == TaskStatus.CANCELLED:
                 return False
-        
-        # Check if paused and wait
-        with self._pause_lock:
-            if task_id in self._paused_tasks:
-                event = self._paused_tasks[task_id]
-                if event.is_set():
-                    # Task is paused, wait in a loop checking for resume or cancel
-                    while event.is_set():
-                        # Check for cancellation
-                        with self._task_lock:
-                            if task_id in self._tasks:
-                                if self._tasks[task_id].status == TaskStatus.CANCELLED:
-                                    return False
-                        
-                        # Wait briefly and check again
-                        event.wait(timeout=timeout)
-        
+
+        # AUDIT (CONC-04): ``_pause_lock`` must NEVER be held while waiting.
+        #
+        # The original code entered the ``while event.is_set():`` loop *inside*
+        # ``with self._pause_lock:``, so a paused task held the lock for the
+        # entire duration of the pause. ``resume_task`` must acquire that same
+        # lock to ``clear()`` the event, and ``cancel_task`` needs it to clear
+        # the event as well - so both blocked forever on any paused task while
+        # the waiting thread blocked on an event only they could clear. A
+        # textbook deadlock, and one no amount of re-entrancy fixes: it is a
+        # classic "wait while holding the lock a rescuer needs" bug.
+        #
+        # The fix is to take the lock only for the dictionary lookup, and do
+        # all waiting outside it. The event object itself is stable once
+        # fetched (``pause_task`` creates it once and only ever ``set()``s or
+        # ``clear()``s it; it is only *removed* from the dict after the task
+        # reaches a terminal state), so holding a reference across the wait is
+        # safe.
+        event = self._get_pause_event(task_id)
+        if event is None or not event.is_set():
+            return True
+
+        while event.is_set():
+            # Check for cancellation between waits
+            with self._task_lock:
+                if task_id in self._tasks:
+                    if self._tasks[task_id].status == TaskStatus.CANCELLED:
+                        return False
+                else:
+                    return False
+
+            # Wait without holding any lock, so resume/cancel can proceed.
+            event.wait(timeout=timeout)
+
+            # Re-fetch: resume or cancel may have replaced/cleared the event.
+            current = self._get_pause_event(task_id)
+            if current is None:
+                return True
+            event = current
+
         return True
+
+    def _get_pause_event(self, task_id: str):
+        """Fetch the pause Event for a task under ``_pause_lock``.
+
+        Helper for :meth:`wait_if_paused` so the lock is held only for the
+        dictionary lookup and never across a blocking wait.
+        """
+        with self._pause_lock:
+            return self._paused_tasks.get(task_id)
     
     def cancel_task(self, task_id: str) -> bool:
         """
@@ -280,24 +329,26 @@ class FileProcessingTaskManager:
         Returns:
             True if task was cancelled, False if not found or already completed
         """
-        with self._task_lock:
-            if task_id not in self._tasks:
-                return False
-            
-            progress = self._tasks[task_id]
-            if progress.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
-                return False
-            
-            progress.status = TaskStatus.CANCELLED
-            progress.message = "Task cancelled by user"
-            progress.completed_at = datetime.now()
-            
+        # AUDIT (CONC-02): lock order _pause_lock -> _task_lock; previously
+        # inverted and racing wait_if_paused, which takes them the other way.
+        with self._pause_lock:
+            with self._task_lock:
+                if task_id not in self._tasks:
+                    return False
+
+                progress = self._tasks[task_id]
+                if progress.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+                    return False
+
+                progress.status = TaskStatus.CANCELLED
+                progress.message = "Task cancelled by user"
+                progress.completed_at = datetime.now()
+
             # Clear pause event if exists to allow cancellation to proceed
-            with self._pause_lock:
-                if task_id in self._paused_tasks:
-                    self._paused_tasks[task_id].clear()
-            
-            return True
+            if task_id in self._paused_tasks:
+                self._paused_tasks[task_id].clear()
+
+        return True
     
     def _process_task(
         self,
@@ -355,30 +406,57 @@ class FileProcessingTaskManager:
 
 
 
-                from database import get_source_by_name, get_side_by_name
-                source_info = get_source_by_name(source_id)
+                # AUDIT (ING-01): the request carries source/side *ids*, but
+                # this code looked them up by name. The lookup never matched,
+                # so ``source_name``/``side_name`` stayed unbound and the
+                # reader constructor below raised
+                # ``UnboundLocalError: cannot access local variable
+                # 'source_name'`` - every server-path ingestion task failed
+                # with "Failed to initialize IntegratedFileReader".
+                from database import get_source_by_id, get_side_by_id
+
+                source_name = None
+                side_name = None
+
+                source_info = get_source_by_id(source_id)
                 if source_info:
                     source_name = source_info.get('name')
-                
-                side_info = get_side_by_name(side_id)
+
+                side_info = get_side_by_id(side_id)
                 if side_info:
                     side_name = side_info.get('name')
+
+                if not source_name or not side_name:
+                    raise ValueError(
+                        f"Unknown source/side for ids {source_id}/{side_id}"
+                    )
             except Exception as e:
                 logger.warning(f"Could not get source/side names: {e}, using defaults")
+                self._update_task_error(
+                    task_id,
+                    f"Invalid source/side: {e}",
+                )
+                return
             
             # Initialize reader with storage enabled
             reader = None
             try:
+                # AUDIT (ING-02): ``monitor_interval`` is not a parameter of
+                # IntegratedFileReader.__init__ (see pipeline/integrated_reader.py),
+                # so every task died here with a TypeError. Removed - the
+                # remaining kwargs match the real signature.
                 reader = IntegratedFileReader(
                     max_workers=self.max_concurrent_tasks,
                     enable_monitoring=True,
-                    monitor_interval=2.0,
                     use_priority=True,
                     enable_storage=True,
                     storage_source=source_name,
                     storage_side=side_name
                 )
-                reader.initialize()
+                # AUDIT (ING-03): ``reader.initialize()`` removed -
+                # IntegratedFileReader has no such method, so every task
+                # failed with AttributeError here. Storage is already wired up
+                # by ``__init__``, which calls ``_init_storage()`` itself.
             except Exception as e:
                 logger.error(f"Failed to initialize IntegratedFileReader: {e}", exc_info=True)
                 self._update_task_error(task_id, f"Failed to initialize reader: {str(e)}")
@@ -485,9 +563,19 @@ class FileProcessingTaskManager:
                     
                     # Final progress update
                     stats = reader.get_statistics()
-                    final_completed = stats.get('completed', len(results))
-                    final_total = stats.get('total', len(results))
-                    final_failed = stats.get('failed', 0)
+                    # AUDIT (ING-04): IntegratedFileReader only maintains
+                    # ``_processing_stats['completed'|'total']`` for the
+                    # folder/batch paths, so for a single file these stay 0 and
+                    # a successfully stored file was reported as "Successfully
+                    # processed 0 file(s)". Trust the real result count for
+                    # single-file ingestion.
+                    if is_directory:
+                        final_completed = stats.get('completed', len(results))
+                        final_total = stats.get('total', len(results))
+                    else:
+                        final_completed = len([r for r in results if r])
+                        final_total = len(results)
+                    final_failed = stats.get('failed', 0) if is_directory else 0
                     
                     # Check for cancellation
                     with self._task_lock:
@@ -526,9 +614,14 @@ class FileProcessingTaskManager:
                                 return
                 finally:
                     # Cleanup reader
+                    # AUDIT (ING-05): IntegratedFileReader has no ``shutdown()``
+                    # - every task logged "Error during reader cleanup". The
+                    # context-manager protocol is the supported teardown path
+                    # (joins threads, closes the pool, closes the DB hub and
+                    # finalizes the checkpoint), so use ``__exit__`` instead.
                     if reader:
                         try:
-                            reader.shutdown()
+                            reader.__exit__(None, None, None)
                         except Exception as cleanup_error:
                             logger.warning(f"Error during reader cleanup: {cleanup_error}")
             
@@ -549,14 +642,21 @@ class FileProcessingTaskManager:
             try:
                 if reader:
                     final_stats = reader.get_statistics()
-                    final_completed = final_stats.get('completed', 0)
-                    final_total = final_stats.get('total', 0)
-                    final_failed = final_stats.get('failed', 0)
+                    # AUDIT (ING-04): see the note above - the reader's
+                    # batch-oriented counters stay at 0 for a single file.
+                    if is_directory:
+                        final_completed = final_stats.get('completed', 0)
+                        final_total = final_stats.get('total', 0)
+                        final_failed = final_stats.get('failed', 0)
+                    else:
+                        final_completed = len([r for r in results if r])
+                        final_total = len(results)
+                        final_failed = 0
                 else:
                     final_completed = len(results) if results else 0
                     final_total = final_completed
                     final_failed = 0
-            except:
+            except Exception:
                 final_completed = len(results) if results else 0
                 final_total = final_completed
                 final_failed = 0

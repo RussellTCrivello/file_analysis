@@ -94,7 +94,11 @@ def register_words_routes(app):
                 logger.error(f"Error adding word: {e}")
                 return client_error(e, subsystem='Api.routes.words', success_key='success', status=500)
         
-        return render_template('Word/Word_add.html')
+        # AUDIT (UI-01): 'Word/Word_add.html' does not exist on disk, so this
+        # page rendered a 500 error page for every visitor (and is linked from
+        # the Words page). The Words list already ships a complete
+        # "Add Word" modal, so hand off to it instead of inventing a new page.
+        return redirect(url_for('words_list', add=1))
     
     @app.route('/words/<int:word_id>')
     def word_detail(word_id):

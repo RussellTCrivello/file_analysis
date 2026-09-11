@@ -215,10 +215,67 @@ def load_database_config_from_file(config_path=None) -> bool:
 
 def invalidate_database_connections():
     """
-    Invalidate all database connections across the application.
-    This forces all DatabaseHub instances to reconnect with new settings.
+    Invalidate cached database state after an accepted configuration change.
+
+    OPS-02: ``POST /api/settings/database`` updates the ``DB_*`` environment
+    variables, and ``DatabaseConfig.from_env()`` re-reads them, so *new*
+    connections pick up the new configuration on their own. The problem is the
+    small number of genuinely long-lived caches, which would otherwise keep
+    serving the previous database indefinitely and make a successful save look
+    like it had not taken effect:
+
+    * ``Api/routes/health.py`` keeps one connection per thread in a
+      ``threading.local``, so ``/health`` would keep probing the old server.
+    * ``pipeline.storage_pipeline.StoragePipeline`` holds a shared
+      ``DatabaseHub`` singleton whose pool was created with the old settings.
+
+    This is deliberately conservative:
+
+    * No pool is recreated while a request is in flight. Hubs are dropped, not
+      rebuilt - the next operation constructs a fresh one from the new config.
+    * Short-lived ``DatabaseHub()`` instances (created per call in
+      ``database/__init__.py``) are not tracked and need no action; they are
+      already built from the environment at construction time.
+    * Every step is individually guarded, because a failed cache reset must
+      never turn a successful configuration save into an error response - the
+      persisted configuration is correct either way.
     """
-    # This is a placeholder - actual invalidation would be handled by DatabaseHub
-    # if it implements connection pooling with invalidation
-    logger.debug("Database connection invalidation requested (no-op in current implementation)")
+    logger.info("Invalidating cached database state after configuration change")
+
+    # 1. Health probe: drop the per-thread cached connection so /health
+    #    reconnects against the newly configured database.
+    try:
+        import Api.routes.health as _health
+
+        local = getattr(_health, "_local", None)
+        if local is not None:
+            conn = getattr(local, "health_conn", None)
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    logger.debug("Failed to close cached health connection", exc_info=True)
+            try:
+                local.health_conn = None
+            except Exception:
+                logger.debug("Failed to clear health connection cache", exc_info=True)
+    except Exception:
+        logger.debug("Health connection cache invalidation skipped", exc_info=True)
+
+    # 2. Storage pipeline shared hub: close its pool and drop the reference so
+    #    the next ingestion builds one with the new configuration.
+    try:
+        from pipeline.storage_pipeline import StoragePipeline
+
+        hub = StoragePipeline._shared_db_hub
+        if hub is not None:
+            try:
+                hub.close()
+            except Exception:
+                logger.debug("Failed to close shared storage hub", exc_info=True)
+        StoragePipeline._shared_db_hub = None
+    except Exception:
+        logger.debug("Storage pipeline hub invalidation skipped", exc_info=True)
+
+    logger.info("Cached database state invalidated")
 

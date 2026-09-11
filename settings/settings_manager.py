@@ -7,6 +7,7 @@ Enhanced with migration support and file path detection
 """
 
 import json
+import os
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -18,6 +19,11 @@ from .settings_models import (
     AllSettings, ValidationError, SettingDefinition,
     get_setting_definition, InterfaceConfig
 )
+# OPS-03 / OPS-04: imported at module scope so that both ``import_settings``
+# and ``restore_backup`` can re-raise it. A local import inside
+# ``import_settings`` would leave ``restore_backup``'s ``except`` clause
+# raising NameError at the exact moment it needs to propagate the rejection.
+from .database_validation import DatabaseConfigRejected
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +273,10 @@ class SettingsManager:
         self.lock = threading.RLock()
         self._settings: Optional[AllSettings] = None
         self._file_mtime: Optional[float] = None
+
+        # OPS-07: counter (not a boolean) so nested/overlapping commits cannot
+        # clear the flag belonging to an outer ``apply_database_config()``.
+        self._database_mutation_depth = 0
         
         # Ensure directories exist
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
@@ -274,6 +284,11 @@ class SettingsManager:
         
         # Load on initialization
         self.load()
+    
+    @property
+    def _database_mutation_allowed(self) -> bool:
+        """True only while :meth:`apply_database_config` is committing."""
+        return self._database_mutation_depth > 0
     
     @property
     def settings(self) -> AllSettings:
@@ -451,6 +466,139 @@ class SettingsManager:
             
             return value
     
+    # Fields :meth:`apply_database_config` commits, in order.
+    _DATABASE_FIELDS = (
+        "host", "port", "database", "user", "password",
+        "pool_min_conn", "pool_max_conn", "pool_timeout",
+        "query_timeout", "batch_size", "chunk_size",
+    )
+
+    def apply_database_config(
+        self,
+        proposed: Optional[Dict[str, Any]],
+        *,
+        require_test: bool = True,
+        persist: bool = True,
+        activate: bool = True,
+    ) -> Tuple[bool, Optional[str]]:
+        """Validate, prove and commit a database configuration change.
+
+        OPS-06 / OPS-07: this is the **only** supported way to change
+        ``database.*``. The invariant "an invalid database configuration can
+        never become persistent or active" used to be enforced by a hand-written
+        guard in each route, which is why ``core/initialization.py`` - which
+        seeds ``database.*`` from ``config.json`` on *every* startup - was able
+        to overwrite a validated, working configuration with an unvalidated and
+        untested one.
+
+        Moving the boundary here means a future caller that reaches for
+        ``manager.set("database.host", ...)`` is refused by the manager itself
+        rather than depending on that caller remembering to validate.
+
+        Args:
+            proposed: Proposed database block. Fields it omits fall back to the
+                **current** values, never to dataclass defaults, so a partial
+                payload cannot silently repoint the database at
+                ``localhost:5432``.
+            require_test: Run the real connectivity probe. Structural
+                validation always runs.
+            persist: Write to ``settings.json``.
+            activate: Drop cached connections built against the old target.
+                Callers that need to report activation failure in their own
+                response (the settings route) pass ``False`` and do it
+                themselves, so the side effect is not performed twice.
+
+        Returns:
+            ``(True, None)`` on success, ``(False, reason)`` on rejection.
+            Nothing is mutated when this returns ``False``.
+        """
+        from .database_validation import (
+            apply_candidate_to_environment,
+            guard_database_config_change,
+        )
+
+        with self.lock:
+            current = self._settings.database
+            try:
+                candidate = guard_database_config_change(
+                    proposed, current, require_test=require_test
+                )
+            except DatabaseConfigRejected as exc:
+                return False, str(exc)
+
+            # Commit through the normal path, with the boundary explicitly
+            # opened for the duration. ``self.lock`` is an RLock, so re-entry
+            # is safe; the counter is only ever touched while holding it.
+            # Snapshot so a failed commit can be rolled back completely - a
+            # half-applied database target is precisely the state this gate
+            # exists to prevent.
+            snapshot = {
+                field: getattr(current, field)
+                for field in self._DATABASE_FIELDS
+                if hasattr(current, field)
+            }
+            env_snapshot = {
+                key: os.environ.get(key)
+                for key in ("DB_HOST", "DB_PORT", "DB_USER", "DB_NAME", "DB_PASSWORD")
+            }
+            failure: Optional[str] = None
+
+            self._database_mutation_depth += 1
+            try:
+                for field in self._DATABASE_FIELDS:
+                    if field not in candidate:
+                        continue
+                    success, error = self.set(
+                        f"database.{field}", candidate[field], validate=False
+                    )
+                    if not success:
+                        failure = f"database.{field}: {error}"
+                        break
+
+                if failure is None:
+                    # Disk, memory and environment must agree on one config.
+                    apply_candidate_to_environment(candidate)
+
+                    if persist and not self.save():
+                        failure = "The configuration was accepted but could not be saved."
+            finally:
+                if failure is not None:
+                    # Roll back the in-memory configuration AND the environment,
+                    # so the running process keeps using the last-known-good
+                    # database rather than a target that was never persisted.
+                    for field, value in snapshot.items():
+                        self.set(f"database.{field}", value, validate=False)
+                    for key, value in env_snapshot.items():
+                        if value is None:
+                            os.environ.pop(key, None)
+                        else:
+                            os.environ[key] = value
+                self._database_mutation_depth -= 1
+
+            if failure is not None:
+                return False, failure
+
+            # Activate: drop cached connections built against the old target.
+            if activate:
+                self._activate_database_config()
+
+            return True, None
+
+    def _activate_database_config(self) -> None:
+        """Drop cached connections built against the previous target."""
+        try:
+            from .config import invalidate_database_connections
+
+            invalidate_database_connections()
+        except Exception:
+            # Failure here cannot diverge state - activation only drops
+            # caches - so it is a warning, not a rollback.
+            logger.warning(
+                "Accepted database configuration but could not invalidate "
+                "cached connections.",
+                exc_info=True,
+            )
+
     def set(self, key: str, value: Any, validate: bool = True) -> Tuple[bool, Optional[str]]:
         """
         Set a setting value by dot-notation key.
@@ -470,6 +618,20 @@ class SettingsManager:
             
             category = parts[0]
             setting_key = parts[-1]
+            
+            # OPS-06 / OPS-07: the mutation boundary lives in the manager, not
+            # in each caller. ``database.*`` has no entry in
+            # SETTING_DEFINITIONS, so ``validate=True`` below is a no-op for it
+            # and a bare ``manager.set(...) + manager.save()`` would persist an
+            # unvalidated, untested database target - the original OPS-02
+            # outage. Refuse it here and point the caller at the one supported
+            # mutator; apply_database_config() opens the boundary deliberately.
+            if category == "database" and not self._database_mutation_allowed:
+                return False, (
+                    "Database configuration cannot be changed with set(). Use "
+                    "SettingsManager.apply_database_config(), which validates the "
+                    "whole configuration and tests the connection before saving."
+                )
             
             # Validate if requested
             if validate:
@@ -597,44 +759,141 @@ class SettingsManager:
                 if version != "3.0.0":
                     logger.info(f"🔄 Migrating imported settings from version {version}")
                     data = migrate_from_old_format(data)
-                
+
+                # OPS-03 / OPS-04: gate the database configuration BEFORE
+                # anything is replaced or persisted.
+                #
+                # Two distinct hazards existed here:
+                #   1. ``AllSettings.from_dict`` builds the database block with
+                #      ``DatabaseConfig.from_dict(data.get("database", {}))``,
+                #      so a payload that OMITS "database" silently reset the
+                #      target to the dataclass defaults (localhost:5432). No
+                #      hostile input required - importing a theme export was
+                #      enough to brick the application on the next restart.
+                #   2. A payload supplying an unreachable host was persisted
+                #      verbatim. Nothing tested it, and nothing synced the
+                #      environment, so disk and environment silently diverged.
+                #
+                # The gate falls back to the CURRENT value for every field the
+                # payload omits (never to defaults), validates the result and
+                # proves it connects. It raises before any mutation.
+                from .database_validation import (
+                    DatabaseConfigRejected,
+                    apply_candidate_to_environment,
+                    guard_database_config_change,
+                )
+
+                current_db = self._settings.database
+                candidate = guard_database_config_change(data.get("database"), current_db)
+
                 # Validate by loading into model
                 new_settings = AllSettings.from_dict(data)
-                
+
+                # ``DatabaseConfig.__post_init__`` applies DB_* environment
+                # overrides, so the freshly built object may not carry the
+                # imported values. Re-assert the accepted candidate so that
+                # disk, memory and environment all agree on one configuration.
+                for field, value in candidate.items():
+                    if hasattr(new_settings.database, field):
+                        setattr(new_settings.database, field, value)
+
                 # Create backup before importing
                 if self.settings_file.exists():
                     self._create_backup()
-                
+
                 # Replace current settings
                 self._settings = new_settings
-                
+
                 # Restore missing interfaces
                 self._restore_missing_interfaces()
-                
+
+                # Keep the environment in step with what we just accepted, so
+                # the running process and the persisted file cannot disagree.
+                apply_candidate_to_environment(candidate)
+
                 # Save
                 self.save(create_backup=False)
-                
+
+                # Activate: drop cached connections built against the old target.
+                try:
+                    from .config import invalidate_database_connections
+
+                    invalidate_database_connections()
+                except Exception:
+                    logger.debug("Database connection invalidation skipped", exc_info=True)
+
                 return True, None
-            
+
+            except DatabaseConfigRejected:
+                # Deliberately not swallowed: the caller must surface this as
+                # 422 rather than a generic 400, and no state has changed.
+                raise
             except Exception as e:
                 logger.error(f"❌ Import error: {e}")
                 return False, str(e)
     
     def reset_to_defaults(self) -> bool:
-        """Reset all settings to default values"""
+        """Reset all settings to default values.
+
+        OPS-05: the database block is deliberately EXCLUDED from the reset.
+
+        ``AllSettings()`` builds ``DatabaseConfig()``, whose defaults are
+        ``localhost:5432``. Resetting to that and persisting it would point the
+        application at a database that in most deployments does not exist, and
+        because the reset persists, the application would fail to start on the
+        next restart - the same outage class as OPS-02/03/04.
+
+        A "reset to defaults" is about presentation and behaviour. Repointing
+        the database is a destructive side effect no administrator would expect
+        from it, so the working database configuration is carried across.
+        """
         with self.lock:
             try:
                 # Create backup
                 if self.settings_file.exists():
                     self._create_backup()
-                
+
+                previous_db = self._settings.database
+
                 # Reset to defaults
                 self._settings = AllSettings()
-                
+
+                # Restore the working database configuration field by field
+                # (a shared reference would let later mutation leak both ways).
+                from dataclasses import fields as _dc_fields
+                for _f in _dc_fields(self._settings.database):
+                    if hasattr(previous_db, _f.name):
+                        setattr(self._settings.database, _f.name,
+                                getattr(previous_db, _f.name))
+
+                # Keep the environment in step with what we are persisting.
+                from .database_validation import apply_candidate_to_environment
+                apply_candidate_to_environment({
+                    'host': self._settings.database.host,
+                    'port': self._settings.database.port,
+                    'database': self._settings.database.database,
+                    'user': self._settings.database.user,
+                    'password': self._settings.database.password,
+                })
+
+                # OPS-05b: a reset must leave a usable interface set.
+                #
+                # ``AllSettings()`` starts with an EMPTY interface registry.
+                # Api/routes/common.py gates every page on
+                # ``is_interface_enabled_by_endpoint()`` and maps ``index`` ->
+                # ``dashboard``; with no interfaces defined, the dashboard
+                # reads as disabled and the home page redirect-loops on
+                # itself. ``load()`` already guards against this with
+                # ``_restore_missing_interfaces()``; the reset path did not.
+                self._restore_missing_interfaces()
+
                 # Save
                 self.save(create_backup=False)
-                
-                logger.info("🔄 Settings reset to defaults")
+
+                logger.info(
+                    "🔄 Settings reset to defaults (database configuration preserved: %s:%s)",
+                    self._settings.database.host, self._settings.database.port,
+                )
                 return True
             
             except Exception as e:
@@ -685,14 +944,19 @@ class SettingsManager:
                 if self.settings_file.exists():
                     self._create_backup()
                 
-                # Import backup
+                # Import backup. OPS-04: a backup may carry a database block
+                # pointing at an unreachable server; the same validate -> test
+                # gate applies. The rejection must reach the caller as 422, so
+                # it is re-raised rather than flattened into (False, str(e)).
                 success, error = self.import_settings(data)
                 if success:
                     # Restore missing interfaces after restore
                     self._restore_missing_interfaces()
                     self.save()
                 return success, error
-            
+
+            except DatabaseConfigRejected:
+                raise
             except Exception as e:
                 logger.error(f"❌ Restore error: {e}")
                 return False, str(e)
