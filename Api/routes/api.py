@@ -46,9 +46,8 @@ def register_api_routes(app):
                 'totalCategories': stats.get('total_categories', 0),
                 'processingStats': processing_stats
             }))
-            # 🚀 OPTIMIZED: Add cache headers for dashboard stats (cache for 30 seconds)
-            response.headers['Cache-Control'] = 'public, max-age=30'
-            response.headers['ETag'] = f'stats-{datetime.now().strftime("%Y%m%d%H%M")}'
+            # CACHE-01: no-store is applied globally to /api/* — dashboard
+            # stats must reflect deletes/ingests immediately.
             return response
         except Exception as e:
             logger.error(f"Dashboard stats API error: {e}")
@@ -141,10 +140,7 @@ def register_api_routes(app):
             try:
                 sources_dict = select_info_sources()
                 sources = [{'id': k, 'name': v} for k, v in sources_dict.items()]
-                response = make_response(jsonify(sources))
-                # Cache sources list for 30 seconds (shorter TTL for better freshness)
-                response.headers['Cache-Control'] = 'public, max-age=30'
-                return response
+                return jsonify(sources)
             except Exception as e:
                 logger.error(f"Error getting sources: {e}", exc_info=True)
                 return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
@@ -555,9 +551,7 @@ def register_api_routes(app):
             try:
                 sides_dict = select_info_sides()
                 sides = [{'id': k, 'name': v} for k, v in sides_dict.items()]
-                response = make_response(jsonify(sides))
-                response.headers['Cache-Control'] = 'public, max-age=30'
-                return response
+                return jsonify(sides)
             except Exception as e:
                 logger.error(f"Error getting sides: {e}", exc_info=True)
                 return client_error(e, subsystem='Api.routes.api', success_key='success', status=500)
@@ -699,9 +693,11 @@ def register_api_routes(app):
     def api_categories():
         """
         API endpoint to get all categories.
-        
+
         Returns:
-            JSON array of categories with id and name, cached for 5 minutes
+            JSON array of categories with id and name (no-store per the
+            global CACHE-01 policy: dropdowns must reflect newly created
+            categories immediately)
         """
         from Api.utils import select_info_categories
         categories_data = select_info_categories()
@@ -710,10 +706,8 @@ def register_api_routes(app):
             categories = [{'id': cat.get('id'), 'name': cat.get('name')} for cat in categories_data if isinstance(cat, dict)]
         else:
             categories = []
-        response = make_response(jsonify(categories))
-        response.headers['Cache-Control'] = 'public, max-age=300'
-        return response
-    
+        return jsonify(categories)
+
     @app.route('/api/categories/search')
     @limiter.limit("30 per minute")
     def api_categories_search():

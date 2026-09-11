@@ -3,6 +3,10 @@ from ..queries.category_queries import CategoryQueries
 
 class CategorysRepository(BaseRepository):
 
+    def select_category_by_id(self, category_id: int):
+        """Return the category row (id, name, word_id) or None when absent."""
+        return self.execute(CategoryQueries.get_by_id(), (category_id,), True)
+
     def select_categorys_word_id(self):
 
         rows = self.execute(CategoryQueries.list_all(),None, False, True)

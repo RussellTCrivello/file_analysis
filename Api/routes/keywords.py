@@ -260,6 +260,28 @@ def register_keywords_routes(app):
                 # Get category operations instance
                 category_ops = get_category_operations()
                 
+                # KW-CAT-01: resolve the category up front. The form's dynamic
+                # typeahead only submits existing ids, but a hand-crafted (or
+                # defaulted) category_id used to fail per-term with a swallowed
+                # FK error ("internal error"). Fail once, clearly, instead.
+                try:
+                    category_id_int = int(category_id)
+                except (TypeError, ValueError):
+                    category_id_int = None
+                category_row = None
+                if category_id_int is not None:
+                    try:
+                        category_row = category_ops.db_service.categorys_repo.select_category_by_id(category_id_int)
+                    except Exception as cat_err:
+                        logger.warning("Category lookup failed for id %s: %s", category_id_int, cat_err)
+                if category_row is None:
+                    error_msg = f"Selected category does not exist (id: {category_id}). Create it first."
+                    if request.headers.get('Content-Type', '').startswith('application/json') or \
+                       request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'success': False, 'error': error_msg}), 400
+                    flash(error_msg, "error")
+                    return redirect(url_for('keywords_add'))
+                
                 for term in all_keywords:
                     # ✅ FIXED: Validate minimum 2 words for keywords (not single words)
                     words = term.split()
