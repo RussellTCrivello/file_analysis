@@ -97,7 +97,14 @@ def init_auth(app) -> None:
     #: they return system configuration (DB host/user, storage, secrets flags).
     app.config.setdefault(
         "AUTH_ADMIN_READ_BLUEPRINTS",
-        frozenset({"settings", "settings_api"}),
+        # AUTHZ-01: ``concurrency`` and ``error_dashboard`` are operator
+        # diagnostics that expose internal runtime state (thread, process and
+        # pool metrics, captured error payloads). They are already admin-only
+        # for writes and have no navigation entry, but their *reads* were open
+        # to every authenticated role by direct URL, so a ``viewer`` could pull
+        # /concurrency/ or /api/errors/recent. Aligned with the settings
+        # blueprints, which are admin-read for the same reason.
+        frozenset({"settings", "settings_api", "concurrency", "error_dashboard"}),
     )
     #: Individual endpoints outside those blueprints that expose configuration.
     app.config.setdefault(
