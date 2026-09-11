@@ -223,8 +223,31 @@ def api_update_user(user_id: int):
     # rows and raises nothing, so the handler used to answer
     # ``200 {"success": true, "user": null}`` - reporting success for a change
     # that was never applied. Resolve the target first and 404 if absent.
-    if auth.get_user_by_id(user_id) is None:
+    target = auth.get_user_by_id(user_id)
+    if target is None:
         return jsonify({"error": "User not found", "code": "user_not_found"}), 404
+    # AUTH-02: mirror the DELETE guards for the update path. The UI blocks
+    # these client-side; without server-side guards a direct API call could
+    # demote or deactivate the sole (or self) administrator and leave the
+    # system with no way to administer users.
+    loses_admin = (
+        ("role" in data and data["role"] != ROLE_ADMIN)
+        or (data.get("is_active") is False)
+    )
+    if loses_admin:
+        if user_id == current_user().id:
+            return jsonify({
+                "error": "You cannot demote or deactivate your own account",
+                "code": "self_management",
+            }), 400
+        if target.is_admin and target.is_active:
+            active_admins = [u for u in auth.list_users()
+                             if u.get("role") == ROLE_ADMIN and u.get("is_active", True)]
+            if len(active_admins) <= 1:
+                return jsonify({
+                    "error": "Cannot demote or deactivate the last active administrator",
+                    "code": "last_admin",
+                }), 400
     try:
         if "role" in data:
             auth.set_role(user_id, data["role"])
