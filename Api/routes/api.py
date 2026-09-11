@@ -701,11 +701,15 @@ def register_api_routes(app):
         """
         from Api.utils import select_info_categories
         categories_data = select_info_categories()
-        # get_categories_for_dropdown returns list of dicts, not tuples
-        if categories_data:
-            categories = [{'id': cat.get('id'), 'name': cat.get('name')} for cat in categories_data if isinstance(cat, dict)]
-        else:
-            categories = []
+        # get_categories_for_dropdown returns (id, name) tuples; API-CAT-02:
+        # the old dict-only comprehension filtered every tuple out, so this
+        # endpoint always returned [] and starved every dropdown consumer.
+        categories = []
+        for cat in categories_data or []:
+            if isinstance(cat, dict):
+                categories.append({'id': cat.get('id'), 'name': cat.get('name')})
+            elif isinstance(cat, (tuple, list)) and len(cat) >= 2:
+                categories.append({'id': cat[0], 'name': cat[1]})
         return jsonify(categories)
 
     @app.route('/api/categories/search')
