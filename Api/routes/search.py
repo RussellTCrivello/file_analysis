@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 from core.security.rate_limit import limiter
 
 
+def _current_user_id():
+    """AUDIT (API-04): the auth middleware stores the user id under
+    ``session['auth_user_id']`` (core/security/flask_ext.py::_SESSION_USER_KEY);
+    ``session['user_id']`` is never set, so search history and saved searches
+    were always recorded with ``user_id = None`` and could not be scoped to,
+    or cleaned up for, a user.
+    """
+    return session.get('auth_user_id')
+
+
 def register_search_routes(app):
     """Register search routes with the Flask app"""
     
@@ -345,7 +355,7 @@ def register_search_routes(app):
             
             # Save to search history
             if query:
-                user_id = session.get('user_id')
+                user_id = _current_user_id()
                 SearchHistoryService.add_search(
                     query=query,
                     filters={
@@ -474,7 +484,7 @@ def register_search_routes(app):
                 query = data.get('query', '').strip()
                 filters = data.get('filters', {})
                 result_count = data.get('result_count', 0)
-                user_id = session.get('user_id')
+                user_id = _current_user_id()
                 
                 if query:
                     SearchHistoryService.add_search(
@@ -495,7 +505,7 @@ def register_search_routes(app):
             else:
                 # GET - retrieve search history
                 limit = int(request.args.get('limit', 20))
-                user_id = session.get('user_id')
+                user_id = _current_user_id()
                 
                 history = SearchHistoryService.get_history(limit=limit, user_id=user_id)
                 
@@ -512,7 +522,7 @@ def register_search_routes(app):
     def api_clear_search_history():
         """Clear search history."""
         try:
-            user_id = session.get('user_id')
+            user_id = _current_user_id()
             SearchHistoryService.clear_history(user_id=user_id)
             
             return jsonify({'success': True, 'message': 'Search history cleared'})
@@ -527,7 +537,7 @@ def register_search_routes(app):
     def api_get_saved_searches():
         """Get all saved searches."""
         try:
-            user_id = session.get('user_id')
+            user_id = _current_user_id()
             searches = SavedSearchesService.get_saved_searches(user_id=user_id)
             
             return jsonify({
@@ -561,7 +571,7 @@ def register_search_routes(app):
             if not name:
                 return jsonify({'error': 'Name is required'}), 400
             
-            user_id = session.get('user_id')
+            user_id = _current_user_id()
             search_id = SavedSearchesService.save_search(
                 name=name,
                 query=query,

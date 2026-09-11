@@ -99,7 +99,13 @@ class ErrorMonitor:
         self._events: deque = deque(maxlen=max_events)
         self._patterns: Dict[str, ErrorPattern] = {}
         self._metrics: Dict[str, Any] = defaultdict(int)
-        self._lock = threading.Lock()
+        # AUDIT (CONC-01): this must be re-entrant. ``get_metrics()`` acquires
+        # the lock and then calls ``_get_recent_errors()``, which acquires the
+        # same lock. With a plain ``threading.Lock`` that is a guaranteed
+        # self-deadlock: every request to /api/errors/{metrics,recent,patterns,
+        # stats} hung forever and permanently leaked a worker thread, so four
+        # unauthenticated-safe GETs were enough to starve the server.
+        self._lock = threading.RLock()
         
         # Alert callbacks
         self._alert_callbacks: List[Callable[[ErrorEvent, AlertLevel], None]] = []

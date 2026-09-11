@@ -436,7 +436,19 @@ def register_api_routes(app):
         try:
             from datetime import date, datetime
             import json
-            
+            from decimal import Decimal
+
+            def _json_default(value):
+                """AUDIT (API-03): psycopg2 returns NUMERIC columns as
+                ``decimal.Decimal``, which ``json.dumps`` cannot encode. This
+                made every source export fail with
+                "Object of type Decimal is not JSON serializable" (500)."""
+                if isinstance(value, Decimal):
+                    return float(value)
+                if isinstance(value, (date, datetime)):
+                    return value.isoformat()
+                return str(value)
+
             # Get the source data
             source = get_source_by_id(source_id)
             if not source:
@@ -464,7 +476,9 @@ def register_api_routes(app):
             }
             
             # Create JSON response
-            json_data = json.dumps(export_data, indent=2, ensure_ascii=False)
+            json_data = json.dumps(
+                export_data, indent=2, ensure_ascii=False, default=_json_default
+            )
             
             # Return as downloadable file
             from flask import Response

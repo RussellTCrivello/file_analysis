@@ -33,7 +33,28 @@ class SettingsAdapter:
     def settings(self) -> AllSettings:
         """Get settings object (for backward compatibility)"""
         return self._manager.settings
-    
+
+    @property
+    def version(self) -> str:
+        """Application settings version.
+
+        AUDIT (OPS-01): ``Api/routes/health.py`` probes ``settings.version`` on
+        this adapter during its settings health check. The adapter only
+        forwarded ``.settings``, so the probe raised AttributeError on every
+        boot and /health permanently returned
+        ``{"status":"degraded","checks":{"settings":"error: AttributeError"}}``
+        - precisely the signal a container orchestrator uses to restart or
+        remove an instance from a load-balancer pool.
+        """
+        try:
+            return self.settings.version
+        except AttributeError:
+            try:
+                from version import get_version as _get_version
+            except Exception:  # pragma: no cover - defensive
+                return "unknown"
+            return _get_version()
+
     def get(self, category: str = None, key: str = None, default: Any = None) -> Any:
         """
         Get a setting value (old API style).
@@ -399,10 +420,24 @@ class SettingsAdapter:
             if not hasattr(self.settings, category):
                 missing.append(category)
         
+        # AUDIT (OPS-01): ``SettingsManager`` has no ``.version`` attribute -
+        # the version lives on ``AllSettings`` / the ``version`` module. This
+        # AttributeError made /health report
+        # {"status":"degraded","checks":{"settings":"error: AttributeError"}}
+        # on every boot, which is exactly the signal an orchestrator watches.
+        try:
+            from version import get_version as _get_version
+        except Exception:  # pragma: no cover - defensive
+            _get_version = None
+
+        version = getattr(self.settings, 'version', None)
+        if version is None:
+            version = _get_version() if _get_version else None
+
         return {
             'complete': len(missing) == 0,
             'missing_categories': missing,
-            'version': self.settings.version
+            'version': version
         }
     
     def check_file_changes(self) -> bool:

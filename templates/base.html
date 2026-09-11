@@ -378,7 +378,7 @@
             </li>
             {% endif %}
             
-            {% if is_interface_enabled('settings') %}
+            {% if is_interface_enabled('settings') and current_user.is_admin %}
             <li class="sidebar-nav-item">
                 <a href="{{ url_for('settings_page_direct') }}" 
                    class="sidebar-nav-link {% if request.endpoint == 'settings_page_direct' %}active{% endif %}" 

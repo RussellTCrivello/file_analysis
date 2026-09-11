@@ -13,6 +13,49 @@ from Api.utils import (
 logger = logging.getLogger(__name__)
 
 
+# ``get_recent_files()`` returns raw psycopg2 rows (tuples) laid out by
+# ``FileQueries.get_recent_files()``. The dashboard template addresses the
+# fields by name, so the rows are normalised here once, in one place.
+_RECENT_FILE_COLUMNS = (
+    "id",
+    "file_name",
+    "file_path",
+    "file_size",
+    "file_type",
+    "file_status",
+    "file_date",
+    "date_creation",
+    "hash_id",
+    "source_id",
+    "side_id",
+    "source_name",
+    "side_name",
+)
+
+
+def _normalise_recent_file(row):
+    """Return a dict for a ``get_recent_files()`` row (tuple or dict).
+
+    DB-AUDIT: the caller previously did ``f['id']`` on a tuple, which raised
+    ``TypeError: tuple indices must be integers or slices, not str``. That
+    exception was swallowed by the page-level ``except``, so *every* dashboard
+    KPI silently fell back to 0 and the Recent Files table rendered empty even
+    though the same queries succeed elsewhere (``/api/dashboard/stats``).
+    """
+    if isinstance(row, dict):
+        return dict(row)
+    if not isinstance(row, (list, tuple)):
+        return None
+    mapped = {
+        column: row[index]
+        for index, column in enumerate(_RECENT_FILE_COLUMNS)
+        if index < len(row)
+    }
+    mapped.setdefault("source_name", "Unknown")
+    mapped.setdefault("side_name", "Unknown")
+    return mapped
+
+
 def register_dashboard_routes(app):
     """Register dashboard routes with the Flask app"""
     
@@ -28,18 +71,11 @@ def register_dashboard_routes(app):
             recent_files_list = get_recent_files(limit=10)
             # Convert to format expected by template
             recent_files = [
-                {
-                    'id': f['id'],
-                    'file_name': f['file_name'],
-                    'file_type': f['file_type'],
-                    'file_status': f['file_status'],
-                    'date_creation': f['date_creation'],
-                    'file_size': f['file_size'],
-                    'file_date': f['file_date'],
-                    'source_name': f.get('source_name', 'Unknown'),
-                    'side_name': f.get('side_name', 'Unknown')
-                }
-                for f in recent_files_list
+                normalised
+                for normalised in (
+                    _normalise_recent_file(f) for f in (recent_files_list or [])
+                )
+                if normalised
             ]
             
             processing_chart_data = get_processing_chart_data(days=7)
@@ -62,7 +98,9 @@ def register_dashboard_routes(app):
                                  percentages=percentages)
             
         except Exception as e:
-            logger.error(f"Dashboard error: {e}")
+            # DB-AUDIT: keep the page usable, but log the traceback. The
+            # previous single-line log hid the exact failure for months.
+            logger.error(f"Dashboard error: {e}", exc_info=True)
             return render_template('Analysis/dashboard.html',
                                  stats={},
                                  processing_stats={},

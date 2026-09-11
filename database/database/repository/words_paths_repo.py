@@ -12,16 +12,26 @@ class WordsPathsRepository(BaseRepository):
         tuples_rows = tuple_path_id_and_word_id_and_counts_and_position
         placeholders = ",".join(["(%s,%s,%s,%s)"] * len(tuples_rows))
         query = WordPathQueries.insert_word_path(placeholders)
-        
+
         flat_values = [item for sublist in tuples_rows for item in sublist]
-        print(query)
+        # AUDIT (DB-02): this used to ``print(query)``, dumping the full
+        # INSERT statement (hundreds of parameter slots) to stdout on every
+        # ingestion batch. Removed - real logging belongs in the logger.
         self.execute(query, flat_values)
 
     def insert_words_paths(self, content_id, word_id, word_count, list_position_indexer):
-        
+        """Insert a single word-path relationship if it does not exist yet.
+
+        Returns the inserted ``path_id`` when a new row was created, or
+        ``None`` when a ``(path_id, word_id)`` row already existed.
+        """
         position_byte = pack_int_list(list_position_indexer)
 
-        params = (content_id, word_id, word_count, position_byte)
+        # The guard clause needs the pair twice (INSERT values + NOT EXISTS).
+        params = (
+            content_id, word_id, word_count, position_byte,
+            content_id, word_id,
+        )
 
         return self.execute(WordPathQueries.batch_insert_word_paths(), params, True)
     

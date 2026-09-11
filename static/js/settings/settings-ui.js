@@ -714,34 +714,77 @@ class SettingsUI {
                 if (batchSizeField) data.batch_size = parseInt(batchSizeField.value);
                 if (chunkSizeField) data.chunk_size = parseInt(chunkSizeField.value);
                 
-                // Save via database endpoint
-                const response = await fetch('/api/settings/database', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': self.getCSRFToken()
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                
+                // OPS-02: the backend validates the syntax, opens a real connection
+                // with the proposed credentials and only then persists. Until
+                // it reports success nothing has been saved, so the UI must
+                // show the testing state first and must never claim success
+                // early.
+                const submitBtn = document.querySelector('[onclick*="saveDatabaseSettings"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.dataset.originalLabel = submitBtn.innerHTML;
+                }
+
+                self.showNotification('Testing database connection…', 'info');
+
+                let response;
+                try {
+                    response = await fetch('/api/settings/database', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': self.getCSRFToken()
+                        },
+                        body: JSON.stringify(data)
+                    });
+                } catch (networkError) {
+                    self.showError('Unable to reach the server. Your existing configuration was not changed.');
+                    return;
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                }
+
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch (parseError) {
+                    self.showError('The server returned an unexpected response. Your existing configuration was not changed.');
+                    return;
+                }
+
                 if (result.success) {
                     // Clear password field
                     if (passwordField) {
                         passwordField.value = '';
                     }
-                    
+
                     // Reload settings state
                     await self.state.load();
-                    
-                    self.showSuccess('Database settings saved successfully. Application restart may be required.');
+
+                    self.showSuccess(result.message || 'Connection successful. Configuration saved.');
                 } else {
-                    throw new Error(result.error || 'Failed to save');
+                    // The server returns short, classified, credential-free
+                    // explanations. They are escaped before being handed to
+                    // showNotification(), which renders through innerHTML, so
+                    // no server-supplied text can become markup.
+                    const message = self.escapeHtml(
+                        result.error || 'Unable to connect to the database. Your existing configuration was not changed.'
+                    );
+
+                    if (Array.isArray(result.errors) && result.errors.length) {
+                        const detail = result.errors.map(e => self.escapeHtml(String(e))).join('<br>');
+                        self.showError(`Please correct the following:<br>${detail}`);
+                    } else {
+                        self.showError(message);
+                    }
                 }
             } catch (error) {
-                console.error('Failed to save database settings:', error);
-                self.showError(`Failed to save: ${error.message}`);
+                // Never surface raw exception text to the user, and never log
+                // the form payload - it can contain the database password.
+                console.error('Failed to save database settings');
+                self.showError('Unable to connect to the database. Your existing configuration was not changed.');
             }
         };
     }
@@ -752,6 +795,26 @@ class SettingsUI {
     getCSRFToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
+    }
+
+    /**
+     * Escape text before it is rendered through innerHTML.
+     *
+     * showNotification() builds its toast with innerHTML, so any server
+     * supplied string must be escaped first. The database settings endpoint
+     * returns short, classified messages, but escaping here keeps the UI safe
+     * even if a future message contains metacharacters.
+     */
+    escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
     
     /**

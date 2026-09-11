@@ -138,8 +138,16 @@ def register_common_routes(app, babel_instance):
         # Check interface access - block disabled interfaces
         # Skip check for static files, API endpoints, setup, and settings page (always accessible)
         # Settings page must always be accessible so users can re-enable interfaces
+        #
+        # OPS-05b: 'index' (the dashboard / home page) is exempt. The gate
+        # redirects a blocked endpoint to url_for('index'); if the index is
+        # itself subject to the gate and reads as disabled, that redirects to
+        # itself and the browser reports ERR_TOO_MANY_REDIRECTS, leaving the
+        # application unusable with no way back into Settings to re-enable
+        # anything. The home page must therefore never be gated.
         if (request.endpoint and 
             request.endpoint != 'static' and 
+            request.endpoint != 'index' and
             not request.path.startswith('/api/') and
             request.endpoint not in ('setup.setup_page', 'setup.system_check', 'setup.test_database',
                                      'setup.run_installation', 'setup.check_setup_status',

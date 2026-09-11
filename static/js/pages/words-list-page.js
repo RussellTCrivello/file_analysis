@@ -87,6 +87,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize Bootstrap modal - ensure it's available
         initializeModal();
+
+        // AUDIT (UI-01): /words/add used to render a missing template (500).
+        // It now redirects here with ?add=1, so open the existing modal.
+        if (urlParams.get('add') === '1') {
+            setTimeout(() => openAddWordModal(), 200);
+        }
     }
     
     function updateSortIcons() {

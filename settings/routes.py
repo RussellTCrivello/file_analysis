@@ -16,6 +16,7 @@ import uuid
 import re
 
 from .settings_manager import get_settings_manager
+from .database_validation import DatabaseConfigRejected
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,25 @@ def update_single_setting(category, key):
     
     manager = get_settings_manager()
     full_key = f"{category}.{key}"
-    
+
+    # OPS-06: refuse to mutate database configuration here.
+    #
+    # ``manager.set("database.host", ...)`` followed by ``manager.save()``
+    # writes an unvalidated, untested database target straight to disk -
+    # reintroducing the exact outage OPS-02/03/04/05 closed. This generic
+    # endpoint has no notion of validating a connection, so database settings
+    # must go through ``POST /api/settings/database``, which does.
+    # (The guard is here rather than in SettingsManager.set() because
+    # core/initialization.py legitimately seeds database.* from config.json
+    # during startup, and must keep working.)
+    if category == 'database':
+        return jsonify({
+            'success': False,
+            'error': 'Database configuration cannot be changed through this endpoint. '
+                     'Use /api/settings/database, which validates and tests the '
+                     'connection before saving.',
+        }), 422
+
     # Special handling for language changes
     if category == 'system' and key == 'language':
         # Validate language code
@@ -170,15 +189,40 @@ def batch_update_settings():
         }
     }
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request body.'
+        }), 400
+
     updates = data.get('updates', {})
-    
-    if not updates:
+    if not updates or not isinstance(updates, dict):
         return jsonify({
             'success': False,
             'error': 'No updates provided'
         }), 400
-    
+
+    # OPS-06: same guard as the single-setting endpoint. A batch payload may
+    # contain "database.host" and friends, which would otherwise be written
+    # unvalidated by ``update_many`` + ``save`` and reproduce the OPS-02
+    # outage. Reject the whole batch rather than partially applying it, so a
+    # mixed payload cannot half-succeed.
+    db_keys = sorted(
+        k for k in updates
+        if isinstance(k, str) and (k == 'database' or k.startswith('database.'))
+    )
+    if db_keys:
+        return jsonify({
+            'success': False,
+            'error': 'Database configuration cannot be changed through this endpoint. '
+                     'Use /api/settings/database, which validates and tests the '
+                     'connection before saving.',
+            'rejected_keys': db_keys,
+        }), 422
+
     manager = get_settings_manager()
     
     # Handle language changes
@@ -235,59 +279,116 @@ def get_database_settings():
 @settings_bp.route('/database', methods=['POST'])
 @handle_errors
 def update_database_settings():
-    """Update database settings"""
-    data = request.get_json() or {}
+    """Update database settings.
+
+    OPS-02: this endpoint writes the configuration the application itself uses
+    to authenticate, so the workflow is
+
+        validate syntax -> test connectivity -> persist -> activate
+
+    and **not** persist-then-hope. The live configuration object and the
+    ``DB_*`` environment variables are left completely untouched until a real
+    connection using the proposed values has succeeded. A rejected submission
+    therefore leaves the running application exactly as it was, and an
+    administrator can simply correct the values and retry.
+    """
+    from .database_validation import build_database_candidate, test_database_connection
+
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request body.',
+        }), 400
+
     manager = get_settings_manager()
-    
-    # Update database config
+
+    # ``manager.settings.database`` is the LIVE configuration object. It is
+    # only read here - every mutation happens after validation has passed.
     db_config = manager.settings.database
-    
-    # Update fields if provided
-    if 'host' in data:
-        db_config.host = str(data['host'])
-    if 'port' in data:
-        db_config.port = int(data['port'])
-    if 'database' in data:
-        db_config.database = str(data['database'])
-    if 'user' in data:
-        db_config.user = str(data['user'])
-    if 'password' in data and data['password']:
-        db_config.password = str(data['password'])
-        os.environ['DB_PASSWORD'] = db_config.password
-    if 'pool_min_conn' in data:
-        db_config.pool_min_conn = int(data['pool_min_conn'])
-    if 'pool_max_conn' in data:
-        db_config.pool_max_conn = int(data['pool_max_conn'])
-    if 'pool_timeout' in data:
-        db_config.pool_timeout = int(data['pool_timeout'])
-    if 'query_timeout' in data:
-        db_config.query_timeout = int(data['query_timeout'])
-    if 'batch_size' in data:
-        db_config.batch_size = int(data['batch_size'])
-    if 'chunk_size' in data:
-        db_config.chunk_size = int(data['chunk_size'])
-    
-    # Update environment variables
-    os.environ['DB_HOST'] = db_config.host
-    os.environ['DB_PORT'] = str(db_config.port)
-    os.environ['DB_USER'] = db_config.user
-    os.environ['DB_NAME'] = db_config.database
-    
-    # Save
-    manager.save()
-    
-    # Invalidate database connections
+
+    # ---- Step 1: validate syntax / ranges (no side effects) --------------
+    candidate, errors = build_database_candidate(data, db_config)
+    if errors:
+        return jsonify({
+            'success': False,
+            'error': 'The submitted database configuration is not valid.',
+            'errors': errors,
+        }), 422
+
+    # ---- Step 2: prove the proposed configuration actually works ---------
+    # Nothing has been modified at this point, so a failure here is
+    # inherently non-destructive.
+    connected, failure_message = test_database_connection(candidate)
+    if not connected:
+        return jsonify({
+            'success': False,
+            'error': failure_message,
+            'message': 'Unable to connect to the database. Your existing configuration was not changed.',
+        }), 422
+
+    # ---- Step 3: commit --------------------------------------------------
+    # Steps 1 and 2 above produce the structured 400/422 responses the UI
+    # relies on, so they stay here; the COMMIT itself is delegated to
+    # SettingsManager.apply_database_config(), the single supported mutator for
+    # database configuration. Previously this endpoint mutated the live
+    # DatabaseConfig with setattr and maintained its own parallel copy of the
+    # commit/rollback logic - a third composition site that bypassed the
+    # manager boundary. ``require_test=False`` because the probe has already
+    # run above; structural validation is re-run inside and is free.
+    applied, commit_error = manager.apply_database_config(
+        candidate, require_test=False, activate=False
+    )
+    if not applied:
+        return jsonify({
+            'success': False,
+            'error': commit_error or 'The configuration could not be saved. Your existing configuration was not changed.',
+        }), 500
+
+    db_config = manager.settings.database
+
+    # ---- Step 4: activate ------------------------------------------------
+    # Only reached once the new configuration is proven and persisted.
+    #
+    # Activation failure is deliberately non-fatal: by this point disk,
+    # environment and the live settings object all hold the same *validated*
+    # configuration, so the operation has already succeeded. Activation only
+    # drops cached connections built against the previous target; if it fails,
+    # the worst case is a stale cache that self-heals (the health probe re-runs
+    # SELECT 1, and the storage hub is rebuilt lazily). Rolling back here would
+    # discard a known-good configuration because of a cache-clearing error,
+    # which is the wrong trade-off. The response tells the operator instead.
+    activation_warning = None
     try:
         from .config import invalidate_database_connections
         invalidate_database_connections()
-    except ImportError:
-        pass
-    
-    return jsonify({
+    except Exception as exc:
+        activation_warning = (
+            "Configuration saved, but cached database connections could not be "
+            "cleared. A restart is recommended so every component picks up the "
+            "new configuration."
+        )
+        logger.warning(
+            "Database settings saved but connection invalidation failed "
+            "(host=%s port=%s): %s",
+            db_config.host, db_config.port, type(exc).__name__,
+        )
+
+    logger.info(
+        "Database settings updated (host=%s port=%s database=%s user=%s)",
+        db_config.host, db_config.port, db_config.database, db_config.user,
+    )
+
+    payload = {
         'success': True,
-        'message': 'Database settings updated successfully',
-        'settings': db_config.to_dict()
-    })
+        'message': 'Connection successful. Configuration saved.',
+        'settings': db_config.to_dict()   # excludes the password
+    }
+    if activation_warning:
+        payload['warning'] = activation_warning
+    return jsonify(payload)
 
 
 # ============================================================================
@@ -695,23 +796,45 @@ def import_settings():
     
     Request body: Complete settings dictionary
     """
-    data = request.get_json() or {}
-    
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+
+    if not isinstance(data, dict):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request body.'
+        }), 400
+
     if not data:
         return jsonify({
             'success': False,
             'error': 'No settings data provided'
         }), 400
-    
+
     manager = get_settings_manager()
-    success, error = manager.import_settings(data)
-    
+
+    # OPS-03: importing settings replaces the whole document, including the
+    # database block. It must pass the same validate -> connectivity-test gate
+    # as POST /api/settings/database, or it is just a second door to the same
+    # outage. Rejections from that gate arrive as DatabaseConfigRejected and
+    # leave every piece of state untouched.
+    try:
+        success, error = manager.import_settings(data)
+    except DatabaseConfigRejected as exc:
+        return jsonify({
+            'success': False,
+            'error': str(exc),
+            'message': 'The database configuration in these settings could not be used. '
+                       'Your existing configuration was not changed.',
+        }), 422
+
     if not success:
         return jsonify({
             'success': False,
             'error': error
         }), 400
-    
+
     return jsonify({
         'success': True,
         'message': 'Settings imported successfully'
@@ -752,16 +875,42 @@ def create_backup():
 @settings_bp.route('/backups/<filename>/restore', methods=['POST'])
 @handle_errors
 def restore_backup(filename):
-    """Restore settings from a backup"""
+    """Restore settings from a backup.
+
+    OPS-04: restoring a backup goes through ``import_settings`` and therefore
+    replaces the database block too. It is subject to the same
+    validate -> connectivity-test gate as every other database mutation; a
+    backup pointing at an unreachable database is refused rather than
+    persisted.
+    """
     manager = get_settings_manager()
-    success, error = manager.restore_backup(filename)
-    
+
+    # ``filename`` comes from the URL path. Reject anything that is not a
+    # plain filename so it cannot be used to traverse out of the backups
+    # directory (Flask already does not decode %2f, but this makes the
+    # invariant explicit and independent of the WSGI layer).
+    if not filename or filename != secure_filename(filename):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid backup filename.'
+        }), 400
+
+    try:
+        success, error = manager.restore_backup(filename)
+    except DatabaseConfigRejected as exc:
+        return jsonify({
+            'success': False,
+            'error': str(exc),
+            'message': 'The database configuration in this backup could not be used. '
+                       'Your existing configuration was not changed.',
+        }), 422
+
     if not success:
         return jsonify({
             'success': False,
             'error': error
         }), 400
-    
+
     return jsonify({
         'success': True,
         'message': f'Settings restored from {filename}'

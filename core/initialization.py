@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 from settings.config import get_config
-from settings import get_settings
+from settings import get_settings, get_settings_manager
 
 logger = logging.getLogger(__name__)
 
@@ -152,10 +152,26 @@ def initialize_paths(config: Dict[str, Any]):
 
 
 def initialize_database_config(config: Dict[str, Any], skip_connection_test: bool = True):
-    """Initialize database configuration from config.json.
+    """Apply the database configuration from config.json.
 
-    Uses the SettingsManager's validated set_setting() path rather than
-    directly mutating database config attributes (which bypasses validation).
+    OPS-07: this used to seed ``database.*`` one key at a time with
+    ``set_setting()``. ``database.*`` has no entry in ``SETTING_DEFINITIONS``,
+    so ``SettingsManager.set(..., validate=True)`` validated nothing, and
+    ``settings.json`` was rewritten on *every* startup with an unvalidated and
+    untested target. An operator ``config.json`` pointing at a host that no
+    longer exists therefore silently destroyed the working configuration the
+    administrator had saved through the validated settings endpoint.
+
+    It now goes through ``SettingsManager.apply_database_config()`` - the same
+    boundary every other database mutation uses:
+
+    * fields config.json omits fall back to the current values (never to
+      ``localhost:5432`` defaults);
+    * the result is structurally validated;
+    * unless this is the very first startup, the connection is proven before
+      anything is written;
+    * a rejected configuration is **not** persisted. The application keeps the
+      last-known-good configuration it loaded from ``settings.json``.
 
     Args:
         config: Configuration dictionary
@@ -166,39 +182,35 @@ def initialize_database_config(config: Dict[str, Any], skip_connection_test: boo
             return
 
         db_config_data = config['database']
-        settings = get_settings()
+        if not isinstance(db_config_data, dict):
+            logger.error(
+                "Ignoring config.json database block: expected an object, got %s.",
+                type(db_config_data).__name__,
+            )
+            return
 
-        # Use the validated set_setting path — goes through SettingsManager.set()
-        for key, env_key in [
-            ('host', 'DB_HOST'), ('port', 'DB_PORT'),
-            ('database', 'DB_NAME'), ('user', 'DB_USER'),
-        ]:
-            val = db_config_data.get(key)
-            if val is not None:
-                settings.set_setting(f'database.{key}', val)
+        manager = get_settings_manager()
 
-        # Only update password if provided and non-empty
-        pw = db_config_data.get('password', '')
-        if pw:
-            settings.set_setting('database.password', pw)
+        # Drop nulls so an explicitly-null field falls back to the current
+        # value instead of being written as the string "None".
+        proposed = {k: v for k, v in db_config_data.items() if v is not None}
 
-        # Pool settings
-        for key in ['pool_min_conn', 'pool_max_conn', 'pool_timeout',
-                     'query_timeout', 'batch_size', 'chunk_size']:
-            val = db_config_data.get(key)
-            if val is not None:
-                settings.set_setting(f'database.{key}', val)
+        applied, error = manager.apply_database_config(
+            proposed, require_test=not skip_connection_test
+        )
 
-        # Sync to environment variables (for code that reads os.environ directly)
-        db = settings.database
-        os.environ['DB_HOST'] = str(db.host)
-        os.environ['DB_PORT'] = str(db.port)
-        os.environ['DB_USER'] = str(db.user)
-        os.environ['DB_NAME'] = str(db.database)
-        if db.password:
-            os.environ['DB_PASSWORD'] = str(db.password)
+        if applied:
+            logger.info("Database configuration applied from config.json")
+            return
 
-        logger.info("Database configuration initialized from config.json")
+        # Rejected. Nothing was written and the environment is untouched, so the
+        # process keeps using the last-known-good configuration it loaded from
+        # settings.json.
+        logger.error(
+            "Database configuration in config.json was rejected and has NOT been "
+            "applied: %s The application continues with its existing configuration.",
+            error,
+        )
 
     except Exception as e:
         logger.error(f"Error initializing database config: {e}")
