@@ -95,3 +95,6 @@ function deleteSide(id, sideName = '') {
             });
     }
 }
+// DETL-01: referenced by the template's inline onclick handler; this module is
+// loaded as ES module, so top-level functions are module-scoped by default.
+window.deleteSide = deleteSide;

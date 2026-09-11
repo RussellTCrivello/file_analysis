@@ -1,3 +1,20 @@
+.message-container {
+    /* Base positioning: fixed toast stack in the top-right corner. Without
+       this rule the container was a static block at the end of <body>, so the
+       messages' translateX(120%) entrance transform pushed real page content
+       sideways and produced ~1728px of horizontal overflow. */
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 10010;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 420px;
+    width: calc(100vw - 3rem);
+    pointer-events: none;
+}
+
 .message {
     background: var(--card-bg);
     border-radius: 12px;

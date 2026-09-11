@@ -268,8 +268,8 @@
                                    class="btn btn-primary btn-sm">
                                     <i class="bi bi-eye me-1"></i>{{ _('View Full Content') }}
                                 </a>
-                                <a href="/file/{{ file[0] }}/reprocess" class="btn btn-warning btn-sm ms-2" 
-                                   onclick="return confirm({{ _('Reprocess this file? This may take a moment.')|tojson }})">
+                                <a href="/file/{{ file[0] }}/reprocess" class="btn btn-warning btn-sm ms-2"
+                                   onclick='return confirm({{ _('Reprocess this file? This may take a moment.')|tojson }})'>
                                     <i class="bi bi-arrow-clockwise me-1"></i>{{ _('Reprocess') }}
                                 </a>
                             </div>
@@ -279,8 +279,8 @@
                                 <h5 class="text-muted mt-3">{{ _('No content available') }}</h5>
                                 <p class="text-muted">{{ _('This file may not have been processed yet, or the content could not be loaded.') }}</p>
                                 <div class="mt-3">
-                                    <a href="/file/{{ file[0] }}/reprocess" class="btn btn-warning btn-sm" 
-                                       onclick="return confirm({{ _('Reprocess this file? This will extract and store the content again.')|tojson }})">
+                                    <a href="/file/{{ file[0] }}/reprocess" class="btn btn-warning btn-sm"
+                                       onclick='return confirm({{ _('Reprocess this file? This will extract and store the content again.')|tojson }})'>
                                         <i class="bi bi-arrow-clockwise me-1"></i>{{ _('Reprocess File') }}
                                     </a>
                                 </div>

@@ -130,6 +130,16 @@ def init_auth(app) -> None:
         "AUTH_SETTINGS_ANY_USER_WRITE_PATHS",
         frozenset({"/api/settings/system/language"}),
     )
+    #: Self-service mutations every authenticated user may perform on their
+    #: own account. ``/auth/change-password`` operates exclusively on
+    #: ``current_user().id`` (Api/routes/auth.py) and is reachable from the
+    #: must-change-password banner and the user menu for *every* role, so
+    #: gating it behind the analyst check left viewers permanently stuck with
+    #: a banner they could never clear (AUTH-PW-01).
+    app.config.setdefault(
+        "AUTH_ANY_USER_WRITE_PATHS",
+        frozenset({"/auth/change-password"}),
+    )
     #: Non-safe (mutating) methods requiring analyst/admin by default.
     app.config.setdefault("AUTH_WRITE_METHODS", frozenset({"POST", "PUT", "PATCH", "DELETE"}))
 
@@ -215,6 +225,9 @@ def init_auth(app) -> None:
             return None
 
         if request.method not in app.config["AUTH_WRITE_METHODS"]:
+            return None
+
+        if request.path in app.config["AUTH_ANY_USER_WRITE_PATHS"]:
             return None
 
         blueprint = full_endpoint.split(".")[0]

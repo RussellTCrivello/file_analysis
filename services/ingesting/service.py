@@ -81,6 +81,26 @@ class IngestionService:
         # Injectable for tests; production uses the real engine.
         self._reader_factory = reader_factory
 
+    @staticmethod
+    def _resolve_entity_name(value: str, kind: str) -> Optional[str]:
+        """INJ-03: map a numeric source/side id to its name (returns None when
+        ``value`` is not a numeric id or the id is unknown)."""
+        if not value.isdigit():
+            return None
+        try:
+            from database.services.contents_db_service import ContentDBService
+            db = ContentDBService()
+            if kind == "source":
+                entities = db.get_all_sources() or []
+            else:
+                entities = db.get_all_sides() or []
+            for eid, ename in entities:
+                if int(eid) == int(value) and ename:
+                    return str(ename)
+        except Exception:
+            return None
+        return None
+
     # ------------------------------------------------------------------
     # Validation (spec sections 16/23): all request input is untrusted.
     # ------------------------------------------------------------------
@@ -91,7 +111,7 @@ class IngestionService:
             raise IngestionValidationError(
                 "Provide exactly one of 'path' or 'file_paths'"
             )
-        if not (request.source or "").strip() or not (request.side or "").strip():
+        if not str(request.source or "").strip() or not str(request.side or "").strip():
             raise IngestionValidationError(
                 "source and side are mandatory - no defaults are allowed"
             )
@@ -134,8 +154,18 @@ class IngestionService:
             request.path = validated[0]
         else:
             request.file_paths = validated
-        request.source = request.source.strip()
-        request.side = request.side.strip()
+        # INJ-02: normalize source/side to str (API clients may send JSON ints)
+        request.source = str(request.source).strip()
+        request.side = str(request.side).strip()
+
+        # INJ-03: the storage pipeline is *name*-based (it compares against
+        # source/side names and creates a new entity named "1" when given the
+        # numeric id 1). If source/side look like existing ids, resolve them to
+        # their canonical names here — the single entry point shared by the
+        # API, the job runner, and the CLI.
+        request.source = self._resolve_entity_name(request.source, "source") or request.source
+        request.side = self._resolve_entity_name(request.side, "side") or request.side
+
         return request
 
     # ------------------------------------------------------------------

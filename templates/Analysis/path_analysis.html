@@ -70,6 +70,9 @@
             <a href="{{ url_for('analysis_batch') }}" class="btn btn-outline-primary analysis-view-btn {% if request.endpoint == 'analysis_batch' %}active{% endif %}" data-view="batch">
                 <i class="bi bi-lightning-charge"></i> {{ _('Batch Analysis') }}
             </a>
+            <a href="{{ url_for('file_classification_page') }}" class="btn btn-outline-primary analysis-view-btn {% if request.endpoint == 'file_classification_page' %}active{% endif %}" data-view="classification">
+                <i class="bi bi-file-earmark-text"></i> {{ _('Classification') }}
+            </a>
         </div>
     </div>
 

@@ -59,3 +59,6 @@ function deleteKeyword(id) {
             .catch(e => alert(translations.error + ': ' + e.message));
     }
 }
+// DETL-01: referenced by the template's inline onclick handler; this module is
+// loaded as ES module, so top-level functions are module-scoped by default.
+window.deleteKeyword = deleteKeyword;

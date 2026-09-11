@@ -1,126 +1,103 @@
 /**
  * Saved Searches Page JavaScript
- * Extracted from Search/saved_searches.html
+ * Wired to the real saved-search API (GET/PUT/DELETE /api/search/saved[/<id>]).
  */
 
 // Load translations from JSON script tag
 let translations = {};
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Load translations from JSON script tag
     const pageDataEl = document.getElementById('saved-searches-page-data');
     if (pageDataEl) {
         try {
             const data = JSON.parse(pageDataEl.textContent);
             translations = data.translations || {};
+            window.translations = window.translations || {};
+            Object.assign(window.translations, translations);
         } catch (e) {
             console.error('Error parsing saved searches page data:', e);
         }
     }
-    
+
     console.log('Saved searches page loaded');
 });
 
-// Filter saved searches
+function getCSRFToken() {
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    return metaTag ? metaTag.getAttribute('content') : '';
+}
+
+// Client-side filter by saved-search name
 function filterSavedSearches() {
-    const searchTerm = document.getElementById('searchSaved').value.toLowerCase();
-    const cards = document.querySelectorAll('.search-card');
-    
-    cards.forEach(card => {
-        const name = card.dataset.name;
+    const searchTerm = (document.getElementById('searchSaved')?.value || '').toLowerCase();
+    document.querySelectorAll('.search-card').forEach(card => {
+        const name = card.dataset.name || '';
         card.style.display = name.includes(searchTerm) ? '' : 'none';
     });
 }
 
+// Rename a saved search (Edit action)
+async function renameSavedSearch(searchId, currentName) {
+    const newName = prompt(translations.renamePrompt || 'Enter a new name for this search:', currentName);
+    if (newName === null) return; // cancelled
+    const trimmed = (typeof newName === 'string' ? newName : '').trim();
+    if (!trimmed) return;
+    if (trimmed === currentName) return;
 
-// Run saved search
-async function runSearch(searchId) {
     try {
-        const response = await fetch(`/search/run/${searchId}`);
-        const results = await response.json();
-        
-        // Redirect to results page
-        window.location.href = `/search/results?search_id=${searchId}`;
-    } catch (error) {
-        alert(translations.errorRunningSearch + ': ' + error.message);
-    }
-}
-
-// Edit search
-function editSearch(searchId) {
-    window.location.href = `/search/edit/${searchId}`;
-}
-
-// Toggle alert
-function toggleAlert(searchId) {
-    document.getElementById('alertSearchId').value = searchId;
-    new bootstrap.Modal(document.getElementById('alertModal')).show();
-}
-
-// Save alert configuration
-async function saveAlert() {
-    const searchId = document.getElementById('alertSearchId').value;
-    const frequency = document.getElementById('alertFrequency').value;
-    const emailEnabled = document.getElementById('alertEmail').checked;
-    const inAppEnabled = document.getElementById('alertInApp').checked;
-    const minDocs = document.getElementById('alertMinDocs').value;
-    const active = document.getElementById('alertActive').checked;
-    
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        const response = await fetch('/search/alert/configure', {
-            method: 'POST',
+        const response = await fetch(`/api/search/saved/${searchId}`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': getCSRFToken()
             },
-            body: JSON.stringify({
-                search_id: searchId,
-                frequency: frequency,
-                email_enabled: emailEnabled,
-                in_app_enabled: inAppEnabled,
-                min_docs: minDocs,
-                active: active
-            })
+            body: JSON.stringify({ name: trimmed })
         });
-        
+
         if (response.ok) {
-            bootstrap.Modal.getInstance(document.getElementById('alertModal')).hide();
-            alert(translations.alertConfigurationSaved);
-            // ✅ Complete page reload with cache-busting
             window.location.href = window.location.pathname + '?t=' + Date.now();
         } else {
-            throw new Error('Failed to save alert');
+            const err = await response.json().catch(() => ({}));
+            alert((translations.error || 'Error') + ': ' + (err.error || translations.unknownError || 'Unknown error'));
         }
     } catch (error) {
-        alert(translations.error + ': ' + error.message);
+        alert((translations.error || 'Error') + ': ' + error.message);
     }
 }
 
-// Delete search
-async function deleteSearch(searchId) {
-    if (!confirm(translations.deleteSearchConfirm)) {
+// Delete a saved search
+async function deleteSavedSearch(searchId) {
+    if (!confirm(translations.deleteSearchConfirm || 'Are you sure you want to delete this saved search?')) {
         return;
     }
-    
+
     try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        const response = await fetch(`/search/delete/${searchId}`, {
+        const response = await fetch(`/api/search/saved/${searchId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': getCSRFToken()
             }
         });
-        
+
         if (response.ok) {
-            alert(translations.searchDeletedSuccessfully);
-            // ✅ Complete page reload with cache-busting
             window.location.href = window.location.pathname + '?t=' + Date.now();
         } else {
-            throw new Error('Failed to delete search');
+            const err = await response.json().catch(() => ({}));
+            alert((translations.error || 'Error') + ': ' + (err.error || translations.unknownError || 'Unknown error'));
         }
     } catch (error) {
-        alert(translations.error + ': ' + error.message);
+        alert((translations.error || 'Error') + ': ' + error.message);
     }
+}
+
+// Expose for inline onclick handlers (this file is loaded as a module,
+// so top-level function declarations are module-scoped by default).
+window.filterSavedSearches = filterSavedSearches;
+window.renameSavedSearch = renameSavedSearch;
+window.deleteSavedSearch = deleteSavedSearch;
+
+// Export default init function for universal-initializer
+export default function init() {
+    return Promise.resolve();
 }

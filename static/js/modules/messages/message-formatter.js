@@ -522,8 +522,12 @@
         module.exports = MessageFormatter;
     }
     
-    // Expose on window for ES module exports
-    if (typeof window !== 'undefined') {
+    // Expose on window for ES module exports. MSGFMT-01: only assign when no
+    // instance exists yet — this module can be evaluated more than once
+    // (universal-initializer re-import), and overwriting the *instance* with
+    // the raw class removed the instance methods (showNotification etc.) that
+    // page scripts call directly, breaking e.g. source deletion feedback.
+    if (typeof window !== 'undefined' && !window.MessageFormatter) {
         window.MessageFormatter = MessageFormatter;
     }
 })();

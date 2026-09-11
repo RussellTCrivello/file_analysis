@@ -77,7 +77,20 @@ function updateSidebarActiveState() {
  * Convert Flask flash messages to notification system
  */
 function convertFlashMessages() {
-    const flashMessages = document.querySelectorAll('.alert');
+    // FLASH-01: only top-level flash messages are converted to toasts.
+    // The previous selector grabbed every `.alert` on the page — including
+    // hidden (`.d-none`) error boxes *inside modals* (e.g. form validation
+    // feedback) — and deleted them ~100ms after load, so those elements could
+    // never show an error. Also keep alerts that carry their own interactive
+    // controls (e.g. the must-change-password banner with its action button):
+    // only true flash messages (plain text + Bootstrap dismiss button) are
+    // safe to convert and remove.
+    const flashMessages = Array.from(document.querySelectorAll('.alert')).filter(function(alert) {
+        if (alert.closest('.modal') || alert.classList.contains('d-none')) return false;
+        const hasInteractive = Array.from(alert.querySelectorAll('button, a, input, select, form'))
+            .some(function(el) { return !el.classList.contains('btn-close'); });
+        return !hasInteractive;
+    });
     flashMessages.forEach(function(alert) {
         // Determine message type from Bootstrap alert class
         let type = 'info';

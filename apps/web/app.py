@@ -451,8 +451,14 @@ if __name__ == '__main__':
     # Get debug mode from environment or default to False
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
     
+    # Bind address/port follow the documented environment configuration
+    # (FLASK_HOST / FLASK_PORT, see .env.example). run_web.py is the canonical
+    # entry point; this direct entry keeps the same contract.
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+    
     try:
-        app.run(debug=debug_mode, host='127.0.0.1', port=5000, use_reloader=False, threaded=True)
+        app.run(debug=debug_mode, host=host, port=port, use_reloader=False, threaded=True)
     except KeyboardInterrupt:
         print("\n\nShutting down...")
         shutdown_handler()

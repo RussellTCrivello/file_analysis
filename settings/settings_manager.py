@@ -975,7 +975,7 @@ class SettingsManager:
             "email_words": {"enabled": True, "category": "user"},
             "search": {"enabled": True, "category": "user"},
             "advanced_search": {"enabled": True, "category": "user"},
-            "upload_files": {"enabled": False, "category": "user"},
+            "upload_files": {"enabled": True, "category": "user"},
             "file_library": {"enabled": True, "category": "user"},
             "keywords": {"enabled": True, "category": "user"},
             "words": {"enabled": True, "category": "user"},

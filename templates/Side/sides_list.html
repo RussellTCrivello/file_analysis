@@ -304,6 +304,9 @@
                         <button class="btn btn-outline-primary" onclick="viewSideCategoriesKeywords({{ side.id }})" title="{{ _('View Categories & Keywords') }}">
                             <i class="bi bi-tags"></i>
                         </button>
+                        <button class="btn btn-outline-danger" onclick='deleteSide({{ side.id }}, {{ side.name|tojson }})' title="{{ _('Delete Side') }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -338,10 +341,10 @@
                     <i class="bi bi-x-circle me-2"></i>
                     {{ _('Cancel') }}
                 </button>
-<!--                <button type="button" class="btn btn-danger" id="deleteConfirmButton">
+                <button type="button" class="btn btn-danger" id="deleteConfirmButton">
                     <i class="bi bi-trash me-2"></i>
                     {{ _('Delete') }}
-                </button> -->
+                </button>
             </div>
         </div>
     </div>

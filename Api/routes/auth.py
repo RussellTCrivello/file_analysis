@@ -271,3 +271,15 @@ def api_reset_password(user_id: int):
 
 def register_auth_routes(app):
     app.register_blueprint(auth_bp)
+
+    @app.route("/users")
+    def users_page():
+        """AUTH-UI: User Management page (admin-only).
+
+        The /api/auth/users endpoints existed without any front end; this
+        provides the missing management surface (list, create, role/active,
+        password reset) plus a static role-capability matrix.
+        """
+        if not (is_authenticated() and current_user().is_admin):
+            return render_template("403.html"), 403
+        return render_template("auth/users.html")

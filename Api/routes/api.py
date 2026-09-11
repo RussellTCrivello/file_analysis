@@ -158,10 +158,22 @@ def register_api_routes(app):
                 source = get_source(source_id)
                 if not source:
                     return jsonify({'success': False, 'error': 'Source not found'}), 404
-                
-                # Delete the source (delete_source handles usage check internally)
 
-                
+                # SRC-01: the actual deletion call had been lost - the handler
+                # cleared the cache and returned success without touching the
+                # database. Refuse to delete a source that still has files,
+                # then delete for real.
+                from database.services.contents_db_service import ContentDBService
+                db_service = ContentDBService()
+                usage_count = db_service.sources_repo.check_source_usage(source_id)
+                if usage_count and int(usage_count) > 0:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Source is in use by {usage_count} file(s) and cannot be deleted. Remove or reassign its files first.'
+                    }), 409
+
+                db_service.sources_repo.delete_source(source_id)
+
                 try:
                     cache = get_query()
                     cache.clear()
@@ -559,9 +571,21 @@ def register_api_routes(app):
                 side = get_side(side_id)
                 if not side:
                     return jsonify({'success': False, 'error': 'Side not found'}), 404
-                
 
-                
+                # SID-01: like SRC-01, the deletion call had been lost - the
+                # handler returned success without deleting. Refuse to delete a
+                # side that still has files, then delete for real.
+                from database.services.contents_db_service import ContentDBService
+                db_service = ContentDBService()
+                usage_count = db_service.sides_repo.check_side_usage(side_id)
+                if usage_count and int(usage_count) > 0:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Side is in use by {usage_count} file(s) and cannot be deleted. Remove or reassign its files first.'
+                    }), 409
+
+                db_service.sides_repo.delete_side(side_id)
+
                 try:
                     cache = get_query()
                     cache.clear()
