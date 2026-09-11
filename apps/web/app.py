@@ -259,11 +259,13 @@ def add_performance_headers(response):
         response.cache_control.max_age = 31536000
         response.cache_control.public = True
         response.cache_control.immutable = True
-    # Cache API responses for 5 minutes (can be overridden per route)
+    # CACHE-01: API responses are per-user, fast-changing data (a PATCH to
+    # /api/auth/users/<id> was invisible to the browser's immediate re-read
+    # of /api/auth/users for up to 5 minutes). Never let browsers reuse them.
     elif request.path.startswith('/api/'):
-        if not response.cache_control.max_age:
-            response.cache_control.max_age = 300
-            response.cache_control.public = False
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
     # HTML pages - no cache by default
     else:
         response.cache_control.no_cache = True
@@ -451,8 +453,14 @@ if __name__ == '__main__':
     # Get debug mode from environment or default to False
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
     
+    # Bind address/port follow the documented environment configuration
+    # (FLASK_HOST / FLASK_PORT, see .env.example). run_web.py is the canonical
+    # entry point; this direct entry keeps the same contract.
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+    
     try:
-        app.run(debug=debug_mode, host='127.0.0.1', port=5000, use_reloader=False, threaded=True)
+        app.run(debug=debug_mode, host=host, port=port, use_reloader=False, threaded=True)
     except KeyboardInterrupt:
         print("\n\nShutting down...")
         shutdown_handler()

@@ -275,8 +275,10 @@ async function loadSides() {
             'files-filter-side', 
             'categories-filter-side',
             'keywords-filter-side', 
-            'sources-filter-side',
-            'sides-filter-side'
+            'sources-filter-side'
+            // Note: the Sides section intentionally has no "Side" filter — it
+            // would be self-referential (CHART-01: previously listed the
+            // non-existent 'sides-filter-side', logging a console warning).
         ];
         selects.forEach(id => populateSelect(id, state.filterData.sides));
         console.log(`Loaded ${state.filterData.sides.length} sides`);

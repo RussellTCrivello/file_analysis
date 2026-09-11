@@ -181,6 +181,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="btn btn-outline-primary" onclick="viewWord(${word.id})" title="${translations.viewDetails || 'View Details'}">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-outline-danger" onclick="deleteWord(${word.id})" title="${translations.deleteWord || 'Delete'}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </td>`;
             tableBody.appendChild(tr);
@@ -436,6 +439,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderRows(words, pageNum);
                 renderPaginator(pageNum, totalPages);
                 updateSearchInfo(json);
+
+                // STALE-01: keep the server-rendered "Total Words" stat card
+                // in sync after client-side pagination/mutations.
+                const totalStat = document.getElementById('totalWordsStat');
+                if (totalStat && typeof json.total === 'number') {
+                    totalStat.textContent = json.total;
+                }
             })
             .catch(err => {
                 if (err.name === 'AbortError') return;

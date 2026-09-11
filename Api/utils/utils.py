@@ -356,13 +356,27 @@ def select_info_categories():
 
 
 def insert_category(word_category):
-    """Insert category"""
+    """Insert category.
+
+    CAT-02: accepts either a category *name* (creates/reuses the backing word,
+    as this function always has) or a numeric word *id* — ``/category/add``
+    resolves the word first and passes its id. Previously the id was fed to
+    ``INSERT INTO words`` as text, creating a bogus word named after the id
+    (e.g. category "Cat Debug X" rendered as "68") and linking the category to
+    that bogus word.
+    """
+    if isinstance(word_category, int) or (isinstance(word_category, str) and word_category.isdigit()):
+        word_id = int(word_category)
+        query = "INSERT INTO categorys (word_id) VALUES (%s) ON CONFLICT (word_id) DO UPDATE SET word_id = EXCLUDED.word_id RETURNING id"
+        result = execute_query(query, [word_id], fetch="one")
+        return result[0] if isinstance(result, (tuple, list)) else result
     query = "INSERT INTO words (word) VALUES (%s) ON CONFLICT (word) DO UPDATE SET word = EXCLUDED.word RETURNING id"
     word_id = execute_query(query, [word_category], fetch="one")
     if word_id:
+        word_id = word_id[0] if isinstance(word_id, (tuple, list)) else word_id
         query = "INSERT INTO categorys (word_id) VALUES (%s) ON CONFLICT (word_id) DO UPDATE SET word_id = EXCLUDED.word_id RETURNING id"
         result = execute_query(query, [word_id], fetch="one")
-        return result if result else None
+        return result[0] if isinstance(result, (tuple, list)) else result
     return None
 
 

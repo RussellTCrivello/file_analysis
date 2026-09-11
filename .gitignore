@@ -75,3 +75,9 @@ node_modules/
 
 # Runtime settings store (created on first boot; may hold deployment config)
 data/
+
+# --- Runtime artifacts (audit session) ---
+.pgdata/
+.system_initialized
+core/.app_instance.lock
+sample_data/

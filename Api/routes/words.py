@@ -306,7 +306,9 @@ def register_words_routes(app):
                 return jsonify({'success': False, 'error': 'word_ids array is required'}), 400
             
             used_words = get_words_usage_by_ids(word_ids)
-            deletable_ids = [wid for wid in word_ids if wid not in used_words]
+            # ``get_words_usage_by_ids`` returns id -> usage_count (0 = unused);
+            # a word is only "in use" when its count is > 0.
+            deletable_ids = [wid for wid in word_ids if not used_words.get(wid)]
             
             if not deletable_ids:
                 return jsonify({

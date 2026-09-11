@@ -277,7 +277,7 @@
                                     <i class="bi bi-envelope-at me-2 text-primary"></i>
                                     <span class="email-address fw-medium" 
                                           style="cursor: pointer; color: var(--primary-color); text-decoration: underline;"
-                                          onclick="showEmailFiles('{{ word }}')"
+                                          onclick='showEmailFiles({{ word|tojson }})'
                                           title="{{ _('Click to view files containing this email') }}">
                                         {{ word }}
                                     </span>

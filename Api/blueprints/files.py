@@ -127,33 +127,23 @@ def get_enhanced_content_stats(file_id):
             unique_words = 0
             total_word_occurrences = 0
         
-        # Get sentence and paragraph count from content
+        # Get sentence and paragraph count from content.
+        # STAT-01: ``contents.content_data`` stores *zlib-compressed, pickled*
+        # symbol pairs, not plain text. Reading it directly produced garbage
+        # (psycopg2 returns a ``memoryview``; the old code fell back to
+        # ``str(content_data)`` which is ``"<memory at 0x...>"`` — exactly the
+        # bogus 26 characters Quick Stats reported). Use the same reconstruction
+        # path as the full-content reader so both views agree by construction.
+        words = 0
         sentences = 0
         paragraphs = 0
         characters = 0
         
         try:
-            content_result = execute_query("""
-                SELECT content_data
-                FROM contents
-                WHERE path_id = %s
-                LIMIT 1
-            """, (file_id,), fetch="one")
-            
-            if content_result and content_result[0]:
-                content_data = content_result[0]
-                
-                # Handle different data types (string, bytes, memoryview)
-                if isinstance(content_data, (bytes, memoryview)):
-                    # Convert bytes/memoryview to string
-                    try:
-                        content_text = content_data.decode('utf-8', errors='ignore')
-                    except (UnicodeDecodeError, AttributeError):
-                        content_text = str(content_data)
-                else:
-                    content_text = str(content_data)
-                
+            content_text = load_text_content(file_id)
+            if content_text and content_text.strip():
                 characters = len(content_text)
+                words = len(content_text.split())
                 sentences = content_text.count('.') + content_text.count('!') + content_text.count('?')
                 paragraphs = content_text.count('\n\n') + 1
         except Exception as e:
@@ -177,7 +167,8 @@ def get_enhanced_content_stats(file_id):
             # Continue with empty percentages
         
         return {
-            'words': unique_words,
+            'words': words if words else unique_words,
+            'unique_words': unique_words,
             'sentences': sentences,
             'paragraphs': paragraphs,
             'characters': characters,

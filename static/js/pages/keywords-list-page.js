@@ -316,6 +316,9 @@ if (typeof window.translations === 'undefined') {
                         <button class="btn btn-outline-primary" onclick="viewKeyword(${kw.id})" title="${escapeHtml(translations.viewDetails || 'View Details')}">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-outline-danger" onclick="deleteKeyword(${kw.id})" title="${escapeHtml(translations.deleteKeyword || 'Delete')}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                         ${isDuplicate ? `<button class="btn btn-outline-warning" onclick="mergeDuplicates(${JSON.stringify(keywordText)})" title="${escapeHtml(translations.mergeDuplicates || 'Merge duplicates')}"><i class="bi bi-arrow-down-up"></i></button>` : ''}
                     </div>
                 </td>`;
@@ -705,6 +708,13 @@ if (typeof window.translations === 'undefined') {
                     console.log(`Rendering pagination for page ${pageNum} of ${totalPages}`);
                     renderPaginator(pageNum, totalPages);
                     updateSearchInfo(json);
+
+                    // STALE-01: keep the server-rendered "Total Keywords" stat
+                    // card in sync after client-side pagination/mutations.
+                    const totalStat = document.getElementById('totalKeywordsStat');
+                    if (totalStat && typeof json.total === 'number') {
+                        totalStat.textContent = json.total;
+                    }
                     
                     // Force a reflow to ensure DOM updates are visible
                     if (tableBody) {

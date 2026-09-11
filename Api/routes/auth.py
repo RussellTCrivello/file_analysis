@@ -223,8 +223,31 @@ def api_update_user(user_id: int):
     # rows and raises nothing, so the handler used to answer
     # ``200 {"success": true, "user": null}`` - reporting success for a change
     # that was never applied. Resolve the target first and 404 if absent.
-    if auth.get_user_by_id(user_id) is None:
+    target = auth.get_user_by_id(user_id)
+    if target is None:
         return jsonify({"error": "User not found", "code": "user_not_found"}), 404
+    # AUTH-02: mirror the DELETE guards for the update path. The UI blocks
+    # these client-side; without server-side guards a direct API call could
+    # demote or deactivate the sole (or self) administrator and leave the
+    # system with no way to administer users.
+    loses_admin = (
+        ("role" in data and data["role"] != ROLE_ADMIN)
+        or (data.get("is_active") is False)
+    )
+    if loses_admin:
+        if user_id == current_user().id:
+            return jsonify({
+                "error": "You cannot demote or deactivate your own account",
+                "code": "self_management",
+            }), 400
+        if target.is_admin and target.is_active:
+            active_admins = [u for u in auth.list_users()
+                             if u.get("role") == ROLE_ADMIN and u.get("is_active", True)]
+            if len(active_admins) <= 1:
+                return jsonify({
+                    "error": "Cannot demote or deactivate the last active administrator",
+                    "code": "last_admin",
+                }), 400
     try:
         if "role" in data:
             auth.set_role(user_id, data["role"])
@@ -240,6 +263,39 @@ def api_update_user(user_id: int):
     )
     updated = auth.get_user_by_id(user_id)
     return jsonify({"success": True, "user": updated.to_safe_dict() if updated else None})
+
+
+@auth_bp.route("/api/auth/users/<int:user_id>", methods=["DELETE"])
+def api_delete_user(user_id: int):
+    """Permanently delete a user account and revoke all of its sessions.
+
+    Guards: an admin cannot delete themselves, and the last active admin
+    cannot be deleted (that would lock every admin out of user management).
+    """
+    if not (is_authenticated() and current_user().is_admin):
+        return jsonify({"error": "Insufficient permissions"}), 403
+    auth = get_auth_service()
+    target = auth.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "User not found", "code": "user_not_found"}), 404
+    if user_id == current_user().id:
+        return jsonify({"error": "You cannot delete your own account", "code": "self_delete"}), 400
+    if target.is_admin:
+        active_admins = [u for u in auth.list_users()
+                         if u.get("role") == ROLE_ADMIN and u.get("is_active", True)]
+        if len(active_admins) <= 1:
+            return jsonify({"error": "Cannot delete the last active administrator",
+                            "code": "last_admin"}), 400
+    try:
+        auth.delete_user(user_id)
+    except Exception as exc:
+        return client_error(exc, subsystem="auth")
+    auth.audit(
+        "user.delete", user_id=current_user().id, username=current_user().username,
+        resource=f"user:{user_id}", detail={"username": target.username},
+        ip_address=_client_ip(),
+    )
+    return jsonify({"success": True})
 
 
 @auth_bp.route("/api/auth/users/<int:user_id>/reset-password", methods=["POST"])
@@ -271,3 +327,15 @@ def api_reset_password(user_id: int):
 
 def register_auth_routes(app):
     app.register_blueprint(auth_bp)
+
+    @app.route("/users")
+    def users_page():
+        """AUTH-UI: User Management page (admin-only).
+
+        The /api/auth/users endpoints existed without any front end; this
+        provides the missing management surface (list, create, role/active,
+        password reset) plus a static role-capability matrix.
+        """
+        if not (is_authenticated() and current_user().is_admin):
+            return render_template("403.html"), 403
+        return render_template("auth/users.html")

@@ -349,6 +349,9 @@ function renderTableView(categories, startIndex) {
                         title="${translations.addWord || 'Add Word'}">
                     <i class="bi bi-plus"></i> ${translations.addWord || 'Add Word'}
                 </button>
+                <button class="btn btn-outline-danger" onclick="deleteCategory(${category.id})" title="${translations.deleteCategory || 'Delete'}">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         `;
         
@@ -442,6 +445,9 @@ function renderGridView(categories) {
                         data-category-id="${category.id}" 
                         data-category-name='${JSON.stringify(category.name)}'>
                     <i class="bi bi-plus"></i> ${translations.addWord || 'Add Word'}
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${category.id})" title="Delete">
+                    <i class="bi bi-trash"></i>
                 </button>
             </div>
         `;
@@ -1178,6 +1184,12 @@ async function saveWordToCategory() {
 
 // Delete category
 async function deleteCategory(categoryId, categoryName) {
+    // CAT-UI-01: resolve the display name from the row/card when the caller
+    // (inline onclick) can only pass the id — avoids quoting category names
+    // into HTML attributes.
+    if (!categoryName) {
+        categoryName = document.querySelector(`[data-category-id="${categoryId}"]`)?.dataset.name || '';
+    }
     if (!confirm(translations.confirmDelete || `Are you sure you want to delete the category "${categoryName}"?`)) {
         return;
     }

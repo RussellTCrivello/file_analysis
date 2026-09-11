@@ -81,6 +81,75 @@ class IngestionService:
         # Injectable for tests; production uses the real engine.
         self._reader_factory = reader_factory
 
+    @staticmethod
+    def _resolve_entity_name(value: str, kind: str) -> Optional[str]:
+        """INJ-03: map a numeric source/side id to its name (returns None when
+        ``value`` is not a numeric id or the id is unknown)."""
+        if not value.isdigit():
+            return None
+        try:
+            from database.services.contents_db_service import ContentDBService
+            db = ContentDBService()
+            if kind == "source":
+                entities = db.get_all_sources() or []
+            else:
+                entities = db.get_all_sides() or []
+            for eid, ename in entities:
+                if int(eid) == int(value) and ename:
+                    return str(ename)
+        except Exception:
+            return None
+        return None
+
+    def _resolve_identifier(self, value: str, kind: str) -> str:
+        """INJ-04: resolve an identifier according to the API contract.
+
+        * non-numeric value            -> an entity name, used as-is
+        * numeric, matches an id       -> resolved to the entity's name
+        * numeric, matches a *name*    -> used as-is (legitimate numeric-looking
+          names such as a side literally named '9' stay addressable, and the
+          check is idempotent under the double validation pass)
+        * numeric, matches neither     -> rejected (previously fell through to
+          the name-based pipeline, silently creating garbage entities
+          literally named '999999')
+        """
+    def _resolve_identifier(self, value: str, kind: str) -> str:
+        """INJ-04: resolve an identifier according to the API contract.
+
+        Precedence is deterministic and idempotent (validate() runs more than
+        once per job, and a first pass may rewrite an id into a numeric-looking
+        name such as side '9'):
+
+        1. exact existing *name*      -> used as-is
+        2. numeric + existing *id*    -> resolved to that entity's name
+        3. non-numeric, new           -> used as-is (pipeline creates it)
+        4. numeric, matches neither   -> rejected (previously fell through to
+           the name-based pipeline, silently creating garbage entities
+           literally named '999999')
+
+        Documented ambiguity: an id whose value equals a *different* entity's
+        name (id 9 vs a side named '9') is treated as the name — clients
+        address such entities by name.
+        """
+        try:
+            from database.services.contents_db_service import ContentDBService
+            db = ContentDBService()
+            entities = (db.get_all_sources() if kind == "source" else db.get_all_sides()) or []
+        except Exception:
+            entities = []
+        for _eid, ename in entities:
+            if ename is not None and str(ename) == value:
+                return value
+        if not value.isdigit():
+            return value
+        name = self._resolve_entity_name(value, kind)
+        if name is not None:
+            return name
+        raise IngestionValidationError(
+            f"{kind} '{value}' matches no existing id or name - pass an "
+            "existing id or an entity name"
+        )
+
     # ------------------------------------------------------------------
     # Validation (spec sections 16/23): all request input is untrusted.
     # ------------------------------------------------------------------
@@ -91,7 +160,7 @@ class IngestionService:
             raise IngestionValidationError(
                 "Provide exactly one of 'path' or 'file_paths'"
             )
-        if not (request.source or "").strip() or not (request.side or "").strip():
+        if not str(request.source or "").strip() or not str(request.side or "").strip():
             raise IngestionValidationError(
                 "source and side are mandatory - no defaults are allowed"
             )
@@ -134,8 +203,19 @@ class IngestionService:
             request.path = validated[0]
         else:
             request.file_paths = validated
-        request.source = request.source.strip()
-        request.side = request.side.strip()
+        # INJ-02: normalize source/side to str (API clients may send JSON ints)
+        request.source = str(request.source).strip()
+        request.side = str(request.side).strip()
+
+        # INJ-03/INJ-04: the storage pipeline is *name*-based (it compares
+        # against source/side names and creates a new entity named "1" when
+        # given the numeric id 1). Numeric identifiers resolve to their
+        # canonical names here — the single entry point shared by the API,
+        # the job runner, and the CLI. Unknown numeric ids are rejected
+        # instead of silently becoming entity names.
+        request.source = self._resolve_identifier(request.source, "source")
+        request.side = self._resolve_identifier(request.side, "side")
+
         return request
 
     # ------------------------------------------------------------------

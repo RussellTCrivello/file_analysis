@@ -1101,5 +1101,6 @@ if (typeof window !== 'undefined') {
     window.feelingLucky = feelingLucky;
     window.sortResults = sortResults;
     window.exportResults = exportResults;
+    window.printResults = printResults;
     console.log('Advanced Search functions exposed globally');
 }

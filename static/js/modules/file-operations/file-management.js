@@ -458,6 +458,12 @@ const FileManagement = {
     }
 };
 
+// FILE-UI-01: files_list.html references bulkDelete()/deleteFile(id) from
+// inline onclick handlers; expose the implementations globally (this module
+// is loaded as an ES module, so its top-level names are module-scoped).
+window.bulkDelete = (...args) => FileManagement.bulkDelete(...args);
+window.deleteFile = (...args) => FileManagement.deleteFile(...args);
+
 // Export for use in other modules
 export default FileManagement;
 

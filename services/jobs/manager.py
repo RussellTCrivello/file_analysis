@@ -409,7 +409,9 @@ class JobManager:
         options = record.get("options") or {}
         validated = BatchImportService().validate(
             options.get("file_paths") or [],
-            options.get("source", ""), options.get("side", ""),
+            # JOB-02: API clients may send numeric source/side (JSON ints);
+            # downstream validation calls .strip(), so normalize to str here.
+            str(options.get("source", "") or ""), str(options.get("side", "") or ""),
         )
         request = IngestionRequest(
             file_paths=validated["validated_paths"],

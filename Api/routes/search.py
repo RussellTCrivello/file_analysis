@@ -95,6 +95,17 @@ def register_search_routes(app):
                              total_pages=total_pages,
                              total_results=total_results)
     
+    @app.route('/search/saved')
+    def saved_searches_page():
+        """Saved Searches management page.
+
+        FUNC-02: this template and its page script existed without a route.
+        The saved-search CRUD endpoints (``/api/search/saved``) have always
+        been live; this renders the management view over the same service.
+        """
+        searches = SavedSearchesService.get_saved_searches(user_id=_current_user_id()) or []
+        return render_template('Search/saved_searches.html', saved_searches=searches)
+
     @app.route('/search/advanced')
     @limiter.limit("30 per minute")
     def search_advanced():

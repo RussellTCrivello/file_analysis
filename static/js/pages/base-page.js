@@ -216,12 +216,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Auto-hide alerts after 5 seconds
-    const alerts = document.querySelectorAll('.alert');
+    // ALERT-01: only true flash messages auto-dismiss. The previous selector
+    // closed every `.alert` on the page — including hidden error boxes inside
+    // modals (removing form validation feedback) and the must-change-password
+    // banner (removing its action button).
+    const isFlashOnly = (alert) =>
+        !alert.closest('.modal') &&
+        !alert.classList.contains('d-none') &&
+        !Array.from(alert.querySelectorAll('button, a, input, select, form'))
+            .some(el => !el.classList.contains('btn-close'));
+    const alerts = Array.from(document.querySelectorAll('.alert')).filter(isFlashOnly);
     if (alerts.length > 0) {
         alerts.forEach(alert => {
             setTimeout(() => {
                 if (alert && alert.parentNode) {
-                    const bsAlert = new bootstrap.Alert(alert);
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
                     bsAlert.close();
                 }
             }, 5000);
