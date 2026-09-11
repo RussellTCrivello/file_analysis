@@ -242,6 +242,39 @@ def api_update_user(user_id: int):
     return jsonify({"success": True, "user": updated.to_safe_dict() if updated else None})
 
 
+@auth_bp.route("/api/auth/users/<int:user_id>", methods=["DELETE"])
+def api_delete_user(user_id: int):
+    """Permanently delete a user account and revoke all of its sessions.
+
+    Guards: an admin cannot delete themselves, and the last active admin
+    cannot be deleted (that would lock every admin out of user management).
+    """
+    if not (is_authenticated() and current_user().is_admin):
+        return jsonify({"error": "Insufficient permissions"}), 403
+    auth = get_auth_service()
+    target = auth.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "User not found", "code": "user_not_found"}), 404
+    if user_id == current_user().id:
+        return jsonify({"error": "You cannot delete your own account", "code": "self_delete"}), 400
+    if target.is_admin:
+        active_admins = [u for u in auth.list_users()
+                         if u.get("role") == ROLE_ADMIN and u.get("is_active", True)]
+        if len(active_admins) <= 1:
+            return jsonify({"error": "Cannot delete the last active administrator",
+                            "code": "last_admin"}), 400
+    try:
+        auth.delete_user(user_id)
+    except Exception as exc:
+        return client_error(exc, subsystem="auth")
+    auth.audit(
+        "user.delete", user_id=current_user().id, username=current_user().username,
+        resource=f"user:{user_id}", detail={"username": target.username},
+        ip_address=_client_ip(),
+    )
+    return jsonify({"success": True})
+
+
 @auth_bp.route("/api/auth/users/<int:user_id>/reset-password", methods=["POST"])
 def api_reset_password(user_id: int):
     """Admin-initiated password reset. Generates a random password and returns

@@ -267,6 +267,20 @@ class AuthService:
                 )
             conn.commit()
 
+    def delete_user(self, user_id: int) -> None:
+        """Permanently remove a user account.
+
+        Referential integrity: ``sessions.user_id`` cascades (m0003_auth_tables),
+        and ``audit_log.user_id`` is deliberately FK-free so the audit trail
+        survives the delete with its username snapshot intact. Callers are
+        responsible for the self-delete / last-admin guards (Api/routes/auth.py).
+        """
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            if cur.rowcount == 0:
+                raise AuthError("User not found", "user_not_found")
+            conn.commit()
+
     def list_users(self) -> List[Dict[str, Any]]:
         with self._conn() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(

@@ -259,11 +259,13 @@ def add_performance_headers(response):
         response.cache_control.max_age = 31536000
         response.cache_control.public = True
         response.cache_control.immutable = True
-    # Cache API responses for 5 minutes (can be overridden per route)
+    # CACHE-01: API responses are per-user, fast-changing data (a PATCH to
+    # /api/auth/users/<id> was invisible to the browser's immediate re-read
+    # of /api/auth/users for up to 5 minutes). Never let browsers reuse them.
     elif request.path.startswith('/api/'):
-        if not response.cache_control.max_age:
-            response.cache_control.max_age = 300
-            response.cache_control.public = False
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
     # HTML pages - no cache by default
     else:
         response.cache_control.no_cache = True

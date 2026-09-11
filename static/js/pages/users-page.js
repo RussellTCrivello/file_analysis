@@ -83,6 +83,11 @@ function renderUserRow(u) {
                         title="Generate a new temporary password">
                     <i class="bi bi-key"></i> Reset PW
                 </button>
+                ${isSelf ? '' : `
+                <button class="btn btn-sm btn-outline-danger" onclick="showDeleteUserModal(${u.id}, '${escapeHtml(u.username)}')"
+                        title="Permanently delete this account">
+                    <i class="bi bi-trash"></i>
+                </button>`}
             </td>
         </tr>`;
 }
@@ -136,6 +141,49 @@ async function resetPassword(userId) {
     }
     loadUsers();
 }
+
+function showDeleteUserModal(userId, username) {
+    const modalEl = document.getElementById('deleteUserModal');
+    if (!modalEl) return;
+    document.getElementById('deleteUserModalName').textContent = username;
+    const confirmBtn = document.getElementById('deleteUserConfirm');
+    confirmBtn.dataset.userId = userId;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    setTimeout(() => confirmBtn.focus(), 300);
+}
+
+async function deleteUser(userId) {
+    const confirmBtn = document.getElementById('deleteUserConfirm');
+    const errorBox = document.getElementById('deleteUserError');
+    errorBox.classList.add('d-none');
+    confirmBtn.disabled = true;
+    try {
+        const response = await fetch(`/api/auth/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': getCSRFToken() }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            errorBox.textContent = data.error || 'Failed to delete user.';
+            errorBox.classList.remove('d-none');
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'))?.hide();
+        loadUsers();
+    } finally {
+        confirmBtn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const confirmBtn = document.getElementById('deleteUserConfirm');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+            deleteUser(parseInt(confirmBtn.dataset.userId, 10));
+        });
+    }
+});
 
 function showCreateUserModal() {
     const modal = new bootstrap.Modal(document.getElementById('createUserModal'));
@@ -214,6 +262,9 @@ document.addEventListener('DOMContentLoaded', function () {
 window.showCreateUserModal = showCreateUserModal;
 window.updateUser = updateUser;
 window.resetPassword = resetPassword;
+window.showDeleteUserModal = showDeleteUserModal;
+window.deleteUser = deleteUser;
+window.loadUsers = loadUsers;
 
 export default function init() {
     return Promise.resolve();
