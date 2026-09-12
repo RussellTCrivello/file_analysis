@@ -544,16 +544,16 @@ notificationsPage.updateCategoryStats = function(tab, notifications) {
 
 notificationsPage.getTypeIcon = function(type) {
     const icons = {
-        'similar_files': '📄',
-        'future_date': '📅',
-        'future_event': '📆',
-        'processing_complete': '✅',
-        'batch_complete': '📦',
-        'error': '❌',
-        'warning': '⚠️',
-        'info': 'ℹ️'
+        'similar_files': '<i class="bi bi-files" aria-hidden="true"></i>',
+        'future_date': '<i class="bi bi-calendar-event" aria-hidden="true"></i>',
+        'future_event': '<i class="bi bi-calendar2-week" aria-hidden="true"></i>',
+        'processing_complete': '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>',
+        'batch_complete': '<i class="bi bi-box-seam" aria-hidden="true"></i>',
+        'error': '<i class="bi bi-x-octagon-fill" aria-hidden="true"></i>',
+        'warning': '<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>',
+        'info': '<i class="bi bi-info-circle-fill" aria-hidden="true"></i>'
     };
-    return icons[type] || '🔔';
+    return icons[type] || '<i class="bi bi-bell-fill" aria-hidden="true"></i>';
 };
 
 notificationsPage.formatTime = function(dateString) {

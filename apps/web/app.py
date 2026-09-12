@@ -59,12 +59,18 @@ app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 # Configure Flask-Babel for internationalization
 # RTL languages: ar, fa, he, ur
-app.config['LANGUAGES'] = {
-    'en': 'English',
-    'ar': 'العربية',  # Arabic (RTL)
-    'fa': 'فارسی',  # Persian/Farsi (RTL)
-    'he': 'עברית',  # Hebrew (RTL)
-}
+# Only languages with complete translation catalogs are exposed here so the
+# interface is fully translated for every selectable language (en, ar, hr).
+try:
+    from settings.languages import SUPPORTED_LANGUAGES
+except ImportError:  # pragma: no cover
+    SUPPORTED_LANGUAGES = {
+        'en': 'English',
+        'ar': 'العربية',
+        'he': 'עברית',
+        'fa': 'فارسی',
+    }
+app.config['LANGUAGES'] = dict(SUPPORTED_LANGUAGES)
 app.config['BABEL_DEFAULT_LOCALE'] = 'en'
 app.config['BABEL_DEFAULT_TIMEZONE'] = 'UTC'
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.join(project_root, 'translations')

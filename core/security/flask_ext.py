@@ -43,6 +43,7 @@ PUBLIC_ENDPOINTS = frozenset(
         "get_csrf_token",  # app-level /api/csrf-token (needed to obtain tokens)
         "favicon",
         "health.health",
+        "translations.get_i18n_catalog",  # read-only UI string catalog (no config)
         "setup.setup_page",  # gated: only functional before DB initialization
         "setup.system_check",
         "setup.test_database",

@@ -106,10 +106,9 @@ class LanguagePersistence {
      * Check if language code is valid
      */
     isValidLanguage(lang) {
-        const validLanguages = ['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'zh_CN', 'zh_TW', 
-                               'ja', 'ko', 'tr', 'hi', 'fa', 'he', 'ur', 'nl', 'pl', 'el', 'vi', 
-                               'th', 'id', 'ms', 'sv', 'no', 'da', 'fi', 'cs', 'sk', 'hu', 'ro', 
-                               'bg', 'hr', 'sr', 'uk'];
+        // Canonical supported languages: Arabic, English, Hebrew, Persian
+        // (kept in sync with settings/languages.py SUPPORTED_LANGUAGES).
+        const validLanguages = ['en', 'ar', 'he', 'fa'];
         return validLanguages.includes(lang);
     }
 

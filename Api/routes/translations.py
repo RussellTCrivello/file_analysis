@@ -96,6 +96,68 @@ def get_all_translations(locale: str = None) -> dict:
     return translations
 
 
+@translations_bp.route('/api/i18n/catalog', methods=['GET'])
+def get_i18n_catalog():
+    """Public, read-only client localization catalog.
+
+    Returns *only* the Babel message catalog (UI strings) for the requested
+    locale. Unlike /api/translations it never touches configuration files, so
+    it is safe to expose to every user - the client i18n runtime
+    (static/js/modules/core/app-i18n.js) needs this catalog to translate
+    JavaScript-rendered interfaces for non-admin users as well.
+    """
+    try:
+        locale = request.args.get('locale')
+        if not locale:
+            try:
+                locale = str(get_locale())
+            except Exception:
+                locale = 'en'
+        # Only serve locales the application actually knows about.
+        known = current_app.config.get('LANGUAGES', {})
+        if locale not in known:
+            # Accept a base-language match (e.g. 'ar-EG' -> 'ar').
+            base = str(locale).split('-')[0]
+            locale = base if base in known else 'en'
+
+        translations = {}
+        try:
+            # Resolve the project root by walking up from the app package
+            # (root_path is <project>/apps/web) until the translations dir.
+            project_root = Path(current_app.root_path)
+            translations_dir = None
+            for _ in range(4):
+                candidate = project_root / 'translations' / locale / 'LC_MESSAGES'
+                if candidate.is_dir():
+                    translations_dir = candidate
+                    break
+                project_root = project_root.parent
+            po_file = translations_dir / 'messages.po' if translations_dir else None
+            if po_file and po_file.exists():
+                from babel.messages.pofile import read_po
+                with open(po_file, 'rb') as f:
+                    catalog = read_po(f, locale=locale)
+                    for message in catalog:
+                        if message.id and message.string:
+                            translations[message.id] = message.string
+        except Exception as e:
+            logger.debug(f"Could not load i18n catalog for {locale}: {e}")
+
+        return jsonify({
+            'success': True,
+            'locale': locale,
+            'count': len(translations),
+            'translations': translations
+        })
+    except Exception as e:
+        logger.error(f"Error building i18n catalog: {e}")
+        return jsonify({
+            'success': False,
+            'locale': 'en',
+            'translations': {}
+        }), 200
+
+
 @translations_bp.route('/api/translations', methods=['GET'])
 def get_translations():
     """API endpoint to get all translations for current locale"""

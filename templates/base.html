@@ -47,6 +47,8 @@
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet" crossorigin="anonymous">
     <link href="{{ url_for('static', filename='css/message_system.css') }}" rel="stylesheet" crossorigin="anonymous">
     <link href="{{ url_for('static', filename='css/chart-export.css') }}" rel="stylesheet" crossorigin="anonymous">
+    <!-- Unified Design System - standardizes tokens and components on all pages -->
+    <link href="{{ url_for('static', filename='css/design-system.css') }}" rel="stylesheet" crossorigin="anonymous">
     <!-- Comprehensive Responsive Design Fixes - Loaded globally for all pages -->
     <link href="{{ url_for('static', filename='css/responsive-fixes.css') }}" rel="stylesheet" crossorigin="anonymous">
     <script src="{{ url_for('static', filename='js/responsive-fixes.js') }}" defer></script>
@@ -189,12 +191,27 @@
     <script type="module" src="{{ url_for('static', filename='js/modules/charts/chart-colors.js') }}" async></script>
     
     {% block extra_css %}{% endblock %}
+
+    <!-- ============================================================
+         LOCALIZATION RUNTIME (loads before every other script)
+         1. Static UI packs per locale (JS-only strings)
+         2. app-i18n.js - merges UI packs + server catalog, exposes
+            window.t() / window.translations and live-translates the DOM
+         ============================================================ -->
+    <script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}" defer></script>
 </head>
 
-<body data-page-type="{% block page_type %}default{% endblock %}" 
-      data-current-endpoint="{{ request.endpoint|default('', true) }}" 
+<body data-page-type="{% block page_type %}default{% endblock %}"
+      data-current-endpoint="{{ request.endpoint|default('', true) }}"
       data-home-url="{{ url_for('index') }}">
-    
+
+    <!-- Accessibility: skip link -->
+    <a class="skip-to-content" href="#mainContent">{{ _('Skip to main content') }}</a>
+
     <!-- ========================================
          SIDEBAR NAVIGATION
          ======================================== -->
@@ -216,6 +233,9 @@
         <ul class="sidebar-nav">
             <!-- Dashboard -->
             {% if is_interface_enabled('dashboard') %}
+            <li class="sidebar-nav-item">
+                <span class="sidebar-section-label">{{ _('General') }}</span>
+            </li>
             <li class="sidebar-nav-item">
                 <a href="{{ url_for('index') }}" 
                    class="sidebar-nav-link {% if request.endpoint == 'index' or request.endpoint == 'comprehensive_dashboard' or request.endpoint == 'charts_dashboard' %}active{% endif %}" 
@@ -277,6 +297,12 @@
             {% endif %}
           
             <!-- Data Management -->
+            {% set data_section_visible = is_interface_enabled('sources') or is_interface_enabled('sides') or is_interface_enabled('email_words') or is_interface_enabled('keywords') or is_interface_enabled('words') or is_interface_enabled('categories') or is_interface_enabled('upload_files') or is_interface_enabled('file_library') %}
+            {% if data_section_visible %}
+            <li class="sidebar-nav-item">
+                <span class="sidebar-section-label">{{ _('Data Management') }}</span>
+            </li>
+            {% endif %}
             {% if is_interface_enabled('sources') %}
             <li class="sidebar-nav-item">
                 <a href="{{ url_for('sources_list') }}" 
@@ -367,6 +393,11 @@
             {% endif %}
             
             <!-- System -->
+            {% if is_interface_enabled('notifications') or (is_interface_enabled('settings') and current_user.is_admin) %}
+            <li class="sidebar-nav-item">
+                <span class="sidebar-section-label">{{ _('System') }}</span>
+            </li>
+            {% endif %}
             {% if is_interface_enabled('notifications') %}
             <li class="sidebar-nav-item">
                 <a href="{{ url_for('notifications_page') }}" 
@@ -398,27 +429,25 @@
             {% endif %}
         </ul>
         
-        <!-- Language Switcher -->
-        <div class="language-switcher" style="padding: 1rem; border-top: 1px solid var(--sidebar-border); margin-top: auto;">
-            <div class="d-flex flex-column gap-2">
-                <small class="text-muted text-uppercase" style="font-size: 0.75rem; opacity: 0.7; padding: 0 0.5rem; margin-bottom: 0.25rem;">
-                    {{ _('Language') }}
-                </small>
-                <select id="sidebarLanguageSelect" class="form-select form-select-sm" 
-                        style="width: 100%; font-size: 0.875rem; padding: 0.5rem 0.75rem; background-color: var(--sidebar-bg, #1e293b); color: var(--sidebar-text, #e2e8f0); border: 1px solid var(--sidebar-border, rgba(255,255,255,0.1)); border-radius: 0.375rem;">
+        <!-- Sidebar Footer: Language Switcher + Version -->
+        <div class="sidebar-footer">
+            <label class="sidebar-section-label" for="sidebarLanguageSelect">{{ _('Language') }}</label>
+            <div class="sidebar-lang language-switcher">
+                <i class="bi bi-translate sidebar-lang-icon" aria-hidden="true"></i>
+                <select id="sidebarLanguageSelect"
+                        aria-label="{{ _('Select your preferred language for the interface') }}">
                     {% for lang_code, lang_name in languages.items() %}
                     <option value="{{ lang_code }}" {% if lang_code == current_language %}selected{% endif %}>{{ lang_name }}</option>
                     {% endfor %}
                 </select>
+                <i class="bi bi-chevron-down sidebar-lang-chevron" aria-hidden="true"></i>
             </div>
-            
+
             <!-- Version Info -->
-            <div style="padding-top: 0.75rem; border-top: 1px solid var(--sidebar-border); margin-top: 0.75rem;">
-                <small class="text-muted" style="font-size: 0.7rem; opacity: 0.6; padding: 0 0.5rem; display: block;">
-                    <i class="bi bi-info-circle me-1"></i>
-                    {{ _('Version') }}: {{ version|default('2.0.0') }}
-                </small>
-            </div>
+            <span class="sidebar-version">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                {{ _('Version') }} {{ version|default('2.0.0') }}
+            </span>
         </div>
     </div>
     
@@ -547,6 +576,30 @@
                         </span>
                         {% endif %}
                         {% endblock %}
+                    </div>
+
+                    <!-- Quick Language Switcher (top bar) -->
+                    <div class="dropdown topbar-lang">
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                id="topbarLangBtn" data-bs-toggle="dropdown" aria-expanded="false"
+                                title="{{ _('Language') }}" aria-label="{{ _('Language') }}">
+                            <i class="bi bi-translate me-1"></i>
+                            <span class="d-none d-lg-inline text-uppercase small">{{ current_language }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topbarLangBtn">
+                            {% for lang_code, lang_name in languages.items() %}
+                            <li>
+                                <button type="button"
+                                        class="dropdown-item {% if lang_code == current_language %}active{% endif %}"
+                                        data-language-switch="{{ lang_code }}"
+                                        aria-current="{% if lang_code == current_language %}true{% else %}false{% endif %}">
+                                    <i class="bi bi-check2 lang-check" aria-hidden="true"></i>
+                                    <span class="lang-native">{{ lang_name }}</span>
+                                    <span class="lang-english">{{ {'en': 'English', 'ar': 'Arabic', 'he': 'Hebrew', 'fa': 'Persian'}.get(lang_code, lang_code) }}</span>
+                                </button>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
 
                     <!-- User Menu -->
@@ -690,224 +743,6 @@
         "current_endpoint": request.endpoint|default("", true),
         "home_url": url_for('index')
     }|tojson }}</script>
-    
-    <!-- Translation Helper (Defer Loading) -->
-    <script defer>
-        // Inject translations from Flask-Babel into JavaScript
-        window.appTranslations = {
-            // Common message translations
-            'Success': {{ _('Success')|tojson }},
-            'Error': {{ _('Error')|tojson }},
-            'Warning': {{ _('Warning')|tojson }},
-            'Information': {{ _('Information')|tojson }},
-            'Processing': {{ _('Processing')|tojson }},
-            'Close': {{ _('Close')|tojson }},
-            'Action': {{ _('Action')|tojson }},
-            'Show Details': {{ _('Show Details')|tojson }},
-            'Error Code': {{ _('Error Code')|tojson }},
-            'Retry': {{ _('Retry')|tojson }},
-            
-            // Error messages
-            'An error occurred': {{ _('An error occurred')|tojson }},
-            'Invalid request. Please check your input.': {{ _('Invalid request. Please check your input.')|tojson }},
-            'Authentication required. Please log in.': {{ _('Authentication required. Please log in.')|tojson }},
-            'You do not have permission to perform this action.': {{ _('You do not have permission to perform this action.')|tojson }},
-            'The requested resource was not found.': {{ _('The requested resource was not found.')|tojson }},
-            'Too many requests. Please wait a moment and try again.': {{ _('Too many requests. Please wait a moment and try again.')|tojson }},
-            'Server error. Please try again later.': {{ _('Server error. Please try again later.')|tojson }},
-            'Service temporarily unavailable. Please try again later.': {{ _('Service temporarily unavailable. Please try again later.')|tojson }},
-            'Network error. Please check your connection.': {{ _('Network error. Please check your connection.')|tojson }},
-            'The server did not respond. This may be due to network issues or the server being unavailable.': {{ _('The server did not respond. This may be due to network issues or the server being unavailable.')|tojson }},
-            'An unexpected error occurred': {{ _('An unexpected error occurred')|tojson }},
-            'Unknown error': {{ _('Unknown error')|tojson }},
-            
-            // Success messages
-            '{operation} completed successfully': {{ _('{operation} completed successfully')|tojson }},
-            
-            // Processing messages
-            'Processing...': {{ _('Processing...')|tojson }},
-            
-            // Readiness messages
-            'System ready': {{ _('System ready')|tojson }},
-            'System is ready': {{ _('System is ready')|tojson }},
-            'All systems operational': {{ _('All systems operational')|tojson }},
-            'Ready to process': {{ _('Ready to process')|tojson }},
-            'Initialization complete': {{ _('Initialization complete')|tojson }},
-            
-            // Common application messages
-            'Please enter a folder path to analyze': {{ _('Please enter a folder path to analyze')|tojson }},
-            'Please enter a valid folder path': {{ _('Please enter a valid folder path')|tojson }},
-            'Please enter a file ID to analyze': {{ _('Please enter a file ID to analyze')|tojson }},
-            'Please enter text to classify': {{ _('Please enter text to classify')|tojson }},
-            'Please select files to analyze': {{ _('Please select files to analyze')|tojson }},
-            'Please select files to export': {{ _('Please select files to export')|tojson }},
-            'Please select files to delete': {{ _('Please select files to delete')|tojson }},
-            'Please select at least one file to export': {{ _('Please select at least one file to export')|tojson }},
-            'No results to export': {{ _('No results to export')|tojson }},
-            'Error performing search': {{ _('Error performing search')|tojson }},
-            'Error exporting results': {{ _('Error exporting results')|tojson }},
-            'Error loading preview': {{ _('Error loading preview')|tojson }},
-            'Error loading search history': {{ _('Error loading search history')|tojson }},
-            'Error loading saved searches': {{ _('Error loading saved searches')|tojson }},
-            'Error loading saved search': {{ _('Error loading saved search')|tojson }},
-            'Error deleting saved search': {{ _('Error deleting saved search')|tojson }},
-            'Please enter a search query first': {{ _('Please enter a search query first')|tojson }},
-            'Search saved successfully': {{ _('Search saved successfully')|tojson }},
-            'Error saving search': {{ _('Error saving search')|tojson }},
-            'Content copied to clipboard!': {{ _('Content copied to clipboard!')|tojson }},
-            'Failed to copy content to clipboard': {{ _('Failed to copy content to clipboard')|tojson }},
-            'No content available to copy': {{ _('No content available to copy')|tojson }},
-            'No content available to download': {{ _('No content available to download')|tojson }},
-            'File ID not available for export': {{ _('File ID not available for export')|tojson }},
-            'Analysis started for': {{ _('Analysis started for')|tojson }},
-            'files': {{ _('files')|tojson }},
-            'Error starting analysis': {{ _('Error starting analysis')|tojson }},
-            'Deleted': {{ _('Deleted')|tojson }},
-            'Error deleting files': {{ _('Error deleting files')|tojson }},
-            'Error deleting file': {{ _('Error deleting file')|tojson }},
-            'File deleted': {{ _('File deleted')|tojson }},
-            'Delete files? This cannot be undone.': {{ _('Delete files? This cannot be undone.')|tojson }},
-            'Delete this file? This cannot be undone.': {{ _('Delete this file? This cannot be undone.')|tojson }},
-            'Successfully analyzed': {{ _('Successfully analyzed')|tojson }},
-            'File analysis completed successfully': {{ _('File analysis completed successfully')|tojson }},
-            'Error analyzing folder': {{ _('Error analyzing folder')|tojson }},
-            'Error analyzing file': {{ _('Error analyzing file')|tojson }},
-            'Error analyzing database': {{ _('Error analyzing database')|tojson }},
-            'Classification failed': {{ _('Classification failed')|tojson }},
-            'Error loading notifications': {{ _('Error loading notifications')|tojson }},
-            'Invalid navigation parameters': {{ _('Invalid navigation parameters')|tojson }},
-            'Modal element not found. Please refresh the page.': {{ _('Modal element not found. Please refresh the page.')|tojson }},
-            'Error loading file details': {{ _('Error loading file details')|tojson }},
-            'Error saving changes': {{ _('Error saving changes')|tojson }},
-            'OK': {{ _('OK')|tojson }},
-            'Yes': {{ _('Yes')|tojson }},
-            'No': {{ _('No')|tojson }},
-            'Cancel': {{ _('Cancel')|tojson }},
-            'Confirmation': {{ _('Confirmation')|tojson }},
-            
-            // Common confirmation messages
-            'Are you sure?': {{ _('Are you sure?')|tojson }},
-            'This action cannot be undone': {{ _('This action cannot be undone')|tojson }},
-            'Please confirm this action': {{ _('Please confirm this action')|tojson }},
-            'Delete Confirmation': {{ _('Delete Confirmation')|tojson }},
-            'Save Confirmation': {{ _('Save Confirmation')|tojson }},
-            'Exit Confirmation': {{ _('Exit Confirmation')|tojson }},
-            
-            // Interface action messages
-            'Add': {{ _('Add')|tojson }},
-            'Update': {{ _('Update')|tojson }},
-            'Save': {{ _('Save')|tojson }},
-            'Delete': {{ _('Delete')|tojson }},
-            'Edit': {{ _('Edit')|tojson }},
-            'Create': {{ _('Create')|tojson }},
-            'Remove': {{ _('Remove')|tojson }},
-            'Submit': {{ _('Submit')|tojson }},
-            'Reset': {{ _('Reset')|tojson }},
-            'Cancel': {{ _('Cancel')|tojson }},
-            'Close': {{ _('Close')|tojson }},
-            'Back': {{ _('Back')|tojson }},
-            'Next': {{ _('Next')|tojson }},
-            'Previous': {{ _('Previous')|tojson }},
-            'Finish': {{ _('Finish')|tojson }},
-            'Continue': {{ _('Continue')|tojson }},
-            'Apply': {{ _('Apply')|tojson }},
-            'Clear': {{ _('Clear')|tojson }},
-            'Refresh': {{ _('Refresh')|tojson }},
-            'Search': {{ _('Search')|tojson }},
-            'Filter': {{ _('Filter')|tojson }},
-            'Export': {{ _('Export')|tojson }},
-            'Import': {{ _('Import')|tojson }},
-            'Upload': {{ _('Upload')|tojson }},
-            'Download': {{ _('Download')|tojson }},
-            'View': {{ _('View')|tojson }},
-            'Details': {{ _('Details')|tojson }},
-            'Copy': {{ _('Copy')|tojson }},
-            'Paste': {{ _('Paste')|tojson }},
-            'Cut': {{ _('Cut')|tojson }},
-            'Select': {{ _('Select')|tojson }},
-            'Select All': {{ _('Select All')|tojson }},
-            'Deselect All': {{ _('Deselect All')|tojson }},
-            'Select None': {{ _('Select None')|tojson }},
-            
-            // Success messages for interface actions
-            'Added successfully': {{ _('Added successfully')|tojson }},
-            'Updated successfully': {{ _('Updated successfully')|tojson }},
-            'Saved successfully': {{ _('Saved successfully')|tojson }},
-            'Deleted successfully': {{ _('Deleted successfully')|tojson }},
-            'Created successfully': {{ _('Created successfully')|tojson }},
-            'Removed successfully': {{ _('Removed successfully')|tojson }},
-            'Submitted successfully': {{ _('Submitted successfully')|tojson }},
-            'Changes saved successfully': {{ _('Changes saved successfully')|tojson }},
-            'Item added successfully': {{ _('Item added successfully')|tojson }},
-            'Item updated successfully': {{ _('Item updated successfully')|tojson }},
-            'Item deleted successfully': {{ _('Item deleted successfully')|tojson }},
-            'Item created successfully': {{ _('Item created successfully')|tojson }},
-            'Item removed successfully': {{ _('Item removed successfully')|tojson }},
-            'File uploaded successfully': {{ _('File uploaded successfully')|tojson }},
-            'File downloaded successfully': {{ _('File downloaded successfully')|tojson }},
-            'Export completed successfully': {{ _('Export completed successfully')|tojson }},
-            'Import completed successfully': {{ _('Import completed successfully')|tojson }},
-            
-            // Error messages for interface actions
-            'Error adding item': {{ _('Error adding item')|tojson }},
-            'Error updating item': {{ _('Error updating item')|tojson }},
-            'Error saving item': {{ _('Error saving item')|tojson }},
-            'Error deleting item': {{ _('Error deleting item')|tojson }},
-            'Error creating item': {{ _('Error creating item')|tojson }},
-            'Error removing item': {{ _('Error removing item')|tojson }},
-            'Error submitting form': {{ _('Error submitting form')|tojson }},
-            'Error uploading file': {{ _('Error uploading file')|tojson }},
-            'Error downloading file': {{ _('Error downloading file')|tojson }},
-            'Error exporting data': {{ _('Error exporting data')|tojson }},
-            'Error importing data': {{ _('Error importing data')|tojson }},
-            'Failed to add item': {{ _('Failed to add item')|tojson }},
-            'Failed to update item': {{ _('Failed to update item')|tojson }},
-            'Failed to save changes': {{ _('Failed to save changes')|tojson }},
-            'Failed to delete item': {{ _('Failed to delete item')|tojson }},
-            'Failed to create item': {{ _('Failed to create item')|tojson }},
-            'Failed to remove item': {{ _('Failed to remove item')|tojson }},
-            
-            // Validation messages
-            'Please fill in all required fields': {{ _('Please fill in all required fields')|tojson }},
-            'Please enter a valid value': {{ _('Please enter a valid value')|tojson }},
-            'This field is required': {{ _('This field is required')|tojson }},
-            'Invalid input': {{ _('Invalid input')|tojson }},
-            'Please select an item': {{ _('Please select an item')|tojson }},
-            'Please select at least one item': {{ _('Please select at least one item')|tojson }},
-            'No items selected': {{ _('No items selected')|tojson }},
-            'No changes to save': {{ _('No changes to save')|tojson }},
-            'No data available': {{ _('No data available')|tojson }},
-            'No results found': {{ _('No results found')|tojson }},
-            
-            // Status messages
-            'Loading...': {{ _('Loading...')|tojson }},
-            'Saving...': {{ _('Saving...')|tojson }},
-            'Deleting...': {{ _('Deleting...')|tojson }},
-            'Updating...': {{ _('Updating...')|tojson }},
-            'Adding...': {{ _('Adding...')|tojson }},
-            'Creating...': {{ _('Creating...')|tojson }},
-            'Removing...': {{ _('Removing...')|tojson }},
-            'Uploading...': {{ _('Uploading...')|tojson }},
-            'Downloading...': {{ _('Downloading...')|tojson }},
-            'Exporting...': {{ _('Exporting...')|tojson }},
-            'Importing...': {{ _('Importing...')|tojson }},
-            'Processing...': {{ _('Processing...')|tojson }},
-            'Please wait...': {{ _('Please wait...')|tojson }},
-            
-            // Chart export messages
-            'Error exporting chart as PNG': {{ _('Error exporting chart as PNG')|tojson }},
-            'Error exporting chart as JPG': {{ _('Error exporting chart as JPG')|tojson }},
-            'Error exporting chart as SVG': {{ _('Error exporting chart as SVG')|tojson }},
-            'Error exporting PDF. Downloading as PNG instead.': {{ _('Error exporting PDF. Downloading as PNG instead.')|tojson }},
-            'PDF export requires jsPDF library. Downloading as PNG instead.': {{ _('PDF export requires jsPDF library. Downloading as PNG instead.')|tojson }},
-            'Export Chart': {{ _('Export Chart')|tojson }},
-            'Export as PNG': {{ _('Export as PNG')|tojson }},
-            'Export as JPG': {{ _('Export as JPG')|tojson }},
-            'Export as SVG': {{ _('Export as SVG')|tojson }},
-            'Export as PDF': {{ _('Export as PDF')|tojson }},
-            'Chart exported successfully': {{ _('Chart exported successfully')|tojson }}
-        };
-    </script>
     
     <!-- Translation Modules (Lazy Load) -->
     <script type="module" src="{{ url_for('static', filename='js/translations-loader.js') }}" defer></script>

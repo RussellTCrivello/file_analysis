@@ -438,7 +438,7 @@ if (typeof window.translations === 'undefined') {
             const a = document.createElement('a');
             a.className = 'page-link';
             a.href = '#';
-            a.textContent = label;
+            a.innerHTML = label;
             a.addEventListener('click', function(ev){
                 ev.preventDefault();
                 if (disabled || active) return;
@@ -451,8 +451,8 @@ if (typeof window.translations === 'undefined') {
             pagContainer.appendChild(li);
         }
 
-        addItem('««', 1, page === 1);
-        addItem('«', Math.max(1, page - 1), page === 1);
+        addItem('<i class="bi bi-chevron-double-left" aria-hidden="true"></i>', 1, page === 1);
+        addItem('<i class="bi bi-chevron-left" aria-hidden="true"></i>', Math.max(1, page - 1), page === 1);
 
         if (start > 1) addItem('1', 1);
         if (start > 2) {
@@ -474,8 +474,8 @@ if (typeof window.translations === 'undefined') {
         }
         if (end < total_pages) addItem(String(total_pages), total_pages);
 
-        addItem('»', Math.min(total_pages, page + 1), page === total_pages);
-        addItem('»»', total_pages, page === total_pages);
+        addItem('<i class="bi bi-chevron-right" aria-hidden="true"></i>', Math.min(total_pages, page + 1), page === total_pages);
+        addItem('<i class="bi bi-chevron-double-right" aria-hidden="true"></i>', total_pages, page === total_pages);
     }
 
     function createPaginationContainer() {

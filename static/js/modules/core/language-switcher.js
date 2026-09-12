@@ -13,6 +13,15 @@ class LanguageSwitcher {
         // Setup dropdown handler
         this.setupDropdownHandler();
         
+        // Setup top bar quick language menu (event delegation)
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-language-switch]');
+            if (item && !this.isChanging) {
+                e.preventDefault();
+                this.changeLanguage(item.getAttribute('data-language-switch'));
+            }
+        });
+        
         // Listen for system setting changes
         document.addEventListener('systemSettingChanged', (e) => {
             if (e.detail.key === 'language') {
@@ -50,7 +59,7 @@ class LanguageSwitcher {
         // Validate language code
         if (!languageCode || typeof languageCode !== 'string') {
             console.error('Invalid language code:', languageCode);
-            this.showError('Invalid language code');
+            this.showError(window.t ? window.t('Invalid language code') : 'Invalid language code');
             return;
         }
 
@@ -111,7 +120,7 @@ class LanguageSwitcher {
                         apiSuccess = true;
                         break; // Success, exit retry loop
                     } else {
-                        throw new Error(data.error || 'Failed to change language');
+                        throw new Error(data.error || (window.t ? window.t('Failed to change language') : 'Failed to change language'));
                     }
                 } catch (apiError) {
                     console.warn(`Language change API attempt ${attempt + 1} failed:`, apiError);
@@ -127,7 +136,7 @@ class LanguageSwitcher {
             }
 
             if (!apiSuccess) {
-                throw new Error('Failed to update language after multiple attempts');
+                throw new Error(window.t ? window.t('Failed to change language') : 'Failed to change language');
             }
 
             // Step 3: Update dropdown to reflect change
@@ -198,7 +207,7 @@ class LanguageSwitcher {
             }
 
             // Show error message
-            this.showError(error.message || 'Failed to change language. Please try again.');
+            this.showError(error.message || (window.t ? window.t('Failed to change language') : 'Failed to change language. Please try again.'));
             
             this.isChanging = false;
         }
@@ -266,8 +275,9 @@ class LanguageSwitcher {
         if (container && !container.querySelector('.language-loading')) {
             const spinner = document.createElement('div');
             spinner.className = 'language-loading';
+            spinner.className += ' sidebar-lang-loading';
             spinner.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
-            spinner.style.cssText = 'position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); pointer-events: none;';
+            spinner.style.cssText = 'position: absolute; inset-inline-end: 0.7rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: inherit;';
             selectElement.style.position = 'relative';
             container.style.position = 'relative';
             container.appendChild(spinner);

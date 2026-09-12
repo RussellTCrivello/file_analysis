@@ -397,7 +397,7 @@
                     <div class="file-card-badges">
                         <span class="badge badge-type">{{ file[4]|upper if file[4] else '' }}</span>
                         {% if file[5] == 'Read' %}
-                            <span class="badge badge-success">✓</span>
+                            <span class="badge badge-success" title="{{ _('Read') }}" aria-label="{{ _('Read') }}"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
                         {% endif %}
                     </div>
                     <div class="file-card-stats">
