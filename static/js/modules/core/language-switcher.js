@@ -13,6 +13,15 @@ class LanguageSwitcher {
         // Setup dropdown handler
         this.setupDropdownHandler();
         
+        // Setup top bar quick language menu (event delegation)
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-language-switch]');
+            if (item && !this.isChanging) {
+                e.preventDefault();
+                this.changeLanguage(item.getAttribute('data-language-switch'));
+            }
+        });
+        
         // Listen for system setting changes
         document.addEventListener('systemSettingChanged', (e) => {
             if (e.detail.key === 'language') {
@@ -37,6 +46,14 @@ class LanguageSwitcher {
     }
 
     /**
+     * Translate with graceful fallback to the English source string.
+     * @param {string} key
+     */
+    tr(key) {
+        return (typeof window.t === 'function') ? window.t(key) : key;
+    }
+
+    /**
      * Change language seamlessly with retry logic and comprehensive error handling
      * @param {string} languageCode - Language code to switch to
      * @param {number} retryCount - Internal retry counter
@@ -50,7 +67,7 @@ class LanguageSwitcher {
         // Validate language code
         if (!languageCode || typeof languageCode !== 'string') {
             console.error('Invalid language code:', languageCode);
-            this.showError('Invalid language code');
+            this.showError(this.tr('Invalid language code'));
             return;
         }
 
@@ -79,15 +96,21 @@ class LanguageSwitcher {
                 htmlElement.setAttribute('lang', languageCode);
             }
 
-            // Step 2: Update language via API with retry logic
+            // Step 2: Update language via API with retry logic. A stale CSRF
+            // token (session rotated by re-login/logout in any tab) is the
+            // most common cause of "Failed to change language" - recover by
+            // refreshing the token from the server before each retry.
             let response;
             let data;
             let apiSuccess = false;
+            let userMessage = null;
 
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 try {
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                    
+                    const csrfToken = (window.CSRF && typeof window.CSRF.getToken === 'function')
+                        ? window.CSRF.getToken()
+                        : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+
                     response = await fetch(`/api/settings/system/language`, {
                         method: 'POST',
                         headers: {
@@ -101,24 +124,77 @@ class LanguageSwitcher {
                         cache: 'no-store' // Prevent caching
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    // Tolerate non-JSON error bodies (proxies, rate limit pages).
+                    let parsed = null;
+                    try { parsed = await response.json(); } catch (_) { parsed = null; }
+                    data = parsed || {};
 
-                    data = await response.json();
+                    if (!response.ok) {
+                        const errText = (data && data.error) ? String(data.error) : '';
+                        if (response.status === 401) {
+                            // Session gone - retrying cannot help. Prefer the
+                            // translated message over raw server text.
+                            console.warn('Language change unauthenticated:', errText);
+                            throw Object.assign(new Error(this.tr('Authentication required. Please log in.')), { kind: 'auth' });
+                        }
+                        if (response.status === 403) {
+                            console.warn('Language change forbidden:', errText);
+                            throw Object.assign(new Error(this.tr('You do not have permission to change this setting.')), { kind: 'forbidden' });
+                        }
+                        const staleToken = response.status === 400 &&
+                            /csrf|token/i.test(errText);
+                        if (staleToken) {
+                            throw Object.assign(new Error(errText || 'CSRF token is missing or invalid'), { kind: 'csrf' });
+                        }
+                        if (response.status === 429) {
+                            throw Object.assign(new Error(this.tr('Too many requests. Please wait a moment and try again.')), { kind: 'rate' });
+                        }
+                        throw Object.assign(new Error(
+                            errText || `HTTP error! status: ${response.status}`
+                        ), { kind: 'http' });
+                    }
 
                     if (data.success) {
                         apiSuccess = true;
                         break; // Success, exit retry loop
                     } else {
-                        throw new Error(data.error || 'Failed to change language');
+                        throw Object.assign(new Error(data.error || this.tr('Failed to change language')), { kind: 'server' });
                     }
                 } catch (apiError) {
                     console.warn(`Language change API attempt ${attempt + 1} failed:`, apiError);
-                    
+
+                    // Permanent failures: stop retrying immediately.
+                    if (apiError && (apiError.kind === 'auth' || apiError.kind === 'forbidden')) {
+                        userMessage = apiError.message;
+                        throw apiError;
+                    }
+
+                    // Stale CSRF token: mint a fresh one from the server and
+                    // retry with it (the previously used token cannot recover).
+                    if (apiError && apiError.kind === 'csrf') {
+                        if (attempt < maxRetries) {
+                            try {
+                                if (window.CSRF && typeof window.CSRF.refreshToken === 'function') {
+                                    await window.CSRF.refreshToken();
+                                }
+                            } catch (refreshError) {
+                                console.warn('CSRF token refresh failed:', refreshError);
+                            }
+                            continue;
+                        }
+                        userMessage = this.tr('Security token expired. Please refresh the page and try again.');
+                        throw apiError;
+                    }
+
                     if (attempt < maxRetries) {
-                        // Wait before retry (exponential backoff)
+                        // Wait before retry (exponential backoff), then refresh
+                        // the token anyway so each retry has its best chance.
                         await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+                        try {
+                            if (window.CSRF && typeof window.CSRF.refreshToken === 'function') {
+                                await window.CSRF.refreshToken();
+                            }
+                        } catch (refreshError) { /* non-critical */ }
                         continue;
                     } else {
                         throw apiError; // All retries failed
@@ -127,7 +203,7 @@ class LanguageSwitcher {
             }
 
             if (!apiSuccess) {
-                throw new Error('Failed to update language after multiple attempts');
+                throw new Error(userMessage || this.tr('Failed to change language'));
             }
 
             // Step 3: Update dropdown to reflect change
@@ -140,7 +216,13 @@ class LanguageSwitcher {
                 sessionStorage.setItem('userLanguage', languageCode);
                 sessionStorage.setItem('languageChangeTime', Date.now().toString());
                 sessionStorage.setItem('userExplicitLanguage', 'true'); // Mark as user explicit
-                
+
+                // Persist as the explicit user_language cookie so the choice
+                // also applies to the login screen and anonymous pages
+                // (same cookie the login-screen switcher uses).
+                document.cookie = 'user_language=' + encodeURIComponent(languageCode) +
+                    '; path=/; max-age=31536000; SameSite=Lax';
+
                 // Update Language Persistence Manager if available (mark as user explicit)
                 if (window.LanguagePersistence) {
                     window.LanguagePersistence.updateLanguage(languageCode, false, true);
@@ -197,8 +279,16 @@ class LanguageSwitcher {
                 htmlElement.setAttribute('lang', originalValue);
             }
 
-            // Show error message
-            this.showError(error.message || 'Failed to change language. Please try again.');
+            // Show error message. Stale-token failures map to a clear,
+            // translated security message; other failures prefer the
+            // server/classifier message and fall back to a translated generic.
+            const fallbackMsg = this.tr(error.kind === 'csrf'
+                ? 'Security token expired. Please refresh the page and try again.'
+                : 'Failed to change language. Please try again.');
+            const shownMsg = (error.kind === 'csrf')
+                ? fallbackMsg
+                : (error.message && error.message.indexOf('HTTP error!') !== 0 ? error.message : fallbackMsg);
+            this.showError(shownMsg || fallbackMsg);
             
             this.isChanging = false;
         }
@@ -266,8 +356,9 @@ class LanguageSwitcher {
         if (container && !container.querySelector('.language-loading')) {
             const spinner = document.createElement('div');
             spinner.className = 'language-loading';
+            spinner.className += ' sidebar-lang-loading';
             spinner.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
-            spinner.style.cssText = 'position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); pointer-events: none;';
+            spinner.style.cssText = 'position: absolute; inset-inline-end: 0.7rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: inherit;';
             selectElement.style.position = 'relative';
             container.style.position = 'relative';
             container.appendChild(spinner);

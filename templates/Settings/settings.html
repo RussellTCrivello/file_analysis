@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link href="{{ url_for('static', filename='css/Settings.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/language-picker.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -205,19 +206,45 @@
                 </h6>
                 
                 <div class="setting-item">
-                    <div class="setting-label">
+                    <div class="setting-label mb-2 w-100">
                         <strong>{{ _('Language') }}</strong>
-                        <select class="form-select form-select-sm" style="width: auto;" 
-                                onchange="toggleSystemSetting('language', this.value)">
-                            {% for lang_code, lang_name in languages.items() %}
-                            <option value="{{ lang_code }}" {% if user_settings.get('system', 'language', 'en') == lang_code %}selected{% endif %}>{{ lang_name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="setting-description mt-1">
+                            {{ _('Select your preferred language for the interface') }}
+                        </div>
                     </div>
-                    <div class="setting-description">
-                        {{ _('Select your preferred language for the interface') }}
+                    <div class="language-picker w-100" role="radiogroup" aria-label="{{ _('Language') }}">
+                        {% set system_language = user_settings.get('system', 'language', 'en') %}
+                        {% for lang_code, lang_name in languages.items() %}
+                        <button type="button"
+                                class="language-card {% if lang_code == system_language %}active{% endif %}"
+                                data-language-option="{{ lang_code }}"
+                                role="radio"
+                                aria-checked="{% if lang_code == system_language %}true{% else %}false{% endif %}"
+                                onclick="selectSystemLanguage('{{ lang_code }}')">
+                            <span class="language-card-check"><i class="bi bi-check-circle-fill"></i></span>
+                            <span class="language-card-native">{{ lang_name }}</span>
+                            <span class="language-card-meta">
+                                <span class="language-card-english">{{ {'en': 'English', 'ar': 'Arabic', 'he': 'Hebrew', 'fa': 'Persian'}.get(lang_code, lang_code) }}</span>
+                                {% if lang_code in ['ar', 'he', 'fa', 'ur'] %}
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis language-card-dir">RTL</span>
+                                {% endif %}
+                            </span>
+                            {% if lang_code == system_language %}
+                            <span class="badge bg-primary-subtle text-primary-emphasis">{{ _('Active') }}</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark border">{{ _('Inactive') }}</span>
+                            {% endif %}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <!-- Kept for backwards compatibility with systemSettingChanged listeners -->
+                    <select class="form-select form-select-sm d-none" id="systemLanguageSelect"
+                            onchange="toggleSystemSetting('language', this.value)">
+                        {% for lang_code, lang_name in languages.items() %}
+                        <option value="{{ lang_code }}" {% if user_settings.get('system', 'language', 'en') == lang_code %}selected{% endif %}>{{ lang_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
 
                 <div class="setting-item">
                     <div class="setting-label">
@@ -2683,7 +2710,7 @@
                         <div class="mb-4">
                             <h6 class="text-capitalize mb-3" style="color: var(--text-dark); font-size: 1rem;">
                                 <i class="bi bi-{% if category == 'main' %}house{% elif category == 'analysis' %}graph-up{% elif category == 'search' %}search{% elif category == 'management' %}folder{% else %}gear{% endif %} me-2"></i>
-                                {{ category|replace('_', ' ')|title }}
+                                {{ _(category|replace('_', ' ')|title) }}
                             </h6>
                             <div class="row g-3">
                                 {% for interface_id, interface in interfaces.items() %}
@@ -2694,7 +2721,7 @@
                                                     <div style="flex: 1;">
                                                         <h6 class="card-title mb-1">
                                                             <i class="bi {{ interface.icon|default('bi-gear') }} me-2"></i>
-                                                            {{ interface.name|default(interface_id|replace('_', ' ')|title) }}
+                                                            {{ _(interface.name|default(interface_id|replace('_', ' ')|title)) }}
                                                         </h6>
                                                         <small class="text-muted d-block">{{ interface.description|default('') }}</small>
                                                     </div>
@@ -3278,11 +3305,11 @@
                     </div>
                     <select class="form-select" id="logLevel"
                             data-setting="system.log_level">
-                        <option value="DEBUG" {% if user_settings.get('system', 'log_level', 'INFO') == 'DEBUG' %}selected{% endif %}>DEBUG</option>
-                        <option value="INFO" {% if user_settings.get('system', 'log_level', 'INFO') == 'INFO' %}selected{% endif %}>INFO</option>
-                        <option value="WARNING" {% if user_settings.get('system', 'log_level', 'INFO') == 'WARNING' %}selected{% endif %}>WARNING</option>
-                        <option value="ERROR" {% if user_settings.get('system', 'log_level', 'INFO') == 'ERROR' %}selected{% endif %}>ERROR</option>
-                        <option value="CRITICAL" {% if user_settings.get('system', 'log_level', 'INFO') == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+                        <option value="DEBUG" {% if user_settings.get('system', 'log_level', 'INFO') == 'DEBUG' %}selected{% endif %}>{{ _('DEBUG') }}</option>
+                        <option value="INFO" {% if user_settings.get('system', 'log_level', 'INFO') == 'INFO' %}selected{% endif %}>{{ _('INFO') }}</option>
+                        <option value="WARNING" {% if user_settings.get('system', 'log_level', 'INFO') == 'WARNING' %}selected{% endif %}>{{ _('WARNING') }}</option>
+                        <option value="ERROR" {% if user_settings.get('system', 'log_level', 'INFO') == 'ERROR' %}selected{% endif %}>{{ _('ERROR') }}</option>
+                        <option value="CRITICAL" {% if user_settings.get('system', 'log_level', 'INFO') == 'CRITICAL' %}selected{% endif %}>{{ _('CRITICAL') }}</option>
                     </select>
                 </div>
 
@@ -3476,4 +3503,29 @@
 <script type="module" src="{{ url_for('static', filename='js/settings/settings-state.js') }}"></script>
 <!-- Settings UI Controller (UI interactions) -->
 <script type="module" src="{{ url_for('static', filename='js/settings/settings-ui.js') }}"></script>
+<!-- Language picker controller (visual language selection) -->
+<script>
+    /**
+     * Apply a system language selection from the visual language picker.
+     * Updates the picker state instantly and delegates the actual switch to
+     * the LanguageSwitcher (persists system-wide, then reloads).
+     */
+    window.selectSystemLanguage = function (code) {
+        // Instant visual feedback (page reload finalizes the state)
+        document.querySelectorAll('[data-language-option]').forEach(function (btn) {
+            var isActive = btn.getAttribute('data-language-option') === code;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        });
+        var hiddenSelect = document.getElementById('systemLanguageSelect');
+        if (hiddenSelect) { hiddenSelect.value = code; }
+
+        if (window.LanguageSwitcher && typeof window.LanguageSwitcher.changeLanguage === 'function') {
+            window.LanguageSwitcher.changeLanguage(code);
+        } else if (window.toggleSystemSetting) {
+            // Fallback: stage the change for the standard Save flow
+            window.toggleSystemSetting('language', code);
+        }
+    };
+</script>
 {% endblock %}

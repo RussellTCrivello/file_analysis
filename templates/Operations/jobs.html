@@ -1,41 +1,41 @@
 {% extends 'base.html' %}
 
-{% block title %}Jobs / Operations{% endblock %}
+{% block title %}{{ _('Jobs / Operations') }}{% endblock %}
 {% block page_type %}default{% endblock %}
-{% block page_title %}Jobs / Operations{% endblock %}
+{% block page_title %}{{ _('Jobs / Operations') }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
   <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="/operations/input" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> New Ingestion</a>
-    <a href="/operations/import" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-in-down"></i> New Import</a>
+    <a href="/operations/input" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> {{ _('New Ingestion') }}</a>
+    <a href="/operations/import" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-in-down"></i> {{ _('New Import') }}</a>
   </div>
 
   <div class="row g-2 mb-3" id="filterBar">
     <div class="col-md-3">
       <select id="fType" class="form-select form-select-sm">
-        <option value="">All types</option>
-        <option value="ingestion">Ingestion</option>
-        <option value="import">Import</option>
-        <option value="domain_import">Domain import</option>
-        <option value="backup_import">Backup import</option>
-        <option value="batch_import">Batch import</option>
+        <option value="">{{ _('All types') }}</option>
+        <option value="ingestion">{{ _('Ingestion') }}</option>
+        <option value="import">{{ _('Import') }}</option>
+        <option value="domain_import">{{ _('Domain import') }}</option>
+        <option value="backup_import">{{ _('Backup import') }}</option>
+        <option value="batch_import">{{ _('Batch import') }}</option>
       </select>
     </div>
     <div class="col-md-3">
       <select id="fStatus" class="form-select form-select-sm">
-        <option value="">All statuses</option>
+        <option value="">{{ _('All statuses') }}</option>
         {% for s in ['QUEUED','RUNNING','PAUSED','CANCELLING','CANCELLED','COMPLETED','COMPLETED_WITH_WARNINGS','FAILED'] %}
         <option value="{{ s }}">{{ s.replace('_', ' ') }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
-      <input id="fUser" class="form-control form-control-sm" placeholder="User">
+      <input id="fUser" class="form-control form-control-sm" placeholder="{{ _('User') }}">
     </div>
     <div class="col-md-3">
       <button id="btnRefresh" class="btn btn-sm btn-outline-secondary w-100">
-        <i class="bi bi-arrow-repeat"></i> Refresh
+        <i class="bi bi-arrow-repeat"></i> {{ _('Refresh') }}
       </button>
     </div>
   </div>
@@ -45,17 +45,17 @@
       <table class="table table-hover align-middle mb-0" id="jobsTable">
         <thead class="table-light">
           <tr>
-            <th>Job</th><th>Type</th><th>Status</th><th style="min-width:160px;">Progress</th>
-            <th>Started</th><th>Duration</th><th>User</th><th>Actions</th>
+            <th>{{ _('Job') }}</th><th>{{ _('Type') }}</th><th>{{ _('Status') }}</th><th style="min-width:160px;">{{ _('Progress') }}</th>
+            <th>{{ _('Started') }}</th><th>{{ _('Duration') }}</th><th>{{ _('User') }}</th><th>{{ _('Actions') }}</th>
           </tr>
         </thead>
         <tbody id="jobsBody">
-          <tr><td colspan="8" class="text-center text-muted py-4">Loading jobs…</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-4">{{ _('Loading jobs…') }}</td></tr>
         </tbody>
       </table>
     </div>
     <div class="card-footer small text-muted" id="liveIndicator">
-      Live updates: polling every 2s
+      {{ _('Live updates: polling every 2s') }}
     </div>
   </div>
 </div>
@@ -89,7 +89,7 @@
     const d = await r.json();
     const body = document.getElementById('jobsBody');
     if (!d.success || !(d.jobs || []).length) {
-      body.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No jobs yet. Start an ingestion or import.</td></tr>';
+      body.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">' + {{ _('No jobs yet. Start an ingestion or import.')|tojson }} + '</td></tr>';
       return;
     }
     body.innerHTML = d.jobs.map(j => {
@@ -126,7 +126,7 @@
   }
 
   window.cancelJob = async function (id) {
-    if (!confirm('Cancel this job? In-flight files finish; no new files start.')) return;
+    if (!confirm({{ _('Cancel this job? In-flight files finish; no new files start.')|tojson }})) return;
     await fetch(`/api/jobs/${id}/cancel`, {method:'POST',
       headers: {'X-CSRFToken': '{{ csrf_token() }}'}});
     loadJobs();
@@ -155,7 +155,7 @@
       ['JOB_CREATED','JOB_STARTED','PROGRESS','JOB_COMPLETED','JOB_CANCELLED','JOB_PAUSED','FAILED','CANCELLING'].forEach(ev =>
         es.addEventListener(ev, refresh));
       es.addEventListener('PROGRESS', refresh);
-      document.getElementById('liveIndicator').textContent = 'Live updates: event stream connected';
+      document.getElementById('liveIndicator').textContent = {{ _('Live updates: event stream connected')|tojson }};
     } catch (e) { /* keep polling */ }
   }
   loadJobs();

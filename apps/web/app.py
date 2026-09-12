@@ -59,12 +59,18 @@ app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 # Configure Flask-Babel for internationalization
 # RTL languages: ar, fa, he, ur
-app.config['LANGUAGES'] = {
-    'en': 'English',
-    'ar': 'العربية',  # Arabic (RTL)
-    'fa': 'فارسی',  # Persian/Farsi (RTL)
-    'he': 'עברית',  # Hebrew (RTL)
-}
+# Only languages with complete translation catalogs are exposed here so the
+# interface is fully translated for every selectable language (en, ar, hr).
+try:
+    from settings.languages import SUPPORTED_LANGUAGES
+except ImportError:  # pragma: no cover
+    SUPPORTED_LANGUAGES = {
+        'en': 'English',
+        'ar': 'العربية',
+        'he': 'עברית',
+        'fa': 'فارسی',
+    }
+app.config['LANGUAGES'] = dict(SUPPORTED_LANGUAGES)
 app.config['BABEL_DEFAULT_LOCALE'] = 'en'
 app.config['BABEL_DEFAULT_TIMEZONE'] = 'UTC'
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.join(project_root, 'translations')
@@ -79,6 +85,13 @@ def get_locale():
         session_lang = session.get('language')
         if session_lang and session_lang in app.config['LANGUAGES']:
             return session_lang
+
+    # PRIORITY 1.5: Explicit user preference carried in the user_language
+    # cookie (set by the login-screen language switcher for anonymous
+    # visitors). Session priority still wins once the user signs in.
+    cookie_lang = request.cookies.get('user_language')
+    if cookie_lang and cookie_lang in app.config['LANGUAGES']:
+        return cookie_lang
     
     # PRIORITY 2: Check system settings (persistent across restarts)
     if 'SETTINGS' in app.config and app.config['SETTINGS']:

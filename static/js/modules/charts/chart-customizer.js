@@ -910,7 +910,7 @@
             const applyBtn = panel.querySelector('.btn-apply');
             if (applyBtn) {
                 const originalText = applyBtn.textContent;
-                applyBtn.textContent = '✓ Applied!';
+                applyBtn.innerHTML = '<i class="bi bi-check-lg me-1" aria-hidden="true"></i>' + (window.t ? window.t('Applied') : 'Applied!');
                 applyBtn.style.backgroundColor = '#10b981';
                 setTimeout(() => {
                     applyBtn.textContent = originalText;

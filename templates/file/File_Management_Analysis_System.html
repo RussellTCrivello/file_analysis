@@ -241,7 +241,7 @@
         <div class="section filters-panel" id="filtersPanel" style="display: none;">
             <div class="section-header">
                 <div class="section-label">{{ _('Advanced Filters') }}</div>
-                <button class="close-filters-btn" onclick="hideFilters()" title="{{ _('Close Filters') }}" aria-label="{{ _('Close Filters') }}">×</button>
+                <button class="close-filters-btn" onclick="hideFilters()" title="{{ _('Close Filters') }}" aria-label="{{ _('Close Filters') }}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </div>
             <div class="filters-grid">
                 <div class="filter-group">
@@ -437,7 +437,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addSourceModalLabel"><i class="bi bi-people me-2"></i>{{ _('Add New Source') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
             </div>
             <div class="modal-body">
                 <form id="sourceForm">
@@ -569,7 +569,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addSideModalLabel"><i class="bi bi-diagram-3 me-2"></i>{{ _('Add Side') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <form id="sideForm">
@@ -602,7 +602,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addKeywordModalLabel"><i class="bi bi-key me-2"></i>{{ _('Add Keyword') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addKeywordForm">
@@ -652,7 +652,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addCategoryModalLabel"><i class="bi bi-tags me-2"></i>{{ _('Add Category') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addCategoryForm">
@@ -687,7 +687,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addWordsCategorysModalLabel"><i class="bi bi-link-45deg me-2"></i>{{ _('Add Word-Category Relationship') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addWordsCategorysForm">
@@ -748,7 +748,7 @@
                 <h2 class="archives-modal-title" id="modalTitle">{{ _('File Details') }}</h2>
                 <div class="file-modal-header-right">
                     <span class="file-nav-counter" id="fileNavCounter" style="display: none;">1 / 1</span>
-                    <button class="archives-close-btn" onclick="closeFileModal()" title="{{ _('Close') }}" aria-label="{{ _('Close File Details') }}">×</button>
+                    <button class="archives-close-btn" onclick="closeFileModal()" title="{{ _('Close') }}" aria-label="{{ _('Close File Details') }}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 </div>
             </div>
             <div class="file-details-modal-body" id="modalBody">

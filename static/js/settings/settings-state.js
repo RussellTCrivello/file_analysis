@@ -133,16 +133,7 @@ class SettingsState {
         try {
             const updates = this.getChanges();
             
-            const response = await fetch('/api/settings/batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken()
-                },
-                body: JSON.stringify({ updates })
-            });
-            
-            const data = await response.json();
+            const { response, data } = await this.postJSONWithCSRF('/api/settings/batch', { updates });
             
             if (data.success) {
                 // Reload current state
@@ -349,8 +340,40 @@ class SettingsState {
      * Get CSRF token from meta tag
      */
     getCSRFToken() {
+        // Prefer the shared provider (window.CSRF) so pages whose session was
+        // rotated (re-login in another tab, logout, expiry) can still obtain a
+        // fresh token via CSRF.refreshToken() instead of failing with 400.
+        if (window.CSRF && typeof window.CSRF.getToken === 'function') {
+            return window.CSRF.getToken();
+        }
         const meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.content : '';
+    }
+
+    /**
+     * Save with one automatic CSRF recovery round: on a stale-token 400 the
+     * token is refreshed from the server and the request retried once.
+     */
+    async postJSONWithCSRF(url, body) {
+        const doFetch = () => fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify(body)
+        });
+        let response = await doFetch();
+        let data = null;
+        try { data = await response.json(); } catch (_) { data = null; }
+        const staleToken = response.status === 400 && data &&
+            /csrf|token/i.test(String(data.error || ''));
+        if (staleToken && window.CSRF && typeof window.CSRF.refreshToken === 'function') {
+            await window.CSRF.refreshToken();
+            response = await doFetch();
+            try { data = await response.json(); } catch (_) { data = null; }
+        }
+        return { response, data: data || {} };
     }
 }
 

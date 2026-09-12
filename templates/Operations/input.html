@@ -1,75 +1,75 @@
 {% extends 'base.html' %}
 
-{% block title %}Input / Ingestion{% endblock %}
+{% block title %}{{ _('Input / Ingestion') }}{% endblock %}
 {% block page_type %}default{% endblock %}
-{% block page_title %}Input / Ingestion{% endblock %}
+{% block page_title %}{{ _('Input / Ingestion') }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
   <ul class="nav nav-tabs mb-3" id="inputTabs">
-    <li class="nav-item"><a class="nav-link active" href="#basic" data-bs-toggle="tab">Basic</a></li>
-    <li class="nav-item"><a class="nav-link" href="#advanced" data-bs-toggle="tab">Advanced</a></li>
+    <li class="nav-item"><a class="nav-link active" href="#basic" data-bs-toggle="tab">{{ _('Basic') }}</a></li>
+    <li class="nav-item"><a class="nav-link" href="#advanced" data-bs-toggle="tab">{{ _('Advanced') }}</a></li>
   </ul>
 
   <div class="row g-3">
     <div class="col-lg-7">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h5 class="card-title"><i class="bi bi-folder-plus me-2"></i>Source</h5>
+          <h5 class="card-title"><i class="bi bi-folder-plus me-2"></i>{{ _('Source') }}</h5>
 
           <ul class="nav nav-pills mb-3" id="sourceType">
-            <li class="nav-item"><button class="nav-link active" data-mode="upload" type="button">Upload files</button></li>
-            <li class="nav-item"><button class="nav-link" data-mode="server" type="button">Server path</button></li>
+            <li class="nav-item"><button class="nav-link active" data-mode="upload" type="button">{{ _('Upload files') }}</button></li>
+            <li class="nav-item"><button class="nav-link" data-mode="server" type="button">{{ _('Server path') }}</button></li>
           </ul>
 
           <div id="uploadSection">
             <div id="dropZone" class="border border-2 border-dashed rounded p-5 text-center text-muted"
                  style="cursor:pointer;">
               <i class="bi bi-cloud-arrow-up fs-1 d-block mb-2"></i>
-              Drag &amp; drop files here, or click to browse
+              {{ _('Drag & drop files here, or click to browse') }}
               <input type="file" id="fileInput" multiple class="d-none">
             </div>
             <ul id="fileList" class="list-group mt-2"></ul>
           </div>
 
           <div id="serverSection" class="d-none">
-            <label class="form-label">Server file or folder path</label>
+            <label class="form-label">{{ _('Server file or folder path') }}</label>
             <input type="text" id="serverPath" class="form-control"
                    placeholder="/data/inbox">
             <div class="form-check form-check-inline mt-2">
               <input class="form-check-input" type="checkbox" id="recursive" checked>
-              <label class="form-check-label" for="recursive">Recursive (include subdirectories)</label>
+              <label class="form-check-label" for="recursive">{{ _('Recursive (include subdirectories)') }}</label>
             </div>
             <div class="form-text" id="rootsNote"></div>
           </div>
 
           <hr>
-          <h5 class="card-title"><i class="bi bi-tags me-2"></i>Storage classification</h5>
+          <h5 class="card-title"><i class="bi bi-tags me-2"></i>{{ _('Storage classification') }}</h5>
           <div class="row g-2">
             <div class="col-md-6">
-              <label class="form-label">Source <span class="text-danger">*</span></label>
+              <label class="form-label">{{ _('Source') }} <span class="text-danger">*</span></label>
               <select id="sourceSelect" class="form-select"></select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Side <span class="text-danger">*</span></label>
+              <label class="form-label">{{ _('Side') }} <span class="text-danger">*</span></label>
               <select id="sideSelect" class="form-select"></select>
             </div>
           </div>
           <details class="mt-2">
-            <summary class="text-primary" style="cursor:pointer;">Create new source / side</summary>
+            <summary class="text-primary" style="cursor:pointer;">{{ _('Create new source / side') }}</summary>
             <div class="row g-2 mt-2" id="newSourceForm">
-              <div class="col-md-6"><input id="nsName" class="form-control" placeholder="Source name *"></div>
-              <div class="col-md-6"><input id="nsJob" class="form-control" placeholder="Job / role *"></div>
-              <div class="col-md-6"><input id="nsCountry" class="form-control" placeholder="Country *"></div>
-              <div class="col-md-6"><input id="nsCity" class="form-control" placeholder="City"></div>
-              <div class="col-md-4"><input id="nsImportance" class="form-control" placeholder="Importance 0.0-1.0" value="0.5"></div>
-              <div class="col-md-8"><input id="nsDesc" class="form-control" placeholder="Description"></div>
-              <div class="col-12"><button id="btnCreateSource" class="btn btn-outline-primary btn-sm">Create source</button></div>
+              <div class="col-md-6"><input id="nsName" class="form-control" placeholder="{{ _('Source name *') }}"></div>
+              <div class="col-md-6"><input id="nsJob" class="form-control" placeholder="{{ _('Job / role *') }}"></div>
+              <div class="col-md-6"><input id="nsCountry" class="form-control" placeholder="{{ _('Country *') }}"></div>
+              <div class="col-md-6"><input id="nsCity" class="form-control" placeholder="{{ _('City') }}"></div>
+              <div class="col-md-4"><input id="nsImportance" class="form-control" placeholder="{{ _('Importance 0.0-1.0') }}" value="0.5"></div>
+              <div class="col-md-8"><input id="nsDesc" class="form-control" placeholder="{{ _('Description') }}"></div>
+              <div class="col-12"><button id="btnCreateSource" class="btn btn-outline-primary btn-sm">{{ _('Create source') }}</button></div>
             </div>
             <div class="row g-2 mt-1" id="newSideForm">
-              <div class="col-md-6"><input id="nsdName" class="form-control" placeholder="Side name *"></div>
-              <div class="col-md-4"><input id="nsdImportance" class="form-control" placeholder="Importance 0.0-1.0" value="0.5"></div>
-              <div class="col-md-2"><button id="btnCreateSide" class="btn btn-outline-primary btn-sm">Create side</button></div>
+              <div class="col-md-6"><input id="nsdName" class="form-control" placeholder="{{ _('Side name *') }}"></div>
+              <div class="col-md-4"><input id="nsdImportance" class="form-control" placeholder="{{ _('Importance 0.0-1.0') }}" value="0.5"></div>
+              <div class="col-md-2"><button id="btnCreateSide" class="btn btn-outline-primary btn-sm">{{ _('Create side') }}</button></div>
             </div>
           </details>
         </div>
@@ -79,27 +79,27 @@
     <div class="col-lg-5">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h5 class="card-title"><i class="bi bi-sliders me-2"></i>Processing</h5>
+          <h5 class="card-title"><i class="bi bi-sliders me-2"></i>{{ _('Processing') }}</h5>
 
           <div class="advanced-only d-none">
             <div class="row g-2">
               <div class="col-md-4">
-                <label class="form-label">Workers</label>
+                <label class="form-label">{{ _('Workers') }}</label>
                 <input type="number" id="optWorkers" class="form-control" value="0" min="0" max="64">
-                <div class="form-text">0 = system default</div>
+                <div class="form-text">{{ _('0 = system default') }}</div>
               </div>
               <div class="col-md-4">
-                <label class="form-label">Checkpoint</label>
+                <label class="form-label">{{ _('Checkpoint') }}</label>
                 <select id="optCheckpoint" class="form-select">
-                  <option value="auto" selected>Auto (resume)</option>
-                  <option value="fresh">Fresh</option>
-                  <option value="off">Off</option>
+                  <option value="auto" selected>{{ _('Auto (resume)') }}</option>
+                  <option value="fresh">{{ _('Fresh') }}</option>
+                  <option value="off">{{ _('Off') }}</option>
                 </select>
               </div>
               <div class="col-md-4 d-flex align-items-end">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" id="optMonitoring" checked>
-                  <label class="form-check-label" for="optMonitoring">Monitoring</label>
+                  <label class="form-check-label" for="optMonitoring">{{ _('Monitoring') }}</label>
                 </div>
               </div>
             </div>
@@ -109,36 +109,36 @@
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="optDedup" checked disabled>
             <label class="form-check-label" for="optDedup">
-              SHA-256 content hashing &amp; deduplication
-              <span class="badge bg-secondary">always on</span>
+              {{ _('SHA-256 content hashing & deduplication') }}
+              <span class="badge bg-secondary">{{ _('always on') }}</span>
             </label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="optArchives" checked disabled>
             <label class="form-check-label" for="optArchives">
-              Archive extraction (zip/tar/gz; traversal-protected)
-              <span class="badge bg-secondary">always on</span>
+              {{ _('Archive extraction (zip/tar/gz; traversal-protected)') }}
+              <span class="badge bg-secondary">{{ _('always on') }}</span>
             </label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="optText" checked disabled>
-            <label class="form-check-label" for="optText">Text extraction &amp; indexing</label>
+            <label class="form-check-label" for="optText">{{ _('Text extraction & indexing') }}</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="optMetadata" checked disabled>
-            <label class="form-check-label" for="optMetadata">Metadata extraction</label>
+            <label class="form-check-label" for="optMetadata">{{ _('Metadata extraction') }}</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="optOcr" checked disabled>
-            <label class="form-check-label" for="optOcr">OCR when available</label>
+            <label class="form-check-label" for="optOcr">{{ _('OCR when available') }}</label>
           </div>
-          <div class="form-text mt-1">Extraction options reflect the engine's default pipeline.</div>
+          <div class="form-text mt-1">{{ _("Extraction options reflect the engine's default pipeline.") }}</div>
 
           <hr>
           <div class="d-flex gap-2">
-            <button id="btnDryRun" class="btn btn-outline-secondary">Dry run</button>
+            <button id="btnDryRun" class="btn btn-outline-secondary">{{ _('Dry run') }}</button>
             <button id="btnStart" class="btn btn-primary flex-grow-1">
-              <i class="bi bi-play-fill"></i> Start Analysis
+              <i class="bi bi-play-fill"></i> {{ _('Start Analysis') }}
             </button>
           </div>
           <div id="inputMsg" class="mt-3"></div>
@@ -203,7 +203,7 @@
   }
   function fill(id, rows) {
     const el = document.getElementById(id);
-    el.innerHTML = '<option value="">-- select --</option>' +
+    el.innerHTML = '<option value="">{{ _('-- select --') }}</option>' +
       rows.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
   }
   loadSelects();
@@ -213,7 +213,7 @@
   fetch('/api/input/options-info').then(r => r.json()).then(d => {
     if (d && d.ingestion_roots_configured !== undefined) {
       document.getElementById('rootsNote').textContent =
-        d.ingestion_roots_configured ? 'Server paths are restricted to configured ingestion roots.' :
+        d.ingestion_roots_configured ? {{ _('Server paths are restricted to configured ingestion roots.')|tojson }} :
         'Server-path input is disabled (no ingestion roots configured). Use file upload.';
     }
   }).catch(() => {});
@@ -228,7 +228,7 @@
     const r = await fetch('/api/input/sources', {method:'POST',
       headers:{'Content-Type':'application/json', ...headers}, body: JSON.stringify(body)});
     const d = await r.json();
-    msg(d.success ? 'Source created.' : (d.error && d.error.message) || 'Failed.', d.success);
+    msg(d.success ? {{ _('Source created.')|tojson }} : (d.error && d.error.message) || {{ _('Failed.')|tojson }}, d.success);
     if (d.success) loadSelects();
   });
   document.getElementById('btnCreateSide').addEventListener('click', async () => {
@@ -236,7 +236,7 @@
     const r = await fetch('/api/input/sides', {method:'POST',
       headers:{'Content-Type':'application/json', ...headers}, body: JSON.stringify(body)});
     const d = await r.json();
-    msg(d.success ? 'Side created.' : (d.error && d.error.message) || 'Failed.', d.success);
+    msg(d.success ? {{ _('Side created.')|tojson }} : (d.error && d.error.message) || {{ _('Failed.')|tojson }}, d.success);
     if (d.success) loadSelects();
   });
 
@@ -265,9 +265,9 @@
   }
 
   function validate() {
-    if (!v('sourceSelect') || !v('sideSelect')) { msg('Select a source and a side.', false); return false; }
-    if (mode === 'upload' && selected.length === 0) { msg('Add files to upload first.', false); return false; }
-    if (mode === 'server' && !v('serverPath')) { msg('Enter a server path.', false); return false; }
+    if (!v('sourceSelect') || !v('sideSelect')) { msg({{ _('Select a source and a side.')|tojson }}, false); return false; }
+    if (mode === 'upload' && selected.length === 0) { msg({{ _('Add files to upload first.')|tojson }}, false); return false; }
+    if (mode === 'server' && !v('serverPath')) { msg({{ _('Enter a server path.')|tojson }}, false); return false; }
     return true;
   }
 
@@ -276,7 +276,7 @@
     if (!validate()) return;
     const box = document.getElementById('dryRunBox');
     box.classList.remove('d-none');
-    box.textContent = 'Analyzing…';
+    box.textContent = {{ _('Analyzing…')|tojson }};
     let resp;
     if (mode === 'upload') {
       const fd = new FormData();
@@ -286,7 +286,7 @@
       fd.append('dry_run', 'true');
       resp = await fetch('/api/input/uploads', {method:'POST', headers, body: fd});
       const d = await resp.json();
-      if (!d.success) { box.textContent = d.error ? d.error.message : 'Upload failed'; return; }
+      if (!d.success) { box.textContent = d.error ? d.error.message : {{ _('Upload failed')|tojson }}; return; }
       const p = await fetch('/api/input/jobs', {method:'POST',
         headers:{'Content-Type':'application/json', ...headers},
         body: JSON.stringify({...payload(true), file_paths: d.staged_paths})});
@@ -302,7 +302,7 @@
   });
   function renderDryRun(pd) {
     const box = document.getElementById('dryRunBox');
-    if (!pd.success) { box.textContent = pd.error ? pd.error.message : 'Dry run failed'; return; }
+    if (!pd.success) { box.textContent = pd.error ? pd.error.message : {{ _('Dry run failed')|tojson }}; return; }
     const p = pd.preview || {};
     box.innerHTML = `
       <strong>Dry run</strong><br>
@@ -333,7 +333,7 @@
       if (d.success && d.job) {
         window.location = '/operations/jobs/' + d.job.job_id;
       } else {
-        msg((d.error && d.error.message) || 'Job could not be created.', false);
+        msg((d.error && d.error.message) || {{ _('Job could not be created.')|tojson }}, false);
       }
     } finally {
       document.getElementById('btnStart').disabled = false;

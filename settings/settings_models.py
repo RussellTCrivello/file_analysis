@@ -525,6 +525,11 @@ class AllSettings:
         )
 
 
+try:
+    from settings.languages import SUPPORTED_LANGUAGES
+except ImportError:  # pragma: no cover - fallback keeps validation functional
+    SUPPORTED_LANGUAGES = {"en": "English", "ar": "العربية", "he": "עברית", "fa": "فارسی"}
+
 # Setting definitions for validation
 SETTING_DEFINITIONS = {
     # System settings
@@ -543,7 +548,7 @@ SETTING_DEFINITIONS = {
         label="Language",
         description="Interface language",
         category="system",
-        allowed_values=["en", "ar", "fr", "es", "de", "it", "pt", "ru", "zh_CN", "ja", "ko", "tr"],
+        allowed_values=list(SUPPORTED_LANGUAGES.keys()),
         requires_restart=True
     ),
     "system.items_per_page": SettingDefinition(
