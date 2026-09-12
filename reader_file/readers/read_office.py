@@ -38,6 +38,33 @@ class OfficeFileReader(BaseReader):
     - Proper resource management
     """
     
+    def _image_reader(self):
+        """A cached ImageFileReader used to OCR embedded images.
+
+        Created once per reader rather than once per image: a document with
+        fifty embedded pictures must not construct fifty readers.
+        """
+        cached = getattr(self, '_image_reader_cache', None)
+        if cached is None:
+            from .read_img_fast import ImageFileReader
+
+            cached = ImageFileReader()
+            self._image_reader_cache = cached
+        return cached
+
+    def _ocr_embedded_image(self, image_path):
+        """Run the standard image reader over one embedded image.
+
+        EMBED-01: this used to be a module-level import of
+        read_image_file_fast at six call sites (DOCX, XLSX, PPTX, ODT, ODS,
+        ODP). But read_image_file_fast is a METHOD on ImageFileReader, so the
+        import raised ImportError every time. Each site was wrapped in
+        except Exception with a logger.debug, so the failure was invisible and
+        embedded image extraction silently produced nothing for every Office
+        and OpenDocument format.
+        """
+        return self._image_reader().read_image_file_fast(image_path)
+
     def get_supported_extensions(self) -> Set[str]:
         """Return set of supported office document extensions"""
         return {
@@ -248,13 +275,12 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            from .read_img_fast import read_image_file_fast
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 # Add name field to match expected format
                                 if ocr_result:
                                     ocr_result["name"] = image_name
@@ -267,7 +293,7 @@ class OfficeFileReader(BaseReader):
                                 except Exception:
                                     pass
                         except Exception as e:
-                            logger.debug(f"Failed to process image {image_file}: {e}")
+                            logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
                 
                 if result["extracted_images"]:
@@ -556,13 +582,12 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            from .read_img_fast import read_image_file_fast
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 # Add name field to match expected format
                                 if ocr_result:
                                     ocr_result["name"] = image_name
@@ -575,7 +600,7 @@ class OfficeFileReader(BaseReader):
                                 except Exception as cleanup_error:
                                     logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
                         except Exception as e:
-                            logger.debug(f"Failed to process image {image_file}: {e}")
+                            logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
                 
                 if result["extracted_images"]:
@@ -738,14 +763,13 @@ class OfficeFileReader(BaseReader):
                         
                         # Try to perform OCR if function is available
                         try:
-                            from .read_img_fast import read_image_file_fast
                             
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 if ocr_result:
                                     ocr_result["name"] = image_name
                                     if ocr_result.get("text") or ocr_result.get("error"):
@@ -764,7 +788,7 @@ class OfficeFileReader(BaseReader):
                             })
                     
                     except Exception as e:
-                        logger.debug(f"Failed to process image {image_file}: {e}")
+                        logger.warning(f"Failed to process embedded image {image_file}: {e}")
                         continue
             
             if extracted_images:
@@ -1259,13 +1283,12 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            from .read_img_fast import read_image_file_fast
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 # Add name field to match expected format
                                 if ocr_result:
                                     ocr_result["name"] = image_name
@@ -1278,7 +1301,7 @@ class OfficeFileReader(BaseReader):
                                 except Exception as cleanup_error:
                                     logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
                         except Exception as e:
-                            logger.debug(f"Failed to process image {image_file}: {e}")
+                            logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
                 
                 if result["extracted_images"]:
@@ -1359,13 +1382,12 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            from .read_img_fast import read_image_file_fast
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 # Add name field to match expected format
                                 if ocr_result:
                                     ocr_result["name"] = image_name
@@ -1378,7 +1400,7 @@ class OfficeFileReader(BaseReader):
                                 except Exception as cleanup_error:
                                     logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
                         except Exception as e:
-                            logger.debug(f"Failed to process image {image_file}: {e}")
+                            logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
                 
                 if result["extracted_images"]:
@@ -1523,13 +1545,12 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            from .read_img_fast import read_image_file_fast
                             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
                                 tmp_file.write(image_bytes)
                                 tmp_path = tmp_file.name
                             
                             try:
-                                ocr_result = read_image_file_fast(tmp_path)
+                                ocr_result = self._ocr_embedded_image(tmp_path)
                                 # Add name field to match expected format
                                 if ocr_result:
                                     ocr_result["name"] = image_name
@@ -1542,7 +1563,7 @@ class OfficeFileReader(BaseReader):
                                 except Exception as cleanup_error:
                                     logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
                         except Exception as e:
-                            logger.debug(f"Failed to process image {image_file}: {e}")
+                            logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
                 
                 if result["extracted_images"]:
