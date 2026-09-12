@@ -911,7 +911,14 @@ class EmailFileReader(BaseReader):
                             if text and (not content_parts or text != content_parts[0]):
                                 content_parts.append(text)
                     except Exception as e:
-                        print(f"⚠ HTML error (msg {message_counter}): {e}")
+                        # libpff raises this for messages whose HTML property is
+                        # absent. It is a normal malformed/HTML-less message,
+                        # not a PST-wide extraction failure; keep diagnostics
+                        # quiet while plain text and RTF remain available.
+                        if "missing value data" in str(e).lower():
+                            print(f"  ℹ No HTML body (msg {message_counter})")
+                        else:
+                            print(f"⚠ HTML error (msg {message_counter}): {e}")
 
                     # RTF
                     if STRIP_RTF_AVAILABLE:

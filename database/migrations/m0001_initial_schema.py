@@ -118,7 +118,7 @@ SQL_STATEMENTS = [
         id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         file_name TEXT NOT NULL,
         file_path TEXT NOT NULL,
-        file_size INTEGER NOT NULL CHECK (file_size >= 0),
+        file_size BIGINT NOT NULL CHECK (file_size >= 0),
         file_type VARCHAR(100) NOT NULL,
         file_status VARCHAR(10) NOT NULL CHECK (file_status IN ('Read', 'Unread')) DEFAULT 'Unread',
         file_date DATE NOT NULL,

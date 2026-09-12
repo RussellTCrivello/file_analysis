@@ -533,7 +533,7 @@ class IntegratedFileReader:
                 
                 results.extend(phase1_results)
             
-            print(f"✅ PHASE 1 complete: {len([r for r in results if r])} priority files processed")
+            print(f"✅ PHASE 1 complete: {len(priority_files)} priority files processed")
         
         # PHASE 2: Process all PDF files only after priority files are completely done
         if pdf_files and not self._control_requested():
@@ -571,7 +571,7 @@ class IntegratedFileReader:
                 
                 results.extend(phase2_results)
             
-            print(f"✅ PHASE 2 complete: {len([r for r in results if r])} PDF files processed")
+            print(f"✅ PHASE 2 complete: {len(pdf_files)} PDF files processed")
         
         # PHASE 3: Process all image files only after PDFs are completely done
         if image_files and not self._control_requested():
@@ -609,7 +609,7 @@ class IntegratedFileReader:
                 
                 results.extend(phase3_results)
             
-            print(f"✅ PHASE 3 complete: {len([r for r in results if r])} image files processed")
+            print(f"✅ PHASE 3 complete: {len(image_files)} image files processed")
         
         # PRODUCTION: Final verification - ensure all files were processed
         processed_count = len([r for r in results if r])

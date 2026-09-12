@@ -8,6 +8,7 @@ Part 1: Core pipeline and text extraction
 
 import logging
 import os
+import math
 from typing import Dict, Any, Optional, List, Tuple
 import time
 from datetime import date
@@ -45,9 +46,13 @@ def _parse_file_size_to_bytes(size_value):
     if size_value is None:
         return 0
     
-    # If already an integer, return it
+    # If already an integer, return it.  Never pass a negative size to the
+    # database CHECK constraint; malformed metadata must not abort ingestion.
     if isinstance(size_value, int):
-        return size_value
+        return max(0, size_value)
+
+    if isinstance(size_value, float) and not math.isfinite(size_value):
+        return 0
     
     # If it's a string, try to parse it
     if isinstance(size_value, str):
@@ -56,8 +61,9 @@ def _parse_file_size_to_bytes(size_value):
         
         # Try to parse as integer first (plain number)
         try:
-            return int(float(size_str))
-        except (ValueError, TypeError):
+            parsed = float(size_str)
+            return max(0, int(parsed)) if math.isfinite(parsed) else 0
+        except (ValueError, TypeError, OverflowError):
             pass
         
         # Try to parse formatted size (e.g., "15.70 KB", "1.5 MB", "500 B")
@@ -66,6 +72,8 @@ def _parse_file_size_to_bytes(size_value):
         match = re.match(r'^([\d.]+)\s*([KMGT]?B?|BYTES?)?$', size_str, re.IGNORECASE)
         if match:
             number = float(match.group(1))
+            if not math.isfinite(number):
+                return 0
             unit_str = (match.group(2) or '').upper()
             
             # Extract unit letter (K, M, G, T) or empty for bytes
@@ -493,7 +501,7 @@ class StoragePipeline:
                     except Exception:
                         file_size = 0
                 
-                file_type = metadata.get('file_type', file_info.get('extension', 'unknown'))
+                file_type = metadata.get('file_type') or file_info.get('effective_extension') or file_info.get('extension', 'unknown')
                 
                 # Get file creation date from file system (st_ctime)
                 # file_date stores the file's creation date, not any other date

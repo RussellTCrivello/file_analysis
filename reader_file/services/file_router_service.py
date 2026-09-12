@@ -165,6 +165,11 @@ class FileRouterService:
         # uses content evidence rather than the filename.
         routed_file_info = dict(file_info)
         routed_file_info['effective_extension'] = effective_extension
+        # Storage and phase reporting must use the verified content type too.
+        # Keep the declared extension for provenance, but make the effective
+        # type available to every downstream persistence path.
+        routed_file_info['detected_extension'] = detection.get('detected_extension')
+        file_info = routed_file_info
 
         content_data = None
 
