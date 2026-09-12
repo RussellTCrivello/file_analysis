@@ -20,6 +20,12 @@ from Hdg_Err_Ex_Log import (
 
 logger = logging.getLogger(__name__)
 
+#: Upper bound on retained CSV data rows. Materialising every row of a
+#: multi-gigabyte CSV as Python lists costs several times the file size and
+#: turns ingestion into a memory-exhaustion failure; rows past this point are
+#: counted and reported as truncated instead.
+MAX_CSV_ROWS = 200_000
+
 
 class OfficeFileReader(BaseReader):
     """
@@ -631,45 +637,77 @@ class OfficeFileReader(BaseReader):
 
 
     def read_csv_file(self, filepath, delimiter=',', encoding='utf-8'):
-        """Independent CSV reader function."""
+        """Independent CSV reader function.
+
+        Produces the structured shape (headers / rows / row_count /
+        column_count) that ``pipeline.storage_pipeline`` expects for tabular
+        content.
+
+        ROUTE-01: ``.csv`` now routes here instead of the plain-text reader,
+        so a row cap is applied - a list of lists costs several times the
+        file size in Python objects, and an unbounded read would turn a very
+        large CSV into a memory-exhaustion failure. Rows beyond
+        ``MAX_CSV_ROWS`` are counted but not retained, and the truncation is
+        recorded in the result rather than hidden.
+        """
         try:
             import csv
-            
+
             if not os.path.exists(filepath):
                 return {"error": "File not found", "filepath": filepath}
-            
+
             result = {
                 "filepath": filepath,
                 "delimiter": delimiter,
                 "headers": [],
                 "rows": []
             }
-            
+
             encodings = [encoding, 'utf-8', 'latin-1', 'cp1252']
-            
+
             for enc in encodings:
                 try:
+                    rows_seen = 0
+                    truncated = False
                     with open(filepath, 'r', encoding=enc, newline='') as file:
                         reader = csv.reader(file, delimiter=delimiter)
-                        
+
                         try:
                             result["headers"] = next(reader)
                         except StopIteration:
                             return {"error": "Empty file", "filepath": filepath}
-                        
+
                         for row in reader:
-                            result["rows"].append(row)
-                    
+                            rows_seen += 1
+                            if rows_seen <= MAX_CSV_ROWS:
+                                result["rows"].append(row)
+                            else:
+                                truncated = True
+
                     result["encoding_used"] = enc
+                    result["row_count"] = rows_seen
+                    result["rows_stored"] = len(result["rows"])
+                    result["truncated"] = truncated
+                    if truncated:
+                        result["truncation_note"] = (
+                            f"Only the first {MAX_CSV_ROWS} data rows were "
+                            f"retained; the file holds {rows_seen}."
+                        )
+                        logger.warning(
+                            "CSV %s truncated to %d of %d rows",
+                            filepath, MAX_CSV_ROWS, rows_seen,
+                        )
                     break
                 except UnicodeDecodeError:
                     if enc == encodings[-1]:
                         raise
                     continue
-            
-            result["row_count"] = len(result["rows"])
+
+            result.setdefault("row_count", len(result["rows"]))
+            result.setdefault("rows_stored", len(result["rows"]))
+            result.setdefault("truncated", False)
             result["column_count"] = len(result["headers"])
-            
+
             return result
         except Exception as e:
             return {"error": str(e), "filepath": filepath}

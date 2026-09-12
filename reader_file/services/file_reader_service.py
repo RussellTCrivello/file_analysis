@@ -77,16 +77,65 @@ class FileReaderService:
             self.database_reader,
         ]
     
+    #: Extensions claimed by more than one registered reader, and the reader
+    #: that must win. ROUTE-01: previously the winner was simply whichever
+    #: reader happened to be registered first in ``_readers``, so adding or
+    #: reordering a reader silently changed the processing path of a supported
+    #: format. ``.csv`` lost this way - the structured OfficeFileReader was
+    #: unreachable and every CSV was read as undifferentiated plain text.
+    EXTENSION_PREFERENCES: Dict[str, str] = {
+        # headers/rows/column_count; pipeline.storage_pipeline has a dedicated
+        # CSV extraction path keyed on content['rows'] which was dead code
+        # while the plain-text reader won.
+        '.csv': 'OfficeFileReader',
+        # RemainingFileReader uses striprtf, a declared dependency;
+        # OfficeFileReader prefers RTFDE, which is not packaged.
+        '.rtf': 'RemainingFileReader',
+        # TypeScript source is far more common in a document corpus than
+        # MPEG-TS video.
+        '.ts': 'RemainingFileReader',
+        # WebM is a video container.
+        '.webm': 'VideoFileReader',
+    }
+
     def _build_extension_map(self):
-        """Build a map of extensions to readers for fast lookup"""
+        """Build a map of extensions to readers for fast lookup.
+
+        Conflicts between readers are resolved from
+        :data:`EXTENSION_PREFERENCES` rather than by registration order, and
+        any undeclared conflict is logged so it cannot pass silently.
+        """
         self._extension_map: Dict[str, BaseReader] = {}
-        
+
+        claims: Dict[str, List[BaseReader]] = {}
         for reader in self._readers:
-            extensions = reader.get_supported_extensions()
-            for ext in extensions:
-                # Handle conflicts - first reader wins
-                if ext not in self._extension_map:
-                    self._extension_map[ext] = reader
+            for ext in reader.get_supported_extensions():
+                claims.setdefault(ext, []).append(reader)
+
+        for ext, readers in claims.items():
+            if len(readers) == 1:
+                self._extension_map[ext] = readers[0]
+                continue
+
+            names = [reader.__class__.__name__ for reader in readers]
+            preferred = self.EXTENSION_PREFERENCES.get(ext)
+            chosen = next(
+                (r for r in readers if r.__class__.__name__ == preferred), None
+            )
+            if chosen is None:
+                chosen = readers[0]
+                logger.warning(
+                    "Extension %s is claimed by %s but has no declared "
+                    "preference; defaulting to %s. Add it to "
+                    "EXTENSION_PREFERENCES to make this explicit.",
+                    ext, names, chosen.__class__.__name__,
+                )
+            else:
+                logger.debug(
+                    "Extension %s claimed by %s; resolved to %s",
+                    ext, names, preferred,
+                )
+            self._extension_map[ext] = chosen
     
     def get_reader_for_extension(self, extension: str) -> Optional[BaseReader]:
         """
