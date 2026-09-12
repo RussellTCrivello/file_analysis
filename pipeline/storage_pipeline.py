@@ -411,8 +411,12 @@ class StoragePipeline:
                 # removed: a file that cannot be hashed is a processing
                 # FAILURE (counted in stats), never stored under a fake
                 # identity.
+                # HASH-01: a hash supplied by an upstream producer is only
+                # trusted if it is a well-formed digest. Sentinels such as
+                # SKIPPED_LARGE_FILE are recomputed here rather than stored.
+                from core.hashing import is_valid_digest
                 file_hash = metadata.get('hash') or file_info.get('hash')
-                file_hash_valid = bool(file_hash) and file_hash not in ('N/A', 'SKIPPED_LARGE_FILE', 'ERROR')
+                file_hash_valid = is_valid_digest(file_hash)
                 if not file_hash_valid:
                     from core.hashing import hash_file, HashingError
                     file_path_for_hash = file_info.get('path')
@@ -433,9 +437,8 @@ class StoragePipeline:
                         self.stats['storage_failed'] = self.stats.get('storage_failed', 0) + 1
                         return None
 
-                # Validate hash shape (64 lowercase hex for sha256); never
-                # replace with a synthetic value.
-                if not file_hash or len(file_hash) < 10:
+                # Validate hash shape; never replace with a synthetic value.
+                if not is_valid_digest(file_hash):
                     logger.error("Invalid hash value %r - refusing to store", file_hash[:16] if file_hash else file_hash)
                     self.stats['files_failed'] = self.stats.get('files_failed', 0) + 1
                     self.stats.setdefault('storage_failed', 0)
