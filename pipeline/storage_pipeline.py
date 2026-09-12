@@ -1255,11 +1255,18 @@ class StoragePipeline:
                     # File has content error - error message already stored in metadata step
                     logger.info(f"Metadata stored for file with content error, path_id: {path_id}, error: {error_message}")
                 
-                # Step 8: Store title
+                # Step 8: Title.
+                #
+                # _store_title_pipeline was removed. It called
+                # self.db_hub.word_operations and .title_operations, neither of
+                # which exists on DatabaseHub, so it raised AttributeError on
+                # every file with a title, logged it, and always returned False.
+                # Titles are stored by the content path instead
+                # (contents_db_service.create_title_content), which is verified
+                # to write titles_content rows. Keeping the local so the
+                # "Stored Components" report below is unchanged in shape.
                 title = self._extract_title(result, file_info)
                 title_stored = False
-                if title:
-                    title_stored = self._store_title_pipeline(title, path_id, parent_path_id)
                 
                 self.stats['files_stored'] += 1
                 self.stats['files_processed'] += 1
@@ -2683,90 +2690,6 @@ class StoragePipeline:
             logger.error(f"Error in content storage pipeline: {e}", exc_info=True)
             return False
         
-    def _store_title_pipeline(
-        self,
-        title: str,
-        path_id: int,
-        parent_path_id: Optional[int] = None
-        ) -> bool:
-        """
-        Process and store title
-        
-        Args:
-            title: Title string
-            path_id: Path ID
-            parent_path_id: Parent path ID (for nested files)
-        
-        Returns:
-            Success status
-        """
-        try:
-            # OPTIMIZED: Use global singleton ContentProcessor
-            from database.processors import get_content_processor
-            processor = get_content_processor()
-            words = processor.extract_words_simple(title)
-            
-            if not words:
-                return False
-            
-            # Get/create word IDs - handle connection errors
-            try:
-                word_id_map = self.db_hub.word_operations.get_word_ids(words)
-            except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                # Connection was closed - reconnect and retry
-                logger.warning(f"Connection error during get_word_ids in title storage, reconnecting: {conn_error}")
-                if self.db_hub._reconnect():
-                    self.db_hub._word_operations = None
-                    word_id_map = self.db_hub.word_operations.get_word_ids(words)
-                else:
-                    logger.error("Failed to reconnect after connection error in title storage")
-                    return False
-            
-            # Insert missing words
-            missing_words = [w for w in words if w not in word_id_map]
-            if missing_words:
-                try:
-                    new_word_ids = self.db_hub.word_operations.batch_insert_words(missing_words)
-                    word_id_map.update(new_word_ids)
-                except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                    # Connection error - reconnect and retry
-                    logger.warning(f"Connection error during batch_insert_words in title storage, reconnecting: {conn_error}")
-                    if self.db_hub._reconnect():
-                        self.db_hub._word_operations = None
-                        # Try to get IDs (might have been inserted by another process)
-                        retry_ids = self.db_hub.word_operations.get_word_ids(missing_words)
-                        word_id_map.update(retry_ids)
-                    else:
-                        logger.error("Failed to reconnect after connection error in title storage batch_insert")
-                        return False
-            
-            # Create word ID list (preserve order)
-            word_ids = [word_id_map[w] for w in words if w in word_id_map]
-            
-            # Store title - handle connection errors
-            try:
-                title_status = 'Branch' if parent_path_id else 'Main'
-                title_id = self.db_hub.title_operations.store_title(
-                    word_ids, path_id, parent_path_id, title_status
-                )
-                return title_id is not None
-            except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                # Connection error - reconnect and retry
-                logger.warning(f"Connection error during store_title, reconnecting: {conn_error}")
-                if self.db_hub._reconnect():
-                    self.db_hub._title_operations = None
-                    title_id = self.db_hub.title_operations.store_title(
-                        word_ids, path_id, parent_path_id, title_status
-                    )
-                    return title_id is not None
-                else:
-                    logger.error("Failed to reconnect after connection error in store_title")
-                    return False
-        
-        except Exception as e:
-            logger.error(f"Error in title storage pipeline: {e}")
-            return False
-    
     def get_statistics(self) -> Dict[str, int]:
         """Get pipeline statistics"""
         return self.stats.copy()
