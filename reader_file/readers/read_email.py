@@ -811,6 +811,7 @@ class EmailFileReader(BaseReader):
         attachment_counter = 0
         messages_data = []
         message_counter = 0
+        no_content_messages = 0
         
         try:
             pst = pypff.file()
@@ -834,7 +835,7 @@ class EmailFileReader(BaseReader):
 
 
             def process_folder(folder):
-                nonlocal total_attachments, attachment_counter, message_counter
+                nonlocal total_attachments, attachment_counter, message_counter, no_content_messages
                 
                 # Process messages
                 for i in range(folder.get_number_of_sub_messages()):
@@ -940,7 +941,12 @@ class EmailFileReader(BaseReader):
                     
                     # Log warning if no content was extracted (helps diagnose issues)
                     if not msg_data["content"]:
-                        print(f"  ⚠ Message {message_counter} has no extractable content (subject: {subject[:500] if subject else 'N/A'})")
+                        no_content_messages += 1
+                        # Large PSTs can contain thousands of calendar/system
+                        # records without bodies. Keep the useful diagnostic,
+                        # but do not flood stdout or the web process log.
+                        if no_content_messages <= 25:
+                            print(f"  ⚠ Message {message_counter} has no extractable content (subject: {subject[:500] if subject else 'N/A'})")
                     
                     msg_data["to"] = ", ".join(recipients)
 
@@ -1057,6 +1063,8 @@ class EmailFileReader(BaseReader):
                 print(f"✓ No attachments found in {file_path}")
             
             print(f"✓ Processed {message_counter} message(s)")
+            if no_content_messages > 25:
+                print(f"ℹ Suppressed {no_content_messages - 25} additional no-content message warnings")
             
             return {
                 "messages": messages_data,

@@ -6,6 +6,7 @@ from psycopg2 import pool
 from contextlib import contextmanager
 from typing import Optional, Dict, Any
 import logging
+import threading
 
 from database.database.config import DatabaseConfig
 
@@ -23,6 +24,9 @@ class Database:
     - Proper resource cleanup
     """
     
+    _file_size_schema_lock = threading.Lock()
+    _file_size_schema_checked = False
+
     def __init__(self, config: Optional[DatabaseConfig] = None):
         """
         Initialize database with configuration.
@@ -68,6 +72,12 @@ class Database:
             # Verify pool was actually created
             if not self._pool:
                 raise ConnectionError("Connection pool creation returned None")
+
+            # Older installations may predate migration 0008 and still have
+            # paths.file_size as INTEGER.  The application can be started
+            # without the installer/bootstrap path, so repair this one safe,
+            # additive schema change when the pool is first created as well.
+            self._ensure_large_file_sizes()
                 
         except Exception as e:
             logger.error(f"Failed to initialize connection pool: {e}")
@@ -75,6 +85,53 @@ class Database:
             # Re-raise the exception so callers know initialization failed
             raise ConnectionError(f"Failed to initialize connection pool: {e}") from e
     
+    def _ensure_large_file_sizes(self):
+        """Ensure legacy databases accept files larger than 2 GiB.
+
+        This is intentionally limited to the additive BIGINT widening covered
+        by migration 0008.  It is a compatibility bridge for deployments that
+        start the web app directly instead of running the installer; the
+        migration remains the authoritative upgrade path.
+        """
+        cls = type(self)
+        if cls._file_size_schema_checked:
+            return
+        with cls._file_size_schema_lock:
+            if cls._file_size_schema_checked:
+                return
+            conn = None
+            try:
+                conn = self._pool.getconn()
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() "
+                        "AND table_name = 'paths' AND column_name = 'file_size'"
+                    )
+                    row = cur.fetchone()
+                    if row and row[0] == 'integer':
+                        cur.execute(
+                            "ALTER TABLE paths ALTER COLUMN file_size TYPE BIGINT"
+                        )
+                        conn.commit()
+                        logger.info("Upgraded paths.file_size from INTEGER to BIGINT")
+                    elif row:
+                        conn.rollback()
+                cls._file_size_schema_checked = True
+            except Exception:
+                if conn is not None:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                # Do not make an otherwise usable pool unavailable because a
+                # compatibility check could not run (for example during a
+                # first-install race). The normal migration reports failures.
+                logger.warning("Could not verify paths.file_size schema", exc_info=True)
+            finally:
+                if conn is not None:
+                    self._pool.putconn(conn)
+
     def connect(self, timeout=30):
         """
         Get a connection from the pool with improved waiting and retry logic.

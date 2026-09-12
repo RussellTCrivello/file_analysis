@@ -501,7 +501,18 @@ class StoragePipeline:
                     except Exception:
                         file_size = 0
                 
-                file_type = metadata.get('file_type') or file_info.get('effective_extension') or file_info.get('extension', 'unknown')
+                # Some readers intentionally emit ``unknown`` metadata (for
+                # example a PST whose parser is unavailable). Do not let that
+                # sentinel hide a verified extension or the declared suffix.
+                metadata_type = metadata.get('file_type')
+                if str(metadata_type or '').strip().lower() in {'', 'unknown', 'none'}:
+                    metadata_type = None
+                detected_type = (
+                    content.get('type_detection', {}).get('effective_extension')
+                    if isinstance(content.get('type_detection'), dict) else None
+                )
+                file_type = (metadata_type or file_info.get('effective_extension')
+                             or detected_type or file_info.get('extension', 'unknown'))
                 
                 # Get file creation date from file system (st_ctime)
                 # file_date stores the file's creation date, not any other date
