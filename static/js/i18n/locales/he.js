@@ -192,5 +192,9 @@ window.I18N_UI_PACKS['he'] = {
     "Medium (1-10MB)": "בינוני (1-10MB)",
     "Large (10-100MB)": "גדול (10-100MB)",
     "Polar Area": "שטח קוטבי",
-    "Search results pagination": "עימוד תוצאות חיפוש"
+    "Search results pagination": "עימוד תוצאות חיפוש",
+    "Applied": "הוחל",
+    "Are you sure you want to delete {item}? This action cannot be undone.": "האם אתה בטוח שברצונך למחוק את {item}? פעולה זו אינה ניתנת לשחזור.",
+    "Failed to change language": "שינוי השפה נכשל",
+    "Input": "קלט"
 };

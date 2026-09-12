@@ -192,5 +192,9 @@ window.I18N_UI_PACKS['fa'] = {
     "Medium (1-10MB)": "متوسط (۱ تا ۱۰ مگابایت)",
     "Large (10-100MB)": "بزرگ (۱۰ تا ۱۰۰ مگابایت)",
     "Polar Area": "ناحیه قطبی",
-    "Search results pagination": "صفحه‌بندی نتایج جستجو"
+    "Search results pagination": "صفحه‌بندی نتایج جستجو",
+    "Applied": "اعمال شد",
+    "Are you sure you want to delete {item}? This action cannot be undone.": "مطمئن هستید که می‌خواهید {item} را حذف کنید؟ این عمل قابل بازگشت نیست.",
+    "Failed to change language": "تغییر زبان ناموفق بود",
+    "Input": "ورودی"
 };

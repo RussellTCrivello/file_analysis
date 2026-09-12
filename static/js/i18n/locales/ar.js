@@ -192,5 +192,9 @@ window.I18N_UI_PACKS['ar'] = {
     "Medium (1-10MB)": "متوسط (1-10 ميغابايت)",
     "Large (10-100MB)": "كبير (10-100 ميغابايت)",
     "Polar Area": "منطقة قطبية",
-    "Search results pagination": "ترقيم صفحات نتائج البحث"
+    "Search results pagination": "ترقيم صفحات نتائج البحث",
+    "Applied": "تم التطبيق",
+    "Are you sure you want to delete {item}? This action cannot be undone.": "هل تريد بالتأكيد حذف {item}؟ لا يمكن التراجع عن هذا الإجراء.",
+    "Failed to change language": "فشل تغيير اللغة",
+    "Input": "إدخال"
 };
