@@ -651,7 +651,17 @@ class EmailFileReader(BaseReader):
                 "messages": messages_data,
                 "extraction_path": extract_to,
                 "total_messages": len(messages_data),
-                "total_attachments": total_attachments
+                "total_attachments": total_attachments,
+                # EMAIL-02: the router decides whether to process attachments
+                # from `has_attachments`, and counts them from
+                # `attachment_count`. extract_eml returns both; extract_mbox
+                # returned neither, so the router saw has_attachments=False and
+                # skipped the whole attachment branch. Attachments were written
+                # to disk and reported in total_attachments, then never stored,
+                # indexed or linked to their message - a silent loss with no
+                # error anywhere. Emit the same contract as extract_eml.
+                "has_attachments": total_attachments > 0,
+                "attachment_count": total_attachments,
             }
             
         except Exception as e:

@@ -802,6 +802,9 @@ class FileRouterService:
         }
         
         # STEP 1: SAVE ALL MESSAGES TO DATABASE FIRST
+        # Hoisted above the try: STEP 2 needs it to link attachments to the
+        # message row, and a failure to store must not leave it undefined.
+        message_path_id = None
         if message_content and storage_pipeline and storage_source and storage_side:
             try:
                 import os
@@ -864,6 +867,30 @@ class FileRouterService:
             )
             
             final_result["attachments"] = attachments_result
+
+            # EMAIL-01: persist the message -> attachment relationship.
+            #
+            # STEP 1 already stored the message and produced message_path_id,
+            # so the parent row exists before its children are processed - the
+            # ideal ordering. Nothing used it, so every attachment was stored as
+            # an unrelated top-level file and the original message could not be
+            # recovered from the database. Reuses the same linker archives use,
+            # which walks extracted_files and writes parent_path_id and
+            # hierarchy_path together; no parallel implementation.
+            if message_path_id and storage_pipeline:
+                try:
+                    linked = storage_pipeline._link_extracted_children(
+                        attachments_result, message_path_id
+                    )
+                    self.logger.info(
+                        f"\u2192 Linked {linked} attachment(s) to message "
+                        f"path_id={message_path_id}"
+                    )
+                except Exception as link_exc:
+                    self.logger.warning(
+                        f"\u26a0 Could not link attachments to message "
+                        f"path_id={message_path_id}: {link_exc}"
+                    )
         else:
             final_result["attachments"] = {
                 "email_attachment_info": {
