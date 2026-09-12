@@ -19,41 +19,41 @@
           </div>
           <div class="small text-muted" id="jPercent">0%</div>
           <dl class="row small mt-3 mb-0">
-            <dt class="col-sm-3">Phase</dt><dd class="col-sm-9" id="jPhase">—</dd>
-            <dt class="col-sm-3">Current file</dt><dd class="col-sm-9 text-break" id="jItem">—</dd>
-            <dt class="col-sm-3">Source</dt><dd class="col-sm-9 text-break" id="jSource">—</dd>
-            <dt class="col-sm-3">User</dt><dd class="col-sm-9" id="jUser">—</dd>
-            <dt class="col-sm-3">Started</dt><dd class="col-sm-9" id="jStart">—</dd>
-            <dt class="col-sm-3">Completed</dt><dd class="col-sm-9" id="jEnd">—</dd>
+            <dt class="col-sm-3">{{ _('Phase') }}</dt><dd class="col-sm-9" id="jPhase">—</dd>
+            <dt class="col-sm-3">{{ _('Current file') }}</dt><dd class="col-sm-9 text-break" id="jItem">—</dd>
+            <dt class="col-sm-3">{{ _('Source') }}</dt><dd class="col-sm-9 text-break" id="jSource">—</dd>
+            <dt class="col-sm-3">{{ _('User') }}</dt><dd class="col-sm-9" id="jUser">—</dd>
+            <dt class="col-sm-3">{{ _('Started') }}</dt><dd class="col-sm-9" id="jStart">—</dd>
+            <dt class="col-sm-3">{{ _('Completed') }}</dt><dd class="col-sm-9" id="jEnd">—</dd>
           </dl>
         </div>
       </div>
 
       <div class="card shadow-sm mb-3">
-        <div class="card-header">Statistics</div>
+        <div class="card-header">{{ _('Statistics') }}</div>
         <div class="card-body">
           <div class="row text-center" id="jStats"></div>
         </div>
       </div>
 
       <div class="card shadow-sm mb-3">
-        <div class="card-header">Errors &amp; warnings</div>
+        <div class="card-header">{{ _('Errors & warnings') }}</div>
         <div class="card-body">
-          <input id="errFilter" class="form-control form-control-sm mb-2" placeholder="Filter…">
+          <input id="errFilter" class="form-control form-control-sm mb-2" placeholder="{{ _('Filter…') }}">
           <div id="jErrors" class="small"></div>
         </div>
       </div>
 
       <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between">
-          Event log
+          {{ _('Event log') }}
           <span class="text-muted small" id="evtCount"></span>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive" style="max-height:320px; overflow-y:auto;">
             <table class="table table-sm table-striped mb-0 small">
-              <thead class="table-light"><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead>
-              <tbody id="jEvents"><tr><td colspan="3" class="text-center text-muted py-3">No events yet</td></tr></tbody>
+              <thead class="table-light"><tr><th>{{ _('Time') }}</th><th>{{ _('Event') }}</th><th>{{ _('Detail') }}</th></tr></thead>
+              <tbody id="jEvents"><tr><td colspan="3" class="text-center text-muted py-3">{{ _('No events yet') }}</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -62,11 +62,11 @@
 
     <div class="col-lg-4">
       <div class="card shadow-sm mb-3">
-        <div class="card-header">Actions</div>
+        <div class="card-header">{{ _('Actions') }}</div>
         <div class="card-body d-grid gap-2" id="jActions"></div>
       </div>
       <div class="card shadow-sm">
-        <div class="card-header">Result summary</div>
+        <div class="card-header">{{ _('Result summary') }}</div>
         <div class="card-body small" id="jResult">—</div>
       </div>
     </div>
@@ -91,7 +91,7 @@
   async function refresh() {
     const r = await fetch(`/api/jobs/${JOB_ID}`);
     const d = await r.json();
-    if (!d.success) { document.getElementById('jStatus').textContent = 'NOT FOUND'; return; }
+    if (!d.success) { document.getElementById('jStatus').textContent = {{ _('NOT FOUND')|tojson }}; return; }
     const j = d.job;
     document.getElementById('jType').textContent = (j.job_type||'').replace(/_/g,' ');
     document.getElementById('jStatus').innerHTML = badge(j.status);

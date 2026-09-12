@@ -558,8 +558,30 @@
                         {% if request.endpoint %}
                         <span class="text-muted small">
                             <i class="bi bi-file-earmark-text me-1"></i>
-                            {% set endpoint_name = request.endpoint.replace('_', ' ').title() %}
-                            {{ endpoint_name }}
+                            {% set endpoint_labels = {
+                                    'index': _('Dashboard'),
+                                    'comprehensive_dashboard': _('Dashboard'),
+                                    'charts_dashboard': _('Dashboard'),
+                                    'archives_page': _('Analysis'),
+                                    'path_analysis_page': _('Analysis'),
+                                    'analysis_batch': _('Analysis'),
+                                    'file_classification_page': _('Analysis'),
+                                    'saved_searches_page': _('Search'),
+                                    'sources_list': _('Sources'),
+                                    'sides_list': _('Sides'),
+                                    'email_words': _('Email Words'),
+                                    'search_page': _('Search'),
+                                    'search_advanced': _('Search'),
+                                    'search_enhanced_page': _('Search'),
+                                    'upload_page': _('Upload Files'),
+                                    'files.files_list': _('File Library'),
+                                    'keywords_list': _('Keywords'),
+                                    'words_list': _('Words'),
+                                    'word_detail': _('Word Details'),
+                                    'settings_page': _('Settings'),
+                                    'notifications_page': _('Notifications')
+                                } %}
+                            {{ endpoint_labels.get(request.endpoint, request.endpoint.replace('_', ' ').title()) }}
                         </span>
                         {% endif %}
                         {% endblock %}

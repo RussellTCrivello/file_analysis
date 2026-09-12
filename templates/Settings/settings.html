@@ -2710,7 +2710,7 @@
                         <div class="mb-4">
                             <h6 class="text-capitalize mb-3" style="color: var(--text-dark); font-size: 1rem;">
                                 <i class="bi bi-{% if category == 'main' %}house{% elif category == 'analysis' %}graph-up{% elif category == 'search' %}search{% elif category == 'management' %}folder{% else %}gear{% endif %} me-2"></i>
-                                {{ category|replace('_', ' ')|title }}
+                                {{ _(category|replace('_', ' ')|title) }}
                             </h6>
                             <div class="row g-3">
                                 {% for interface_id, interface in interfaces.items() %}
@@ -2721,7 +2721,7 @@
                                                     <div style="flex: 1;">
                                                         <h6 class="card-title mb-1">
                                                             <i class="bi {{ interface.icon|default('bi-gear') }} me-2"></i>
-                                                            {{ interface.name|default(interface_id|replace('_', ' ')|title) }}
+                                                            {{ _(interface.name|default(interface_id|replace('_', ' ')|title)) }}
                                                         </h6>
                                                         <small class="text-muted d-block">{{ interface.description|default('') }}</small>
                                                     </div>
@@ -3305,11 +3305,11 @@
                     </div>
                     <select class="form-select" id="logLevel"
                             data-setting="system.log_level">
-                        <option value="DEBUG" {% if user_settings.get('system', 'log_level', 'INFO') == 'DEBUG' %}selected{% endif %}>DEBUG</option>
-                        <option value="INFO" {% if user_settings.get('system', 'log_level', 'INFO') == 'INFO' %}selected{% endif %}>INFO</option>
-                        <option value="WARNING" {% if user_settings.get('system', 'log_level', 'INFO') == 'WARNING' %}selected{% endif %}>WARNING</option>
-                        <option value="ERROR" {% if user_settings.get('system', 'log_level', 'INFO') == 'ERROR' %}selected{% endif %}>ERROR</option>
-                        <option value="CRITICAL" {% if user_settings.get('system', 'log_level', 'INFO') == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+                        <option value="DEBUG" {% if user_settings.get('system', 'log_level', 'INFO') == 'DEBUG' %}selected{% endif %}>{{ _('DEBUG') }}</option>
+                        <option value="INFO" {% if user_settings.get('system', 'log_level', 'INFO') == 'INFO' %}selected{% endif %}>{{ _('INFO') }}</option>
+                        <option value="WARNING" {% if user_settings.get('system', 'log_level', 'INFO') == 'WARNING' %}selected{% endif %}>{{ _('WARNING') }}</option>
+                        <option value="ERROR" {% if user_settings.get('system', 'log_level', 'INFO') == 'ERROR' %}selected{% endif %}>{{ _('ERROR') }}</option>
+                        <option value="CRITICAL" {% if user_settings.get('system', 'log_level', 'INFO') == 'CRITICAL' %}selected{% endif %}>{{ _('CRITICAL') }}</option>
                     </select>
                 </div>
 

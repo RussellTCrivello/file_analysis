@@ -29,6 +29,12 @@ msgstr "-- בחירת צד --"
 msgid "-- Select Source --"
 msgstr "-- בחירת מקור --"
 
+msgid "-- select --"
+msgstr "-- בחר --"
+
+msgid "0 = system default"
+msgstr "0 = ברירת מחדל של המערכת"
+
 msgid "0 results"
 msgstr "0 תוצאות"
 
@@ -226,6 +232,9 @@ msgstr ""
 msgid "Add files to see directory structure"
 msgstr "הוסיפו קבצים כדי לראות את מבנה הספריות"
 
+msgid "Add files to upload first."
+msgstr "הוסיפו קבצים להעלאה תחילה."
+
 msgid "Add new words to this category or remove existing associations"
 msgstr "הוסיפו מילים חדשות לקטגוריה זו או הסירו שיוכים קיימים"
 
@@ -270,6 +279,9 @@ msgstr "כווננו את גודל הגופן באמצעות כפתורי ההת
 
 msgid "Admin"
 msgstr "מנהל"
+
+msgid "Advanced"
+msgstr "מתקדם"
 
 msgid "Advanced Algorithms"
 msgstr "אלגוריתמים מתקדמים"
@@ -379,8 +391,14 @@ msgstr ""
 "כל הסטטיסטיקות והגרפים משקפים נתונים ממסד הנתונים שלכם. אם הנתונים נראים "
 "שגויים, בדקו את מצב עיבוד הקבצים וודאו שהקבצים נותחו במלואם."
 
+msgid "All statuses"
+msgstr "כל המצבים"
+
 msgid "All systems operational"
 msgstr "כל המערכות פעילות"
+
+msgid "All types"
+msgstr "כל הסוגים"
 
 msgid "Allow saving and reusing search queries"
 msgstr "אפשרות שמירה ושימוש חוזר בשאילתות חיפוש"
@@ -460,6 +478,9 @@ msgstr "נותח"
 msgid "Analyzed Files"
 msgstr "קבצים שנותחו"
 
+msgid "Analyzing…"
+msgstr "מנתח…"
+
 msgid "Animations"
 msgstr "אנימציות"
 
@@ -511,6 +532,9 @@ msgstr ""
 
 msgid "Archive Extraction"
 msgstr "חילוץ ארכיונים"
+
+msgid "Archive extraction (zip/tar/gz; traversal-protected)"
+msgstr "חילוץ ארכיונים (zip/tar/gz; מוגן מפני חדירת נתיבים)"
 
 msgid "Archives"
 msgstr "ארכיונים"
@@ -586,6 +610,9 @@ msgstr "נדרש אימות. נא להתחבר."
 
 msgid "Auto"
 msgstr "אוטומטי"
+
+msgid "Auto (resume)"
+msgstr "אוטומטי (המשך)"
 
 msgid "Auto Process Uploads"
 msgstr "עיבוד אוטומטי של העלאות"
@@ -671,11 +698,23 @@ msgstr "גיבוי תקין"
 msgid "Backup and restore your database to protect your data"
 msgstr "גיבוי ושחזור מסד הנתונים להגנה על הנתונים שלכם"
 
+msgid "Backup import"
+msgstr "ייבוא גיבוי"
+
+msgid "Backup restore"
+msgstr "שחזור גיבוי"
+
+msgid "Backup staged. Starting validation job…"
+msgstr "הגיבוי הועלה. מתחיל משימת אימות…"
+
 msgid "Base Size"
 msgstr "גודל בסיס"
 
 msgid "Base unit"
 msgstr "יחידת בסיס"
+
+msgid "Basic"
+msgstr "בסיסי"
 
 msgid "Basic Search"
 msgstr "חיפוש בסיסי"
@@ -719,6 +758,9 @@ msgstr "תבניות אצווה"
 
 msgid "Batch file import, database backup, and settings management"
 msgstr "ייבוא קבצים באצווה, גיבוי מסד נתונים וניהול הגדרות"
+
+msgid "Batch import"
+msgstr "ייבוא אצווה"
 
 msgid "Batch processing completed"
 msgstr "עיבוד האצווה הושלם"
@@ -808,6 +850,9 @@ msgstr "מעבד"
 msgid "CPU Usage"
 msgstr "ניצול המעבד"
 
+msgid "CRITICAL"
+msgstr "קריטי"
+
 msgid "CSV File"
 msgstr "קובץ CSV"
 
@@ -838,6 +883,9 @@ msgstr "חישוב ואחסון ערכי גיבוב (MD5, SHA256) לזיהוי �
 
 msgid "Cancel"
 msgstr "ביטול"
+
+msgid "Cancel this job? In-flight files finish; no new files start."
+msgstr "לבטל את המשימה? קבצים בעיבוד יסתיימו; לא יתחילו קבצים חדשים."
 
 msgid "Cannot change file selection while processing"
 msgstr "לא ניתן לשנות בחירת קבצים בזמן עיבוד"
@@ -1074,6 +1122,12 @@ msgid ""
 "Check the processing log for detailed information about each file's analysis"
 msgstr "בדקו את יומן העיבוד למידע מפורט על הניתוח של כל קובץ"
 
+msgid "Checkpoint"
+msgstr "נקודת ביקורת"
+
+msgid "Choose a backup file first."
+msgstr "בחרו קובץ גיבוי תחילה."
+
 msgid "Choose how dates are displayed throughout the system"
 msgstr "בחרו כיצד תאריכים מוצגים בכל המערכת"
 
@@ -1168,6 +1222,9 @@ msgstr "ניקוי חיפוש"
 
 msgid "Clear search cache"
 msgstr "ניקוי מטמון החיפוש"
+
+msgid "Cleared."
+msgstr "נוקה."
 
 msgid ""
 "Click \"Add Category\" to create a new category with a name and optional "
@@ -1393,6 +1450,9 @@ msgstr "העתיקו את התוכן המלא ללוח לשימוש ביישומ
 msgid "Country"
 msgstr "מדינה"
 
+msgid "Country *"
+msgstr "מדינה *"
+
 msgid "Create"
 msgstr "יצירה"
 
@@ -1417,6 +1477,15 @@ msgstr "צרו רקעי מעבר יפים למקטעים ולכרטיסים"
 msgid "Create custom template"
 msgstr "יצירת תבנית מותאמת אישית"
 
+msgid "Create new source / side"
+msgstr "יצירת מקור / צד חדש"
+
+msgid "Create side"
+msgstr "יצירת צד"
+
+msgid "Create source"
+msgstr "יצירת מקור"
+
 msgid "Created"
 msgstr "נוצר"
 
@@ -1437,6 +1506,9 @@ msgstr "נוכחי"
 
 msgid "Current Page"
 msgstr "עמוד נוכחי"
+
+msgid "Current file"
+msgstr "הקובץ הנוכחי"
 
 msgid "Current page"
 msgstr "עמוד נוכחי"
@@ -1482,6 +1554,9 @@ msgstr "התאימו אישית את מראה סרגל הניווט הצדי"
 
 msgid "Cut"
 msgstr "גזירה"
+
+msgid "DEBUG"
+msgstr "ניפוי"
 
 msgid "Danger"
 msgstr "סכנה"
@@ -1756,6 +1831,9 @@ msgstr "ביטול בחירת כל הקבצים"
 msgid "Destination"
 msgstr "יעד"
 
+msgid "Detail"
+msgstr "פרט"
+
 msgid "Detailed Classification Breakdown"
 msgstr "פירוט סיווג מפורט"
 
@@ -1840,6 +1918,12 @@ msgstr "דומיין"
 msgid "Domain Mode"
 msgstr "מצב דומיין"
 
+msgid "Domain data"
+msgstr "נתוני תחום"
+
+msgid "Domain import"
+msgstr "ייבוא נתוני תחום"
+
 msgid "Done"
 msgstr "בוצע"
 
@@ -1854,6 +1938,15 @@ msgstr "הורידו את התוכן כקובץ טקסט"
 
 msgid "Downloading..."
 msgstr "מוריד..."
+
+msgid "Drag & drop files here, or click to browse"
+msgstr "גררו ושחררו קבצים לכאן, או לחצו לעיון"
+
+msgid "Dry run"
+msgstr "הרצת ניסיון"
+
+msgid "Dry run failed"
+msgstr "הרצת הניסיון נכשלה"
 
 msgid "Duplicate"
 msgstr "כפול"
@@ -1889,6 +1982,9 @@ msgstr "כפילויות"
 
 msgid "Duplicates removed successfully"
 msgstr "הכפילויות הוסרו בהצלחה"
+
+msgid "Duration"
+msgstr "משך"
 
 msgid ""
 "Dynamic Loading: The main content area (unifiedContentView) dynamically "
@@ -2122,6 +2218,9 @@ msgstr "הזינו שם חדש לחיפוש זה:"
 
 msgid "Enter a search query to get started"
 msgstr "הזינו שאילתת חיפוש כדי להתחיל"
+
+msgid "Enter a server path."
+msgstr "הזינו נתיב שרת."
 
 msgid "Enter a single word. Words must be unique."
 msgstr "הזינו מילה בודדת. מילים חייבות להיות ייחודיות."
@@ -2422,11 +2521,17 @@ msgstr "שגיאה:"
 msgid "Errors"
 msgstr "שגיאות"
 
+msgid "Errors & warnings"
+msgstr "שגיאות ואזהרות"
+
 msgid "Errors Only"
 msgstr "שגיאות בלבד"
 
 msgid "Est. Time"
 msgstr "זמן משוער"
+
+msgid "Event"
+msgstr "אירוע"
 
 msgid ""
 "Event Delegation: Efficient event handling using delegation for dynamic "
@@ -2434,6 +2539,9 @@ msgid ""
 msgstr ""
 "האצלת אירועים: טיפול יעיל באירועים באמצעות האצלה עבור תוכן דינמי, מפחית "
 "שימוש בזיכרון ומשפר ביצועים"
+
+msgid "Event log"
+msgstr "יומן אירועים"
 
 msgid "Exact"
 msgstr "מדויק"
@@ -2602,6 +2710,9 @@ msgstr "חילוץ מטא-נתוני קובץ (מחבר, תאריך יצירה �
 msgid "Extract text content from documents for search and analysis"
 msgstr "חילוץ תוכן טקסטואלי ממסמכים לחיפוש וניתוח"
 
+msgid "Extraction options reflect the engine's default pipeline."
+msgstr "אפשרויות החילוץ משקפות את צינור ברירת המחדל של המנוע."
+
 msgid "Failed"
 msgstr "נכשל"
 
@@ -2635,6 +2746,9 @@ msgstr "שמירת השינויים נכשלה"
 msgid "Failed to update item"
 msgstr "עדכון הפריט נכשל"
 
+msgid "Failed."
+msgstr "נכשל."
+
 msgid "Fast processing, standard settings"
 msgstr "עיבוד מהיר, הגדרות סטנדרטיות"
 
@@ -2646,9 +2760,6 @@ msgstr "קובץ"
 
 msgid "File Analysis"
 msgstr "ניתוח קבצים"
-
-msgid "File Analysis System"
-msgstr "מערכת ניתוח קבצים"
 
 msgid "File Analysis: Analyze a specific file by entering its path or ID"
 msgstr "ניתוח קובץ: ניתוח קובץ ספציפי באמצעות הזנת הנתיב או המזהה שלו"
@@ -3058,6 +3169,9 @@ msgstr "מסננים זמינים לכל סוג נתונים (קטגוריה, מ
 msgid "Filters work together to narrow results precisely"
 msgstr "המסננים פועלים יחד לצמצום התוצאות במדויק"
 
+msgid "Filter…"
+msgstr "סינון…"
+
 msgid "Find Duplicates"
 msgstr "חיפוש כפילויות"
 
@@ -3117,6 +3231,9 @@ msgstr "נמצא ב-{count} קבצים"
 
 msgid "Frequency"
 msgstr "תדירות"
+
+msgid "Fresh"
+msgstr "מחדש"
 
 msgid "From"
 msgstr "מתאריך"
@@ -3381,6 +3498,9 @@ msgstr "מזהה:"
 msgid "IDLE"
 msgstr "מוסר"
 
+msgid "INFO"
+msgstr "מידע"
+
 msgid "Identify the most common words to understand category themes"
 msgstr "זהו את המילים הנפוצות ביותר להבנת נושאי הקטגוריה"
 
@@ -3414,6 +3534,12 @@ msgstr "ייבוא וייצוא הגדרות לשיתוף תצורות בין מ
 msgid "Import completed successfully"
 msgstr "הייבוא הושלם בהצלחה"
 
+msgid ""
+"Import domain classification data (Excel/CSV/JSON from the application "
+"import-data directory)."
+msgstr ""
+"ייבוא נתוני סיווג תחום (Excel/CSV/JSON מתיקיית ייבוא הנתונים של היישום)."
+
 msgid "Import failed"
 msgstr "הייבוא נכשל"
 
@@ -3425,6 +3551,9 @@ msgstr ""
 msgid ""
 "Import files in bulk using file paths or CSV files for efficient processing"
 msgstr "ייבוא קבצים בכמויות באמצעות נתיבי קבצים או קובצי CSV לעיבוד יעיל"
+
+msgid "Import job could not be created."
+msgstr "לא ניתן היה ליצור את משימת הייבוא."
 
 msgid "Import/Export"
 msgstr "ייבוא/ייצוא"
@@ -3441,8 +3570,19 @@ msgstr "חשיבות (גבוה-נמוך)"
 msgid "Importance (Low-High)"
 msgstr "חשיבות (נמוך-גבוה)"
 
+msgid "Importance 0.0-1.0"
+msgstr "חשיבות 0.0-1.0"
+
 msgid "Important:"
 msgstr "חשוב:"
+
+msgid ""
+"Importing existing data is a distinct operation from file ingestion. "
+"Validate and preview before you commit - large imports run as jobs you can "
+"monitor and cancel."
+msgstr ""
+"ייבוא נתונים קיימים הוא פעולה נפרדת מקליטת קבצים. אמתו והציגו תצוגה מקדימה "
+"לפני הביצוע - ייבוא גדול רץ כמשימות שניתן לעקוב אחריהן ולבטל."
 
 msgid "Importing..."
 msgstr "מייבא..."
@@ -3483,6 +3623,15 @@ msgstr "מידע:"
 
 msgid "Information"
 msgstr "מידע"
+
+msgid ""
+"Ingest a list of server-side files (restricted to configured ingestion "
+"roots). One path per line."
+msgstr ""
+"קליטת רשימת קבצים מהשרת (מוגבל לשורשי קליטה מוגדרים). נתיב אחד בכל שורה."
+
+msgid "Ingestion"
+msgstr "קליטה"
 
 msgid "Initialization complete"
 msgstr "האתחול הושלם"
@@ -3583,11 +3732,23 @@ msgstr ""
 msgid "JavaScript Functionality"
 msgstr "פונקציונליות JavaScript"
 
+msgid "Job"
+msgstr "משימה"
+
+msgid "Job / role *"
+msgstr "עבודה / תפקיד *"
+
+msgid "Job could not be created."
+msgstr "לא ניתן היה ליצור את המשימה."
+
 msgid "Job/Type"
 msgstr "תפקיד/סוג"
 
 msgid "Jobs"
 msgstr "משימות"
+
+msgid "Jobs / Operations"
+msgstr "משימות / פעולות"
 
 msgid "Jump to page"
 msgstr "קפיצה לעמוד"
@@ -3808,6 +3969,12 @@ msgstr ""
 msgid "Live Preview"
 msgstr "תצוגה מקדימה חיה"
 
+msgid "Live updates: event stream connected"
+msgstr "עדכונים חיים: זרימת אירועים מחוברת"
+
+msgid "Live updates: polling every 2s"
+msgstr "עדכונים חיים: דגימה כל שתי שניות"
+
 msgid "Load Similar Files"
 msgstr "טעינת קבצים דומים"
 
@@ -3821,6 +3988,9 @@ msgstr "טעינת תבניות שנשמרו להחלת הגדרות ניתוח 
 
 msgid "Load words"
 msgstr "טעינת מילים"
+
+msgid "Loading active jobs…"
+msgstr "טוען משימות פעילות…"
 
 msgid "Loading analysis..."
 msgstr "טוען ניתוח..."
@@ -3839,6 +4009,9 @@ msgstr "טוען קבצים עבור {category}..."
 
 msgid "Loading files..."
 msgstr "טוען קבצים..."
+
+msgid "Loading jobs…"
+msgstr "טוען משימות…"
 
 msgid "Loading keywords..."
 msgstr "טוען מילות מפתח..."
@@ -3900,6 +4073,9 @@ msgstr "MB"
 msgid "Machine Learning"
 msgstr "למידת מכונה"
 
+msgid "Main"
+msgstr "ראשי"
+
 msgid "Main brand color"
 msgstr "צבע המותג העיקרי"
 
@@ -3917,6 +4093,9 @@ msgstr "ניהול מקורות, צדדים, מילים, מילות מפתח ו�
 
 msgid "Manage templates: create, edit, delete, or share with team members"
 msgstr "ניהול תבניות: יצירה, עריכה, מחיקה או שיתוף עם חברי הצוות"
+
+msgid "Management"
+msgstr "ניהול"
 
 msgid "Managing Categories"
 msgstr "ניהול קטגוריות"
@@ -4030,6 +4209,9 @@ msgstr ""
 "מקטע מטא-נתונים: צפו במטא-נתוני הקובץ המלאים ובכלל זה נתיב, גודל, תאריכים, "
 "ערכי גיבוב ומידע טכני"
 
+msgid "Metadata extraction"
+msgstr "חילוץ נתוני תיאור"
+
 msgid "Metadata saved successfully!"
 msgstr "המטא-נתונים נשמרו בהצלחה!"
 
@@ -4099,6 +4281,9 @@ msgstr "ניטור מנהלי תהליכונים, תהליכים, אסינכרו
 msgid "Monitor trends over time to understand system behavior patterns"
 msgstr "עקבו אחר מגמות לאורך זמן להבנת תבניות התנהגות המערכת"
 
+msgid "Monitoring"
+msgstr "ניטור"
+
 msgid "Month"
 msgstr "חודש"
 
@@ -4117,6 +4302,9 @@ msgstr "מספר מילים: מילה1 מילה2 (חיפוש שתיהן)"
 
 msgid "N/A"
 msgstr "לא זמין"
+
+msgid "NOT FOUND"
+msgstr "לא נמצא"
 
 msgid "Name"
 msgstr "שם"
@@ -4174,6 +4362,12 @@ msgid ""
 "Network error: Unable to connect to server. Please check your connection and"
 " try again."
 msgstr "שגיאת רשת: לא ניתן להתחבר לשרת. נא לבדוק את החיבור ולנסות שוב."
+
+msgid "New Import"
+msgstr "ייבוא חדש"
+
+msgid "New Ingestion"
+msgstr "קליטה חדשה"
 
 msgid "New Password"
 msgstr "סיסמה חדשה"
@@ -4253,6 +4447,9 @@ msgstr "לא נמצאו קטגוריות כפולות!"
 msgid "No error message"
 msgstr "אין הודעת שגיאה"
 
+msgid "No events yet"
+msgstr "אין אירועים עדיין"
+
 msgid "No file type data available"
 msgstr "אין נתוני סוגי קבצים זמינים"
 
@@ -4283,6 +4480,9 @@ msgstr "לא נמצאו פריטים במקטע זה"
 msgid "No items selected"
 msgstr "לא נבחרו פריטים"
 
+msgid "No jobs yet. Start an ingestion or import."
+msgstr "אין משימות עדיין. התחילו קליטה או ייבוא."
+
 msgid "No keywords available"
 msgstr "אין מילות מפתח זמינות"
 
@@ -4300,6 +4500,9 @@ msgstr "עדיין אין מילות מפתח — הוסיפו את מילת ה�
 
 msgid "No matches"
 msgstr "אין התאמות"
+
+msgid "No operations yet - start an ingestion."
+msgstr "אין פעולות עדיין - התחילו קליטה."
 
 msgid "No path data available"
 msgstr "אין נתוני נתיבים זמינים"
@@ -4386,6 +4589,9 @@ msgstr "הערה: השתמשו בעמוד ההגדרות להחלת ההגדרו
 msgid "Notes"
 msgstr "הערות"
 
+msgid "Nothing to start - run a preview first."
+msgstr "אין מה להתחיל - הריצו תצוגה מקדימה תחילה."
+
 msgid "Notification Details"
 msgstr "פרטי ההתראה"
 
@@ -4433,8 +4639,14 @@ msgid ""
 "Number of results per page for search and file lists (Display-specific)"
 msgstr "מספר התוצאות לעמוד עבור חיפוש ורשימות קבצים (הגדרת תצוגה)"
 
+msgid "OCR when available"
+msgstr "OCR כשזמין"
+
 msgid "OK"
 msgstr "אישור"
+
+msgid "Off"
+msgstr "כבוי"
 
 msgid "Off-Hours"
 msgstr "מחוץ לשעות העבודה"
@@ -4463,6 +4675,9 @@ msgid ""
 msgstr ""
 "פתיחת קבצים: לחצו על כל כרטיס קובץ או פריט רשימה לפתיחת חלון פרטי הקובץ "
 "המקיף"
+
+msgid "Operations"
+msgstr "פעולות"
 
 msgid "Operators: word1 AND word2 OR word3 NOT word4"
 msgstr "אופרטורים: מילה1 AND מילה2 OR מילה3 NOT מילה4"
@@ -4631,6 +4846,9 @@ msgstr "ביצועים: מדדי מהירות ויעילות עיבוד"
 msgid "Permanently delete"
 msgstr "מחיקה לצמיתות"
 
+msgid "Phase"
+msgstr "שלב"
+
 msgid "Pick Icon"
 msgstr "בחירת סמל"
 
@@ -4715,8 +4933,17 @@ msgstr "פורט"
 msgid "Preview"
 msgstr "תצוגה מקדימה"
 
+msgid "Preview & confirmation"
+msgstr "תצוגה מקדימה ואישור"
+
+msgid "Preview (dry run)"
+msgstr "תצוגה מקדימה (הרצת ניסיון)"
+
 msgid "Preview (no save)"
 msgstr "תצוגה מקדימה (ללא שמירה)"
+
+msgid "Preview failed"
+msgstr "התצוגה המקדימה נכשלה"
 
 msgid "Previous"
 msgstr "הקודם"
@@ -4837,6 +5064,9 @@ msgstr "מעבד:"
 msgid "Production Ready"
 msgstr "מוכן לייצור"
 
+msgid "Progress"
+msgstr "התקדמות"
+
 msgid "Query Expansion"
 msgstr "הרחבת שאילתה"
 
@@ -4897,6 +5127,9 @@ msgstr "חיפושים אחרונים"
 
 msgid "Recent searches are saved for quick access"
 msgstr "חיפושים אחרונים נשמרים לגישה מהירה"
+
+msgid "Recursive (include subdirectories)"
+msgstr "רקורסיבי (כולל תיקיות משנה)"
 
 msgid "Refresh"
 msgstr "רענון"
@@ -5029,10 +5262,26 @@ msgstr ""
 "עיצוב רספונסיבי: פועל בצורה חלקה בגדלי מסך שונים, עם התאמת פריסה לצפייה "
 "מיטבית"
 
+msgid "Restore backup"
+msgstr "שחזור הגיבוי"
+
+msgid "Restore job failed to start"
+msgstr "משימת השחזור לא הצליחה להתחיל"
+
+msgid ""
+"Restore previously exported application data (allowlist-validated JSON "
+"backup, transactional)."
+msgstr ""
+"שחזור נתוני יישום שיוצאו בעבר (גיבוי JSON עם רשימת היתרים מאומתת, "
+"טרנזקציונלי)."
+
 msgid ""
 "Result Count: The number of matching files is displayed next to \"Search "
 "Results\" heading"
 msgstr "מניין התוצאות: מספר הקבצים התואמים מוצג לצד הכותרת \"תוצאות חיפוש\""
+
+msgid "Result summary"
+msgstr "סיכום תוצאות"
 
 msgid ""
 "Results are displayed in order of relevance, with the most relevant matches "
@@ -5053,6 +5302,9 @@ msgstr "סקרו וכווננו סיווגים לשיפור הדיוק לאור�
 
 msgid "Review and correct file dates to ensure data accuracy"
 msgstr "סקרו ותקנו תאריכי קבצים להבטחת דיוק הנתונים"
+
+msgid "Review carefully. Imports run as jobs with full error reporting."
+msgstr "בדקו בקפידה. ייבוא רץ כמשימות עם דיווח שגיאות מלא."
 
 msgid ""
 "Review categories and keywords most commonly associated with this source"
@@ -5123,6 +5375,13 @@ msgid "Run Process"
 msgstr "הרצת תהליך"
 
 msgid ""
+"Run Validate or Preview on an import source to see what would happen. "
+"Nothing is imported until you confirm."
+msgstr ""
+"הריצו אימות או תצוגה מקדימה על מקור ייבוא כדי לראות מה יקרה. לא ייובא דבר עד"
+" לאישורכם."
+
+msgid ""
 "Run a search on the Enhanced Search page and use \"Save Search\" to bookmark"
 " it here."
 msgstr ""
@@ -5136,6 +5395,9 @@ msgstr "הריצו חיפושים שנשמרו מיד ללא הזנה מחודש
 
 msgid "Run this search"
 msgstr "הרצת חיפוש זה"
+
+msgid "SHA-256 content hashing & deduplication"
+msgstr "גיבוב תוכן SHA-256 וניכוי כפילויות"
 
 msgid "SUCCESS"
 msgstr "הצלחה"
@@ -5628,6 +5890,9 @@ msgstr "בחרו נתיב"
 msgid "Select a side from the dropdown"
 msgstr "בחרו צד מהתפריט הנפתח"
 
+msgid "Select a source and a side."
+msgstr "בחרו מקור וצד."
+
 msgid ""
 "Select a source and side to associate uploaded files with your organization "
 "structure"
@@ -5701,6 +5966,18 @@ msgstr "משפטים"
 
 msgid "Server error. Please try again later."
 msgstr "שגיאת שרת. נא לנסות שוב מאוחר יותר."
+
+msgid "Server file batch"
+msgstr "אצוות קבצים מהשרת"
+
+msgid "Server file or folder path"
+msgstr "נתיב קובץ או תיקייה בשרת"
+
+msgid "Server path"
+msgstr "נתיב שרת"
+
+msgid "Server paths are restricted to configured ingestion roots."
+msgstr "נתיבי השרת מוגבלים לשורשי הקליטה שהוגדרו."
 
 msgid "Server-side filter (affects pagination/export/copy)."
 msgstr "סינון בצד השרת (משפיע על עימוד/ייצוא/העתקה)."
@@ -5809,11 +6086,17 @@ msgstr "שם צד"
 msgid "Side created successfully!"
 msgstr "הצד נוצר בהצלחה!"
 
+msgid "Side created."
+msgstr "הצד נוצר."
+
 msgid "Side deleted successfully!"
 msgstr "הצד נמחק בהצלחה!"
 
 msgid "Side duplicated successfully!"
 msgstr "הצד שוכפל בהצלחה!"
+
+msgid "Side name *"
+msgstr "שם הצד *"
 
 msgid "Side name is required"
 msgstr "נדרש שם צד"
@@ -6102,6 +6385,9 @@ msgstr "שם מקור"
 msgid "Source created successfully!"
 msgstr "המקור נוצר בהצלחה!"
 
+msgid "Source created."
+msgstr "המקור נוצר."
+
 msgid "Source data exported successfully!"
 msgstr "נתוני המקור יוצאו בהצלחה!"
 
@@ -6110,6 +6396,9 @@ msgstr "המקור נמחק בהצלחה!"
 
 msgid "Source duplicated successfully!"
 msgstr "המקור שוכפל בהצלחה!"
+
+msgid "Source name *"
+msgstr "שם המקור *"
 
 msgid "Source name is required"
 msgstr "נדרש שם מקור"
@@ -6195,11 +6484,23 @@ msgstr ""
 msgid "Spacing & Layout"
 msgstr "ריווח ופריסה"
 
+msgid "Staging failed"
+msgstr "העלאת הגיבוי נכשלה"
+
 msgid "Start Analysis"
 msgstr "התחלת ניתוח"
 
 msgid "Start Color"
 msgstr "צבע פתיחה"
+
+msgid "Start Import"
+msgstr "התחלת ייבוא"
+
+msgid "Start import"
+msgstr "התחלת ייבוא"
+
+msgid "Started"
+msgstr "התחילה"
 
 msgid ""
 "State Management: Centralized state objects track navigation history, "
@@ -6214,6 +6515,9 @@ msgid ""
 msgstr ""
 "ניהול מצב: המערכת שומרת מצב ניווט, עימוד, מסננים והעדפות תצוגה לאורך כל "
 "ההפעלה שלכם"
+
+msgid "Statistics"
+msgstr "סטטיסטיקות"
 
 msgid "Status"
 msgstr "מצב"
@@ -6289,6 +6593,9 @@ msgstr "נפח אחסון בשימוש"
 
 msgid "Storage Used: Total size of all files in MB or GB format"
 msgstr "נפח אחסון בשימוש: הגודל הכולל של כל הקבצים בפורמט MB או GB"
+
+msgid "Storage classification"
+msgstr "סיווג אחסון"
 
 msgid "Submit"
 msgstr "שליחה"
@@ -6429,6 +6736,9 @@ msgstr "טקסט בהיר"
 
 msgid "Text Muted"
 msgstr "טקסט עמום"
+
+msgid "Text extraction & indexing"
+msgstr "חילוץ טקסט ומיפוי"
 
 msgid ""
 "The File Library displays all files in your system with their status, "
@@ -6626,6 +6936,9 @@ msgstr "עיבוד יסודי, כל היכולות"
 
 msgid "Tight spacing"
 msgstr "ריווח צמוד"
+
+msgid "Time"
+msgstr "שעה"
 
 msgid "Time Format"
 msgstr "פורמט שעה"
@@ -6959,6 +7272,12 @@ msgstr "העלאת קבצים: עברו אל \"העלאת קבצים\" בסרג�
 msgid "Upload Logo Image"
 msgstr "העלאת תמונת לוגו"
 
+msgid "Upload failed"
+msgstr "ההעלאה נכשלה"
+
+msgid "Upload files"
+msgstr "העלאת קבצים"
+
 msgid ""
 "Upload files or enter folder paths to analyze large collections efficiently"
 msgstr "העלאת קבצים או הזנת נתיבי תיקיות מאפשרת ניתוח יעיל של אוספים גדולים"
@@ -7152,6 +7471,9 @@ msgstr "השתמשו בכפתורי סרגל הכלים להעתקה, הורדה
 msgid "Use words to understand the content and themes within this category"
 msgstr "השתמשו במילים להבנת התוכן והנושאים בקטגוריה זו"
 
+msgid "User"
+msgstr "משתמש"
+
 msgid "User Management"
 msgstr "ניהול משתמשים"
 
@@ -7173,8 +7495,14 @@ msgstr "שימוש בתבניות"
 msgid "Valid"
 msgstr "תקין"
 
+msgid "Validate"
+msgstr "אימות"
+
 msgid "Validation"
 msgstr "אימות"
+
+msgid "Validation failed"
+msgstr "האימות נכשל"
 
 msgid "Version"
 msgstr "גרסה"
@@ -7199,6 +7527,9 @@ msgstr "צפייה בקבצים"
 
 msgid "View Full Content"
 msgstr "צפייה בתוכן המלא"
+
+msgid "View Jobs"
+msgstr "הצג משימות"
 
 msgid "View Modes"
 msgstr "מצבי תצוגה"
@@ -7408,6 +7739,9 @@ msgstr "אנליטיקה חזותית עם מסננים - כל המקטעים ב
 msgid "Voice search"
 msgstr "חיפוש קולי"
 
+msgid "WARNING"
+msgstr "אזהרה"
+
 msgid "Warning"
 msgstr "אזהרה"
 
@@ -7586,6 +7920,9 @@ msgid ""
 "Words with zero usage count are unused and may be candidates for cleanup."
 msgstr "מילים עם מניין שימושים אפס אינן בשימוש ועשויות להיות מועמדות לניקוי."
 
+msgid "Workers"
+msgstr "עובדים"
+
 msgid "Wrap"
 msgstr "גלישה"
 
@@ -7643,6 +7980,12 @@ msgstr "פעיל"
 msgid "add your first keyword"
 msgstr "הוסיפו את מילת המפתח הראשונה"
 
+msgid "admin"
+msgstr "מנהל"
+
+msgid "always on"
+msgstr "פעיל תמיד"
+
 msgid "avg"
 msgstr "ממוצע"
 
@@ -7651,6 +7994,9 @@ msgstr "כדי להרחיב תיקיות ולראות תתי-תיקיות"
 
 msgid "categories"
 msgstr "קטגוריות"
+
+msgid "data file name (optional)"
+msgstr "שם קובץ נתונים (אופציונלי)"
 
 msgid "duplicate keywords for"
 msgstr "מילות מפתח כפולות עבור"

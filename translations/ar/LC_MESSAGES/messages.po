@@ -150,9 +150,6 @@ msgstr "اتصل بالدعم إذا استمرت المشكلة"
 msgid "Retry"
 msgstr "إعادة المحاولة"
 
-msgid "File Analysis System"
-msgstr "نظام تحليل الملفات"
-
 msgid "File Analysis"
 msgstr "تحليل الملفات"
 
@@ -7924,3 +7921,354 @@ msgstr "تتم إدارة الحسابات بواسطة المسؤول."
 
 msgid "An internal error occurred. Please try again."
 msgstr "حدث خطأ داخلي. يُرجى المحاولة مرة أخرى."
+
+msgid "Operations"
+msgstr "العمليات"
+
+msgid "Auto (resume)"
+msgstr "تلقائي (استئناف)"
+
+msgid "SHA-256 content hashing & deduplication"
+msgstr "تجزئة المحتوى SHA-256 وإزالة التكرار"
+
+msgid "Domain data"
+msgstr "بيانات النطاق"
+
+msgid "Live updates: polling every 2s"
+msgstr "تحديثات مباشرة: استقصاء كل ثانيتين"
+
+msgid "New Import"
+msgstr "استيراد جديد"
+
+msgid ""
+"Ingest a list of server-side files (restricted to configured ingestion "
+"roots). One path per line."
+msgstr ""
+"استيعاب قائمة ملفات من جانب الخادم (مقتصرة على جذور الاستيعاب المهيأة). مسار"
+" واحد في كل سطر."
+
+msgid "Review carefully. Imports run as jobs with full error reporting."
+msgstr "راجع بعناية. عمليات الاستيراد تعمل كمهام مع تقارير أخطاء كاملة."
+
+msgid "View Jobs"
+msgstr "عرض المهام"
+
+msgid "Current file"
+msgstr "الملف الحالي"
+
+msgid "Dry run"
+msgstr "تشغيل تجريبي"
+
+msgid "Backup import"
+msgstr "استيراد نسخة احتياطية"
+
+msgid "Choose a backup file first."
+msgstr "اختر ملف نسخة احتياطية أولاً."
+
+msgid "Create side"
+msgstr "إنشاء طرف"
+
+msgid "Start Import"
+msgstr "بدء الاستيراد"
+
+msgid "Preview & confirmation"
+msgstr "المعاينة والتأكيد"
+
+msgid "Archive extraction (zip/tar/gz; traversal-protected)"
+msgstr "استخراج الأرشيف (zip/tar/gz؛ محمي من اجتياز المسار)"
+
+msgid "Extraction options reflect the engine's default pipeline."
+msgstr "تعكس خيارات الاستخراج مسار المحرك الافتراضي."
+
+msgid "Staging failed"
+msgstr "فشل التجهيز"
+
+msgid "Ingestion"
+msgstr "استيعاب"
+
+msgid "Upload files"
+msgstr "تحميل ملفات"
+
+msgid "Event"
+msgstr "الحدث"
+
+msgid "All types"
+msgstr "كل الأنواع"
+
+msgid "Off"
+msgstr "إيقاف"
+
+msgid "Start import"
+msgstr "بدء الاستيراد"
+
+msgid "-- select --"
+msgstr "-- اختر --"
+
+msgid "Nothing to start - run a preview first."
+msgstr "لا شيء للبدء - شغّل معاينة أولاً."
+
+msgid "Add files to upload first."
+msgstr "أضف ملفات للتحميل أولاً."
+
+msgid "0 = system default"
+msgstr "0 = افتراضي النظام"
+
+msgid "Duration"
+msgstr "المدة"
+
+msgid "Restore backup"
+msgstr "استعادة النسخة الاحتياطية"
+
+msgid "data file name (optional)"
+msgstr "اسم ملف البيانات (اختياري)"
+
+msgid "Loading active jobs…"
+msgstr "جارٍ تحميل المهام النشطة…"
+
+msgid "Side created."
+msgstr "تم إنشاء الطرف."
+
+msgid "Importance 0.0-1.0"
+msgstr "الأهمية 0.0-1.0"
+
+msgid "Detail"
+msgstr "التفصيل"
+
+msgid "Progress"
+msgstr "التقدم"
+
+msgid "Jobs / Operations"
+msgstr "المهام / العمليات"
+
+msgid "Create source"
+msgstr "إنشاء مصدر"
+
+msgid "Cleared."
+msgstr "تم المسح."
+
+msgid "Server file batch"
+msgstr "دفعة ملفات الخادم"
+
+msgid "Job could not be created."
+msgstr "تعذر إنشاء المهمة."
+
+msgid ""
+"Run Validate or Preview on an import source to see what would happen. "
+"Nothing is imported until you confirm."
+msgstr ""
+"شغّل التحقق أو المعاينة على مصدر استيراد لترى ما سيحدث. لا يتم استيراد شيء "
+"حتى تؤكد."
+
+msgid "Enter a server path."
+msgstr "أدخل مسير خادم."
+
+msgid "Cancel this job? In-flight files finish; no new files start."
+msgstr "إلغاء هذه المهمة؟ الملفات الجارية تكتمل؛ لا تبدأ ملفات جديدة."
+
+msgid "Result summary"
+msgstr "ملخص النتيجة"
+
+msgid "Source created."
+msgstr "تم إنشاء المصدر."
+
+msgid "Analyzing…"
+msgstr "جارٍ التحليل…"
+
+msgid "NOT FOUND"
+msgstr "غير موجود"
+
+msgid "All statuses"
+msgstr "كل الحالات"
+
+msgid "Country *"
+msgstr "الدولة *"
+
+msgid "Backup restore"
+msgstr "استعادة نسخة احتياطية"
+
+msgid "Time"
+msgstr "الوقت"
+
+msgid "Main"
+msgstr "رئيسي"
+
+msgid "Source name *"
+msgstr "اسم المصدر *"
+
+msgid "Management"
+msgstr "الإدارة"
+
+msgid ""
+"Restore previously exported application data (allowlist-validated JSON "
+"backup, transactional)."
+msgstr ""
+"استعادة بيانات التطبيق المصدرة سابقاً (نسخة احتياطية JSON بمسموحية محققة، "
+"ضمن معاملة)."
+
+msgid "No events yet"
+msgstr "لا أحداث بعد"
+
+msgid "Server paths are restricted to configured ingestion roots."
+msgstr "مسارات الخادم مقتصرة على جذور الاستيعاب المهيأة."
+
+msgid ""
+"Import domain classification data (Excel/CSV/JSON from the application "
+"import-data directory)."
+msgstr ""
+"استيراد بيانات تصنيف النطاق (Excel/CSV/JSON من مجلد استيراد البيانات "
+"للتطبيق)."
+
+msgid "No operations yet - start an ingestion."
+msgstr "لا عمليات بعد - ابدأ استيعابًا."
+
+msgid "New Ingestion"
+msgstr "استيعاب جديد"
+
+msgid "Server file or folder path"
+msgstr "مسير ملف أو مجلد على الخادم"
+
+msgid "Storage classification"
+msgstr "تصنيف التخزين"
+
+msgid "Backup staged. Starting validation job…"
+msgstr "تم تجهيز النسخة الاحتياطية. جارٍ بدء مهمة التحقق…"
+
+msgid "Fresh"
+msgstr "من البداية"
+
+msgid "Dry run failed"
+msgstr "فشل التشغيل التجريبي"
+
+msgid "Upload failed"
+msgstr "فشل التحميل"
+
+msgid "OCR when available"
+msgstr "التعرف الضوئي عند توفره"
+
+msgid "Job / role *"
+msgstr "الوظيفة / الدور *"
+
+msgid "Checkpoint"
+msgstr "نقطة التحقق"
+
+msgid "Preview failed"
+msgstr "فشلت المعاينة"
+
+msgid "Event log"
+msgstr "سجل الأحداث"
+
+msgid "Basic"
+msgstr "أساسي"
+
+msgid "Metadata extraction"
+msgstr "استخراج البيانات الوصفية"
+
+msgid "Validation failed"
+msgstr "فشل التحقق"
+
+msgid "Domain import"
+msgstr "استيراد بيانات النطاق"
+
+msgid "Started"
+msgstr "بدأت"
+
+msgid "No jobs yet. Start an ingestion or import."
+msgstr "لا مهام بعد. ابدأ استيعابًا أو استيرادًا."
+
+msgid "Text extraction & indexing"
+msgstr "استخراج النص والفهرسة"
+
+msgid "Recursive (include subdirectories)"
+msgstr "تكراري (تضمين المجلدات الفرعية)"
+
+msgid "Drag & drop files here, or click to browse"
+msgstr "اسحب ملفات وأفلتها هنا، أو انقر للتصفح"
+
+msgid "Select a source and a side."
+msgstr "اختر مصدرًا وطرفًا."
+
+msgid "Batch import"
+msgstr "استيراد دفعي"
+
+msgid "Job"
+msgstr "مهمة"
+
+msgid "Server path"
+msgstr "مسير الخادم"
+
+msgid "Filter…"
+msgstr "تصفية…"
+
+msgid "Statistics"
+msgstr "الإحصائيات"
+
+msgid "always on"
+msgstr "فعّال دائمًا"
+
+msgid "Live updates: event stream connected"
+msgstr "تحديثات مباشرة: تم توصيل تدفق الأحداث"
+
+msgid "Validate"
+msgstr "تحقق"
+
+msgid "Loading jobs…"
+msgstr "جارٍ تحميل المهام…"
+
+msgid "Advanced"
+msgstr "متقدم"
+
+msgid "Preview (dry run)"
+msgstr "معاينة (تشغيل تجريبي)"
+
+msgid "Restore job failed to start"
+msgstr "فشل بدء مهمة الاستعادة"
+
+msgid "Failed."
+msgstr "فشل."
+
+msgid "Import job could not be created."
+msgstr "تعذر إنشاء مهمة الاستيراد."
+
+msgid ""
+"Importing existing data is a distinct operation from file ingestion. "
+"Validate and preview before you commit - large imports run as jobs you can "
+"monitor and cancel."
+msgstr ""
+"استيراد البيانات الموجودة عملية منفصلة عن استيعاب الملفات. تحقق واستعرض قبل "
+"التنفيذ — عمليات الاستيراد الكبيرة تعمل كمهام يمكنك مراقبتها وإلغاؤها."
+
+msgid "Errors & warnings"
+msgstr "الأخطاء والتحذيرات"
+
+msgid "Side name *"
+msgstr "اسم الطرف *"
+
+msgid "admin"
+msgstr "مسؤول"
+
+msgid "Create new source / side"
+msgstr "إنشاء مصدر / طرف جديد"
+
+msgid "Monitoring"
+msgstr "المراقبة"
+
+msgid "Phase"
+msgstr "المرحلة"
+
+msgid "User"
+msgstr "المستخدم"
+
+msgid "Workers"
+msgstr "العاملون"
+
+msgid "DEBUG"
+msgstr "تصحيح"
+
+msgid "INFO"
+msgstr "معلومات"
+
+msgid "WARNING"
+msgstr "تحذير"
+
+msgid "CRITICAL"
+msgstr "حرج"

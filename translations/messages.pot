@@ -230,11 +230,6 @@ msgstr ""
 msgid "Retry"
 msgstr ""
 
-#: templates/Analysis/file_classification.html:3 templates/base.html:8
-#: templates/file/File_Management_Analysis_System.html:3
-msgid "File Analysis System"
-msgstr ""
-
 #: templates/Analysis/analysis_batch.html:76
 #: templates/Analysis/file_classification.html:25
 #: templates/Analysis/file_classification.html:111
@@ -10869,4 +10864,455 @@ msgstr ""
 
 #: templates/auth/login.html:251
 msgid "An internal error occurred. Please try again."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Operations"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Auto (resume)"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "SHA-256 content hashing & deduplication"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Domain data"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Live updates: polling every 2s"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "New Import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid ""
+"Ingest a list of server-side files (restricted to configured ingestion "
+"roots). One path per line."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Review carefully. Imports run as jobs with full error reporting."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "View Jobs"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Current file"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Dry run"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Backup import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Choose a backup file first."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Create side"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Start Import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Preview & confirmation"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Archive extraction (zip/tar/gz; traversal-protected)"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Extraction options reflect the engine's default pipeline."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Staging failed"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Ingestion"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Upload files"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Event"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "All types"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Off"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Start import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "-- select --"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Nothing to start - run a preview first."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Add files to upload first."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "0 = system default"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Duration"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Restore backup"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "data file name (optional)"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Loading active jobs…"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Side created."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Importance 0.0-1.0"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Detail"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Progress"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Jobs / Operations"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Create source"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Cleared."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Server file batch"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Job could not be created."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid ""
+"Run Validate or Preview on an import source to see what would happen. "
+"Nothing is imported until you confirm."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Enter a server path."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Cancel this job? In-flight files finish; no new files start."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Result summary"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Source created."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Analyzing…"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "NOT FOUND"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "All statuses"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Country *"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Backup restore"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Time"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Main"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Source name *"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Management"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid ""
+"Restore previously exported application data (allowlist-validated JSON "
+"backup, transactional)."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "No events yet"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Server paths are restricted to configured ingestion roots."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid ""
+"Import domain classification data (Excel/CSV/JSON from the application "
+"import-data directory)."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "No operations yet - start an ingestion."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "New Ingestion"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Server file or folder path"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Storage classification"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Backup staged. Starting validation job…"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Fresh"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Dry run failed"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Upload failed"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "OCR when available"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Job / role *"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Checkpoint"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Preview failed"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Event log"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Basic"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Metadata extraction"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Validation failed"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Domain import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Started"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "No jobs yet. Start an ingestion or import."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Text extraction & indexing"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Recursive (include subdirectories)"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Drag & drop files here, or click to browse"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Select a source and a side."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Batch import"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Job"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Server path"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Filter…"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Statistics"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "always on"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Live updates: event stream connected"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Validate"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Loading jobs…"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Advanced"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Preview (dry run)"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Restore job failed to start"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Failed."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Import job could not be created."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid ""
+"Importing existing data is a distinct operation from file ingestion. "
+"Validate and preview before you commit - large imports run as jobs you can "
+"monitor and cancel."
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Errors & warnings"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Side name *"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "admin"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Create new source / side"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Monitoring"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Phase"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "User"
+msgstr ""
+
+#: templates/Operations/*:0
+msgid "Workers"
+msgstr ""
+
+#: templates/Settings/settings.html:3308
+msgid "DEBUG"
+msgstr ""
+
+#: templates/Settings/settings.html:3308
+msgid "INFO"
+msgstr ""
+
+#: templates/Settings/settings.html:3308
+msgid "WARNING"
+msgstr ""
+
+#: templates/Settings/settings.html:3308
+msgid "CRITICAL"
 msgstr ""

@@ -30,6 +30,12 @@ msgstr "-- انتخاب طرف --"
 msgid "-- Select Source --"
 msgstr "-- انتخاب منبع --"
 
+msgid "-- select --"
+msgstr "-- انتخاب --"
+
+msgid "0 = system default"
+msgstr "۰ = پیش‌فرض سامانه"
+
 msgid "0 results"
 msgstr "۰ نتیجه"
 
@@ -230,6 +236,9 @@ msgstr ""
 msgid "Add files to see directory structure"
 msgstr "برای دیدن ساختار پوشه‌ها فایل اضافه کنید"
 
+msgid "Add files to upload first."
+msgstr "ابتدا فایل‌هایی برای بارگذاری اضافه کنید."
+
 msgid "Add new words to this category or remove existing associations"
 msgstr ""
 "واژه‌های جدید به این دسته‌بندی اضافه کنید یا ارتباط‌های موجود را حذف کنید"
@@ -275,6 +284,9 @@ msgstr "اندازه قلم را با دکمه‌های بزرگ‌نمایی/ک
 
 msgid "Admin"
 msgstr "مدیر"
+
+msgid "Advanced"
+msgstr "پیشرفته"
 
 msgid "Advanced Algorithms"
 msgstr "الگوریتم‌های پیشرفته"
@@ -387,8 +399,14 @@ msgstr ""
 "نادرست به نظر می‌رسند، وضعیت پردازش فایل را بررسی کنید و مطمئن شوید فایل‌ها "
 "کاملاً تحلیل شده‌اند."
 
+msgid "All statuses"
+msgstr "همه وضعیت‌ها"
+
 msgid "All systems operational"
 msgstr "همه سامانه‌ها فعال هستند"
+
+msgid "All types"
+msgstr "همه انواع"
 
 msgid "Allow saving and reusing search queries"
 msgstr "اجازه ذخیره و استفاده مجدد از پرس‌وجوهای جستجو"
@@ -472,6 +490,9 @@ msgstr "تحلیل‌شده"
 msgid "Analyzed Files"
 msgstr "فایل‌های تحلیل‌شده"
 
+msgid "Analyzing…"
+msgstr "در حال تحلیل…"
+
 msgid "Animations"
 msgstr "انیمیشن‌ها"
 
@@ -524,6 +545,9 @@ msgstr ""
 
 msgid "Archive Extraction"
 msgstr "استخراج بایگانی"
+
+msgid "Archive extraction (zip/tar/gz; traversal-protected)"
+msgstr "استخراج بایگانی (zip/tar/gz؛ محافظت‌شده در برابر پیمایش مسیر)"
 
 msgid "Archives"
 msgstr "بایگانی‌ها"
@@ -602,6 +626,9 @@ msgstr "احراز هویت لازم است. لطفاً وارد شوید."
 
 msgid "Auto"
 msgstr "خودکار"
+
+msgid "Auto (resume)"
+msgstr "خودکار (ازسرگیری)"
 
 msgid "Auto Process Uploads"
 msgstr "پردازش خودکار بارگذاری‌ها"
@@ -688,11 +715,23 @@ msgid "Backup and restore your database to protect your data"
 msgstr ""
 "برای محافظت از داده‌هایتان، پایگاه داده را پشتیبان‌گیری و بازیابی کنید"
 
+msgid "Backup import"
+msgstr "درون‌ریزی پشتیبان"
+
+msgid "Backup restore"
+msgstr "بازیابی پشتیبان"
+
+msgid "Backup staged. Starting validation job…"
+msgstr "پشتیبان آماده شد. در حال آغاز کار اعتبارسنجی…"
+
 msgid "Base Size"
 msgstr "اندازه پایه"
 
 msgid "Base unit"
 msgstr "واحد پایه"
+
+msgid "Basic"
+msgstr "پایه"
 
 msgid "Basic Search"
 msgstr "جستجوی پایه"
@@ -739,6 +778,9 @@ msgstr "قالب‌های دسته‌ای"
 
 msgid "Batch file import, database backup, and settings management"
 msgstr "درون‌ریزی دسته‌ای فایل، پشتیبان‌گیری پایگاه داده و مدیریت تنظیمات"
+
+msgid "Batch import"
+msgstr "درون‌ریزی دسته‌ای"
 
 msgid "Batch processing completed"
 msgstr "پردازش دسته‌ای کامل شد"
@@ -828,6 +870,9 @@ msgstr "پردازنده"
 msgid "CPU Usage"
 msgstr "مصرف پردازنده"
 
+msgid "CRITICAL"
+msgstr "بحرانی"
+
 msgid "CSV File"
 msgstr "فایل CSV"
 
@@ -858,6 +903,10 @@ msgstr "محاسبه و ذخیره مقادیر هش فایل (MD5، SHA256) ب�
 
 msgid "Cancel"
 msgstr "لغو"
+
+msgid "Cancel this job? In-flight files finish; no new files start."
+msgstr ""
+"این کار لغو شود؟ فایل‌های در جریان کامل می‌شوند؛ فایل جدیدی شروع نمی‌شود."
 
 msgid "Cannot change file selection while processing"
 msgstr "در حین پردازش نمی‌توان انتخاب فایل را تغییر داد"
@@ -1105,6 +1154,12 @@ msgid ""
 "Check the processing log for detailed information about each file's analysis"
 msgstr "اطلاعات دقیق تحلیل هر فایل را در گزارش پردازش بررسی کنید"
 
+msgid "Checkpoint"
+msgstr "نقطه بازرسی"
+
+msgid "Choose a backup file first."
+msgstr "ابتدا فایل پشتیبان را انتخاب کنید."
+
 msgid "Choose how dates are displayed throughout the system"
 msgstr "انتخاب کنید تاریخ‌ها در سراسر سامانه چگونه نمایش داده شوند"
 
@@ -1201,6 +1256,9 @@ msgstr "پاک‌کردن جستجو"
 
 msgid "Clear search cache"
 msgstr "پاک‌کردن حافظه نهان جستجو"
+
+msgid "Cleared."
+msgstr "پاک شد."
 
 msgid ""
 "Click \"Add Category\" to create a new category with a name and optional "
@@ -1438,6 +1496,9 @@ msgstr "کل محتوا را برای استفاده در برنامه‌های 
 msgid "Country"
 msgstr "کشور"
 
+msgid "Country *"
+msgstr "کشور *"
+
 msgid "Create"
 msgstr "ایجاد"
 
@@ -1462,6 +1523,15 @@ msgstr "پس‌زمینه‌های گرادیان زیبا برای بخش‌ه�
 msgid "Create custom template"
 msgstr "ایجاد قالب سفارشی"
 
+msgid "Create new source / side"
+msgstr "ایجاد منبع / طرف جدید"
+
+msgid "Create side"
+msgstr "ایجاد طرف"
+
+msgid "Create source"
+msgstr "ایجاد منبع"
+
 msgid "Created"
 msgstr "ایجادشده"
 
@@ -1482,6 +1552,9 @@ msgstr "فعلی"
 
 msgid "Current Page"
 msgstr "صفحه فعلی"
+
+msgid "Current file"
+msgstr "فایل فعلی"
 
 msgid "Current page"
 msgstr "صفحه فعلی"
@@ -1527,6 +1600,9 @@ msgstr "ظاهر نوار کناری ناوبری را سفارشی کنید"
 
 msgid "Cut"
 msgstr "برش"
+
+msgid "DEBUG"
+msgstr "اشکال‌زدایی"
 
 msgid "Danger"
 msgstr "خطر"
@@ -1804,6 +1880,9 @@ msgstr "لغو انتخاب همه فایل‌ها"
 msgid "Destination"
 msgstr "مقصد"
 
+msgid "Detail"
+msgstr "جزئیات"
+
 msgid "Detailed Classification Breakdown"
 msgstr "تفکیک دقیق طبقه‌بندی"
 
@@ -1889,6 +1968,12 @@ msgstr "دامنه"
 msgid "Domain Mode"
 msgstr "حالت دامنه"
 
+msgid "Domain data"
+msgstr "داده دامنه"
+
+msgid "Domain import"
+msgstr "درون‌ریزی داده دامنه"
+
 msgid "Done"
 msgstr "انجام شد"
 
@@ -1903,6 +1988,15 @@ msgstr "محتوا را به‌صورت فایل متنی دانلود کنید"
 
 msgid "Downloading..."
 msgstr "در حال دانلود..."
+
+msgid "Drag & drop files here, or click to browse"
+msgstr "فایل‌ها را اینجا بکشید و رها کنید، یا برای مرور کلیک کنید"
+
+msgid "Dry run"
+msgstr "اجرای آزمایشی"
+
+msgid "Dry run failed"
+msgstr "اجرای آزمایشی ناموفق بود"
 
 msgid "Duplicate"
 msgstr "تکراری"
@@ -1940,6 +2034,9 @@ msgstr "تکراری‌ها"
 
 msgid "Duplicates removed successfully"
 msgstr "تکراری‌ها با موفقیت حذف شدند"
+
+msgid "Duration"
+msgstr "مدت"
 
 msgid ""
 "Dynamic Loading: The main content area (unifiedContentView) dynamically "
@@ -2187,6 +2284,9 @@ msgstr "نام جدیدی برای این جستجو وارد کنید:"
 
 msgid "Enter a search query to get started"
 msgstr "برای شروع، عبارت جستجو وارد کنید"
+
+msgid "Enter a server path."
+msgstr "یک مسیر سرور وارد کنید."
 
 msgid "Enter a single word. Words must be unique."
 msgstr "یک واژه منفرد وارد کنید. واژه‌ها باید یکتا باشند."
@@ -2494,11 +2594,17 @@ msgstr "خطا:"
 msgid "Errors"
 msgstr "خطاها"
 
+msgid "Errors & warnings"
+msgstr "خطاها و هشدارها"
+
 msgid "Errors Only"
 msgstr "فقط خطاها"
 
 msgid "Est. Time"
 msgstr "زمان تقریبی"
+
+msgid "Event"
+msgstr "رویداد"
 
 msgid ""
 "Event Delegation: Efficient event handling using delegation for dynamic "
@@ -2506,6 +2612,9 @@ msgid ""
 msgstr ""
 "واگذاری رویداد: مدیریت کارآمد رویدادها با واگذاری برای محتوای پویا، که مصرف "
 "حافظه را کاهش و عملکرد را بهبود می‌دهد"
+
+msgid "Event log"
+msgstr "گزارش رویدادها"
 
 msgid "Exact"
 msgstr "دقیق"
@@ -2683,6 +2792,9 @@ msgstr "استخراج فراداده فایل (نویسنده، تاریخ ای
 msgid "Extract text content from documents for search and analysis"
 msgstr "استخراج محتوای متنی از اسناد برای جستجو و تحلیل"
 
+msgid "Extraction options reflect the engine's default pipeline."
+msgstr "گزینه‌های استخراج بازتابدهنده خط لوله پیش‌فرض موتور هستند."
+
 msgid "Failed"
 msgstr "ناموفق"
 
@@ -2716,6 +2828,9 @@ msgstr "ذخیره تغییرات ناموفق بود"
 msgid "Failed to update item"
 msgstr "به‌روزرسانی مورد ناموفق بود"
 
+msgid "Failed."
+msgstr "ناموفق بود."
+
 msgid "Fast processing, standard settings"
 msgstr "پردازش سریع، تنظیمات استاندارد"
 
@@ -2727,9 +2842,6 @@ msgstr "فایل"
 
 msgid "File Analysis"
 msgstr "تحلیل فایل"
-
-msgid "File Analysis System"
-msgstr "سامانه تحلیل فایل"
 
 msgid "File Analysis: Analyze a specific file by entering its path or ID"
 msgstr "تحلیل فایل: تحلیل یک فایل خاص با واردکردن مسیر یا شناسه آن"
@@ -3163,6 +3275,9 @@ msgstr ""
 msgid "Filters work together to narrow results precisely"
 msgstr "پالایه‌ها با هم کار می‌کنند تا نتایج دقیقاً محدود شوند"
 
+msgid "Filter…"
+msgstr "پالایش…"
+
 msgid "Find Duplicates"
 msgstr "یافتن تکراری‌ها"
 
@@ -3225,6 +3340,9 @@ msgstr "یافت‌شده در {count} فایل"
 
 msgid "Frequency"
 msgstr "بسامد"
+
+msgid "Fresh"
+msgstr "از نو"
 
 msgid "From"
 msgstr "از تاریخ"
@@ -3493,6 +3611,9 @@ msgstr "شناسه:"
 msgid "IDLE"
 msgstr "بیکار"
 
+msgid "INFO"
+msgstr "اطلاعات"
+
 msgid "Identify the most common words to understand category themes"
 msgstr "رایج‌ترین واژه‌ها را شناسایی کنید تا موضوعات دسته‌بندی را درک کنید"
 
@@ -3527,6 +3648,13 @@ msgstr ""
 msgid "Import completed successfully"
 msgstr "درون‌ریزی با موفقیت کامل شد"
 
+msgid ""
+"Import domain classification data (Excel/CSV/JSON from the application "
+"import-data directory)."
+msgstr ""
+"درون‌ریزی داده‌های طبقه‌بندی دامنه (Excel/CSV/JSON از پوشه درون‌ریزی داده "
+"برنامه)."
+
 msgid "Import failed"
 msgstr "درون‌ریزی ناموفق بود"
 
@@ -3541,6 +3669,9 @@ msgid ""
 msgstr ""
 "برای پردازش کارآمد، فایل‌ها را به‌صورت انبوه با مسیر فایل یا فایل CSV "
 "درون‌ریزی کنید"
+
+msgid "Import job could not be created."
+msgstr "کار درون‌ریزی قابل ایجاد نبود."
 
 msgid "Import/Export"
 msgstr "درون‌ریزی/برون‌بری"
@@ -3557,8 +3688,20 @@ msgstr "اهمیت (زیاد-کم)"
 msgid "Importance (Low-High)"
 msgstr "اهمیت (کم-زیاد)"
 
+msgid "Importance 0.0-1.0"
+msgstr "اهمیت ۰٫۰-۱٫۰"
+
 msgid "Important:"
 msgstr "مهم:"
+
+msgid ""
+"Importing existing data is a distinct operation from file ingestion. "
+"Validate and preview before you commit - large imports run as jobs you can "
+"monitor and cancel."
+msgstr ""
+"درون‌ریزی داده‌های موجود عملیاتی جدا از دریافت فایل است. پیش از اجرا، "
+"اعتبارسنجی و پیش‌نمایش بگیرید — درون‌ریزی‌های بزرگ به‌صورت کارهایی اجرا "
+"می‌شوند که می‌توانید پایش و لغوشان کنید."
 
 msgid "Importing..."
 msgstr "در حال درون‌ریزی..."
@@ -3599,6 +3742,16 @@ msgstr "اطلاعات:"
 
 msgid "Information"
 msgstr "اطلاعات"
+
+msgid ""
+"Ingest a list of server-side files (restricted to configured ingestion "
+"roots). One path per line."
+msgstr ""
+"دریافت فهرستی از فایل‌های سمت سرور (محدود به ریشه‌های دریافت پیکربندی‌شده). "
+"هر مسیر در یک سطر."
+
+msgid "Ingestion"
+msgstr "دریافت"
 
 msgid "Initialization complete"
 msgstr "راه‌اندازی اولیه کامل شد"
@@ -3699,11 +3852,23 @@ msgstr ""
 msgid "JavaScript Functionality"
 msgstr "قابلیت‌های JavaScript"
 
+msgid "Job"
+msgstr "کار"
+
+msgid "Job / role *"
+msgstr "شغل / نقش *"
+
+msgid "Job could not be created."
+msgstr "کار قابل ایجاد نبود."
+
 msgid "Job/Type"
 msgstr "شغل/نوع"
 
 msgid "Jobs"
 msgstr "کارها"
+
+msgid "Jobs / Operations"
+msgstr "کارها / عملیات"
 
 msgid "Jump to page"
 msgstr "پرش به صفحه"
@@ -3926,6 +4091,12 @@ msgstr ""
 msgid "Live Preview"
 msgstr "پیش‌نمایش زنده"
 
+msgid "Live updates: event stream connected"
+msgstr "به‌روزرسانی زنده: جریان رویداد متصل شد"
+
+msgid "Live updates: polling every 2s"
+msgstr "به‌روزرسانی زنده: پرس‌وجو هر ۲ ثانیه"
+
 msgid "Load Similar Files"
 msgstr "بارگذاری فایل‌های مشابه"
 
@@ -3941,6 +4112,9 @@ msgstr ""
 
 msgid "Load words"
 msgstr "بارگذاری واژه‌ها"
+
+msgid "Loading active jobs…"
+msgstr "در حال بارگذاری کارهای فعال…"
 
 msgid "Loading analysis..."
 msgstr "در حال بارگذاری تحلیل..."
@@ -3959,6 +4133,9 @@ msgstr "در حال بارگذاری فایل‌های {category}..."
 
 msgid "Loading files..."
 msgstr "در حال بارگذاری فایل‌ها..."
+
+msgid "Loading jobs…"
+msgstr "در حال بارگذاری کارها…"
 
 msgid "Loading keywords..."
 msgstr "در حال بارگذاری کلیدواژه‌ها..."
@@ -4020,6 +4197,9 @@ msgstr "مگابایت"
 msgid "Machine Learning"
 msgstr "یادگیری ماشین"
 
+msgid "Main"
+msgstr "اصلی"
+
 msgid "Main brand color"
 msgstr "رنگ اصلی برند"
 
@@ -4037,6 +4217,9 @@ msgstr "مدیریت منابع، طرف‌ها، واژه‌ها، کلیدوا
 
 msgid "Manage templates: create, edit, delete, or share with team members"
 msgstr "مدیریت قالب‌ها: ایجاد، ویرایش، حذف یا اشتراک‌گذاری با اعضای تیم"
+
+msgid "Management"
+msgstr "مدیریت"
 
 msgid "Managing Categories"
 msgstr "مدیریت دسته‌بندی‌ها"
@@ -4150,6 +4333,9 @@ msgstr ""
 "بخش فراداده: فراداده کامل فایل شامل مسیر، اندازه، تاریخ‌ها، مقادیر هش و "
 "اطلاعات فنی را ببینید"
 
+msgid "Metadata extraction"
+msgstr "استخراج فراداده"
+
 msgid "Metadata saved successfully!"
 msgstr "فراداده با موفقیت ذخیره شد!"
 
@@ -4223,6 +4409,9 @@ msgstr "مدیران رشته، فرایند، ناهمگام و چندپردا�
 msgid "Monitor trends over time to understand system behavior patterns"
 msgstr "برای درک الگوهای رفتاری سامانه، روندها را در طول زمان زیر نظر بگیرید"
 
+msgid "Monitoring"
+msgstr "پایش"
+
 msgid "Month"
 msgstr "ماه"
 
@@ -4241,6 +4430,9 @@ msgstr "چند واژه: واژه۱ واژه۲ (جستجوی هر دو)"
 
 msgid "N/A"
 msgstr "ناموجود"
+
+msgid "NOT FOUND"
+msgstr "یافت نشد"
 
 msgid "Name"
 msgstr "نام"
@@ -4301,6 +4493,12 @@ msgid ""
 msgstr ""
 "خطای شبکه: اتصال به سرور ممکن نیست. لطفاً اتصال خود را بررسی و دوباره تلاش "
 "کنید."
+
+msgid "New Import"
+msgstr "درون‌ریزی جدید"
+
+msgid "New Ingestion"
+msgstr "دریافت جدید"
 
 msgid "New Password"
 msgstr "گذرواژه جدید"
@@ -4380,6 +4578,9 @@ msgstr "دسته‌بندی تکراری‌ای یافت نشد!"
 msgid "No error message"
 msgstr "بدون پیام خطا"
 
+msgid "No events yet"
+msgstr "هنوز رویدادی نیست"
+
 msgid "No file type data available"
 msgstr "داده‌ای برای انواع فایل موجود نیست"
 
@@ -4410,6 +4611,9 @@ msgstr "موردی در این بخش یافت نشد"
 msgid "No items selected"
 msgstr "هیچ موردی انتخاب نشده است"
 
+msgid "No jobs yet. Start an ingestion or import."
+msgstr "هنوز کاری نیست. یک دریافت یا درون‌ریزی را آغاز کنید."
+
 msgid "No keywords available"
 msgstr "کلیدواژه‌ای موجود نیست"
 
@@ -4427,6 +4631,9 @@ msgstr "هنوز کلیدواژه‌ای نیست — نخستین کلیدوا�
 
 msgid "No matches"
 msgstr "بدون انطباق"
+
+msgid "No operations yet - start an ingestion."
+msgstr "هنوز عملیاتی نیست - یک دریافت را آغاز کنید."
 
 msgid "No path data available"
 msgstr "داده مسیری موجود نیست"
@@ -4513,6 +4720,9 @@ msgstr "توجه: برای اعمال تنظیمات درون‌ریزی‌شد�
 msgid "Notes"
 msgstr "یادداشت‌ها"
 
+msgid "Nothing to start - run a preview first."
+msgstr "چیزی برای شروع نیست - ابتدا پیش‌نمایش بگیرید."
+
 msgid "Notification Details"
 msgstr "جزئیات اعلان"
 
@@ -4562,8 +4772,14 @@ msgid ""
 "Number of results per page for search and file lists (Display-specific)"
 msgstr "تعداد نتایج در هر صفحه برای جستجو و فهرست فایل‌ها (مخصوص نمایش)"
 
+msgid "OCR when available"
+msgstr "OCR در صورت وجود"
+
 msgid "OK"
 msgstr "تأیید"
+
+msgid "Off"
+msgstr "خاموش"
 
 msgid "Off-Hours"
 msgstr "خارج از ساعات کاری"
@@ -4592,6 +4808,9 @@ msgid ""
 msgstr ""
 "بازکردن فایل‌ها: برای بازکردن پنجره جامع جزئیات فایل روی هر کارت فایل یا "
 "مورد فهرست کلیک کنید"
+
+msgid "Operations"
+msgstr "عملیات"
 
 msgid "Operators: word1 AND word2 OR word3 NOT word4"
 msgstr "عملگرها: واژه۱ AND واژه۲ OR واژه۳ NOT واژه۴"
@@ -4764,6 +4983,9 @@ msgstr "عملکرد: سنجه‌های سرعت و کارایی پردازش"
 msgid "Permanently delete"
 msgstr "حذف همیشگی"
 
+msgid "Phase"
+msgstr "فاز"
+
 msgid "Pick Icon"
 msgstr "انتخاب آیکون"
 
@@ -4848,8 +5070,17 @@ msgstr "درگاه"
 msgid "Preview"
 msgstr "پیش‌نمایش"
 
+msgid "Preview & confirmation"
+msgstr "پیش‌نمایش و تأیید"
+
+msgid "Preview (dry run)"
+msgstr "پیش‌نمایش (اجرای آزمایشی)"
+
 msgid "Preview (no save)"
 msgstr "پیش‌نمایش (بدون ذخیره)"
+
+msgid "Preview failed"
+msgstr "پیش‌نمایش ناموفق بود"
 
 msgid "Previous"
 msgstr "قبلی"
@@ -4974,6 +5205,9 @@ msgstr "در حال پردازش:"
 msgid "Production Ready"
 msgstr "آماده بهره‌برداری"
 
+msgid "Progress"
+msgstr "پیشرفت"
+
 msgid "Query Expansion"
 msgstr "گسترش پرس‌وجو"
 
@@ -5036,6 +5270,9 @@ msgstr "جستجوهای اخیر"
 
 msgid "Recent searches are saved for quick access"
 msgstr "جستجوهای اخیر برای دسترسی سریع ذخیره می‌شوند"
+
+msgid "Recursive (include subdirectories)"
+msgstr "بازگشتی (شامل زیرپوشه‌ها)"
 
 msgid "Refresh"
 msgstr "بازآوری"
@@ -5174,11 +5411,27 @@ msgstr ""
 "طراحی واکنش‌گرا: روی اندازه‌های مختلف صفحه بی‌نقص کار می‌کند و چیدمان را "
 "برای دید بهینه تطبیق می‌دهد"
 
+msgid "Restore backup"
+msgstr "بازیابی پشتیبان"
+
+msgid "Restore job failed to start"
+msgstr "کار بازیابی شروع نشد"
+
+msgid ""
+"Restore previously exported application data (allowlist-validated JSON "
+"backup, transactional)."
+msgstr ""
+"بازیابی داده‌های صادراتی قبلی برنامه (پشتیبان JSON با فهرست مجاز "
+"اعتبارسنجی‌شده، تراکنشی)."
+
 msgid ""
 "Result Count: The number of matching files is displayed next to \"Search "
 "Results\" heading"
 msgstr ""
 "شمارش نتایج: تعداد فایل‌های منطبق کنار عنوان «نتایج جستجو» نمایش داده می‌شود"
+
+msgid "Result summary"
+msgstr "خلاصه نتیجه"
 
 msgid ""
 "Results are displayed in order of relevance, with the most relevant matches "
@@ -5199,6 +5452,11 @@ msgstr "طبقه‌بندی‌ها را مرور و تنظیم کنید تا د�
 
 msgid "Review and correct file dates to ensure data accuracy"
 msgstr "تاریخ‌های فایل را مرور و اصلاح کنید تا دقت داده تضمین شود"
+
+msgid "Review carefully. Imports run as jobs with full error reporting."
+msgstr ""
+"با دقت بازبینی کنید. درون‌ریزی‌ها به‌صورت کار با گزارش کامل خطا اجرا "
+"می‌شوند."
 
 msgid ""
 "Review categories and keywords most commonly associated with this source"
@@ -5275,6 +5533,13 @@ msgid "Run Process"
 msgstr "اجرای فرایند"
 
 msgid ""
+"Run Validate or Preview on an import source to see what would happen. "
+"Nothing is imported until you confirm."
+msgstr ""
+"برای دیدن اینکه چه اتفاقی می‌افتد، اعتبارسنجی یا پیش‌نمایش را روی یک منبع "
+"درون‌ریزی اجرا کنید. تا زمان تأیید شما چیزی درون‌ریزی نمی‌شود."
+
+msgid ""
 "Run a search on the Enhanced Search page and use \"Save Search\" to bookmark"
 " it here."
 msgstr ""
@@ -5289,6 +5554,9 @@ msgstr "جستجوهای ذخیره‌شده را بدون واردکردن دو
 
 msgid "Run this search"
 msgstr "اجرای این جستجو"
+
+msgid "SHA-256 content hashing & deduplication"
+msgstr "هش محتوا SHA-256 و حذف تکراری‌ها"
 
 msgid "SUCCESS"
 msgstr "موفق"
@@ -5801,6 +6069,9 @@ msgstr "یک مسیر انتخاب کنید"
 msgid "Select a side from the dropdown"
 msgstr "طرفی از فهرست کشویی انتخاب کنید"
 
+msgid "Select a source and a side."
+msgstr "منبع و طرفی انتخاب کنید."
+
 msgid ""
 "Select a source and side to associate uploaded files with your organization "
 "structure"
@@ -5879,6 +6150,18 @@ msgstr "جمله"
 
 msgid "Server error. Please try again later."
 msgstr "خطای سرور. لطفاً بعداً دوباره تلاش کنید."
+
+msgid "Server file batch"
+msgstr "دسته فایل سرور"
+
+msgid "Server file or folder path"
+msgstr "مسیر فایل یا پوشه روی سرور"
+
+msgid "Server path"
+msgstr "مسیر سرور"
+
+msgid "Server paths are restricted to configured ingestion roots."
+msgstr "مسیرهای سرور به ریشه‌های دریافت پیکربندی‌شده محدود هستند."
 
 msgid "Server-side filter (affects pagination/export/copy)."
 msgstr "پالایش سمت سرور (بر صفحه‌بندی/برون‌بری/کپی اثر می‌گذارد)."
@@ -5987,11 +6270,17 @@ msgstr "نام طرف"
 msgid "Side created successfully!"
 msgstr "طرف با موفقیت ایجاد شد!"
 
+msgid "Side created."
+msgstr "طرف ایجاد شد."
+
 msgid "Side deleted successfully!"
 msgstr "طرف با موفقیت حذف شد!"
 
 msgid "Side duplicated successfully!"
 msgstr "طرف با موفقیت تکثیر شد!"
+
+msgid "Side name *"
+msgstr "نام طرف *"
 
 msgid "Side name is required"
 msgstr "نام طرف الزامی است"
@@ -6286,6 +6575,9 @@ msgstr "نام منبع"
 msgid "Source created successfully!"
 msgstr "منبع با موفقیت ایجاد شد!"
 
+msgid "Source created."
+msgstr "منبع ایجاد شد."
+
 msgid "Source data exported successfully!"
 msgstr "داده‌های منبع با موفقیت برون‌بری شد!"
 
@@ -6294,6 +6586,9 @@ msgstr "منبع با موفقیت حذف شد!"
 
 msgid "Source duplicated successfully!"
 msgstr "منبع با موفقیت تکثیر شد!"
+
+msgid "Source name *"
+msgstr "نام منبع *"
 
 msgid "Source name is required"
 msgstr "نام منبع الزامی است"
@@ -6381,11 +6676,23 @@ msgstr ""
 msgid "Spacing & Layout"
 msgstr "فاصله‌گذاری و چیدمان"
 
+msgid "Staging failed"
+msgstr "آماده‌سازی ناموفق بود"
+
 msgid "Start Analysis"
 msgstr "شروع تحلیل"
 
 msgid "Start Color"
 msgstr "رنگ آغازین"
+
+msgid "Start Import"
+msgstr "آغاز درون‌ریزی"
+
+msgid "Start import"
+msgstr "آغاز درون‌ریزی"
+
+msgid "Started"
+msgstr "آغاز شد"
 
 msgid ""
 "State Management: Centralized state objects track navigation history, "
@@ -6400,6 +6707,9 @@ msgid ""
 msgstr ""
 "مدیریت وضعیت: سامانه وضعیت ناوبری، صفحه‌بندی، پالایه‌ها و ترجیحات نمای را در"
 " طول نشست شما حفظ می‌کند"
+
+msgid "Statistics"
+msgstr "آمار"
 
 msgid "Status"
 msgstr "وضعیت"
@@ -6477,6 +6787,9 @@ msgstr "حافظه مصرفی"
 
 msgid "Storage Used: Total size of all files in MB or GB format"
 msgstr "حافظه مصرفی: اندازه کل همه فایل‌ها به قالب مگابایت یا گیگابایت"
+
+msgid "Storage classification"
+msgstr "طبقه‌بندی ذخیره‌سازی"
 
 msgid "Submit"
 msgstr "ارسال"
@@ -6618,6 +6931,9 @@ msgstr "متن روشن"
 
 msgid "Text Muted"
 msgstr "متن کم‌رنگ"
+
+msgid "Text extraction & indexing"
+msgstr "استخراج متن و نمایه‌سازی"
 
 msgid ""
 "The File Library displays all files in your system with their status, "
@@ -6826,6 +7142,9 @@ msgstr "پردازش کامل، همه قابلیت‌ها"
 
 msgid "Tight spacing"
 msgstr "فاصله کم"
+
+msgid "Time"
+msgstr "زمان"
 
 msgid "Time Format"
 msgstr "قالب زمان"
@@ -7166,6 +7485,12 @@ msgstr ""
 msgid "Upload Logo Image"
 msgstr "بارگذاری تصویر لوگو"
 
+msgid "Upload failed"
+msgstr "بارگذاری ناموفق بود"
+
+msgid "Upload files"
+msgstr "بارگذاری فایل‌ها"
+
 msgid ""
 "Upload files or enter folder paths to analyze large collections efficiently"
 msgstr ""
@@ -7388,6 +7713,9 @@ msgstr ""
 msgid "Use words to understand the content and themes within this category"
 msgstr "برای درک محتوا و موضوعات این دسته‌بندی از واژه‌ها استفاده کنید"
 
+msgid "User"
+msgstr "کاربر"
+
 msgid "User Management"
 msgstr "مدیریت کاربران"
 
@@ -7409,8 +7737,14 @@ msgstr "استفاده از قالب‌ها"
 msgid "Valid"
 msgstr "معتبر"
 
+msgid "Validate"
+msgstr "اعتبارسنجی"
+
 msgid "Validation"
 msgstr "اعتبارسنجی"
+
+msgid "Validation failed"
+msgstr "اعتبارسنجی ناموفق بود"
 
 msgid "Version"
 msgstr "نسخه"
@@ -7435,6 +7769,9 @@ msgstr "دیدن فایل‌ها"
 
 msgid "View Full Content"
 msgstr "دیدن محتوای کامل"
+
+msgid "View Jobs"
+msgstr "دیدن کارها"
 
 msgid "View Modes"
 msgstr "حالت‌های نمایش"
@@ -7661,6 +7998,9 @@ msgstr "تحلیل‌های بصری با پالایه‌ها - همه بخش‌
 msgid "Voice search"
 msgstr "جستجوی صوتی"
 
+msgid "WARNING"
+msgstr "هشدار"
+
 msgid "Warning"
 msgstr "هشدار"
 
@@ -7846,6 +8186,9 @@ msgstr ""
 "واژه‌های با تعداد استفاده صفر بلااستفاده‌اند و ممکن است نامزد پاک‌سازی "
 "باشند."
 
+msgid "Workers"
+msgstr "کارگرها"
+
 msgid "Wrap"
 msgstr "شکستن خط"
 
@@ -7906,6 +8249,12 @@ msgstr "فعال"
 msgid "add your first keyword"
 msgstr "نخستین کلیدواژه خود را اضافه کنید"
 
+msgid "admin"
+msgstr "مدیر"
+
+msgid "always on"
+msgstr "همیشه روشن"
+
 msgid "avg"
 msgstr "میانگین"
 
@@ -7914,6 +8263,9 @@ msgstr "کلیک کنید تا پوشه‌ها باز شوند و زیرپوشه
 
 msgid "categories"
 msgstr "دسته‌بندی"
+
+msgid "data file name (optional)"
+msgstr "نام فایل داده (اختیاری)"
 
 msgid "duplicate keywords for"
 msgstr "کلیدواژه تکراری برای"
