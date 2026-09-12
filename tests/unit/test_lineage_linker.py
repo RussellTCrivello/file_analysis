@@ -62,8 +62,15 @@ class TestNoOpCases:
 
 
 class TestLinking:
+    """Names are registered for every id the linker touches.
+
+    The chain is built from the child row's OWN stored file_name, not from the
+    archive member's name - see test_hierarchy_uses_the_rows_own_name. So the
+    stub has to know each row's name, exactly as production does.
+    """
+
     def test_single_child_gets_parent_and_hierarchy(self):
-        repo = StubRepo(names={1: "outer.zip"})
+        repo = StubRepo(names={1: "outer.zip", 2: "child.pdf"})
         content = {"extracted_files": [
             {"database_path_id": 2, "Metadata": {"name": "child.pdf"}},
         ]}
@@ -73,8 +80,7 @@ class TestLinking:
 
     def test_hierarchy_falls_back_to_file_name(self):
         """A top-level container has no stored hierarchy yet."""
-        repo = StubRepo(names={1: "outer.zip"})
-        repo.names = {}  # get_lineage returns ("file1", None)
+        repo = StubRepo(names={2: "child.pdf"})  # parent 1 unregistered
         content = {"extracted_files": [
             {"database_path_id": 2, "Metadata": {"name": "child.pdf"}},
         ]}
@@ -82,15 +88,39 @@ class TestLinking:
         assert repo.updates[0][2] == "file1::child.pdf"
 
     def test_name_is_derived_from_path_when_absent(self):
-        repo = StubRepo(names={1: "a.zip"})
+        """No stored name on the row, so the member metadata is the fallback."""
+        repo = StubRepo(names={1: "a.zip", 2: ""})  # row 2 has no file_name
         content = {"extracted_files": [
             {"database_path_id": 2, "Metadata": {"path": "/tmp/x/deep.pdf"}},
         ]}
         pipeline_with(repo)._link_extracted_children(content, 1)
         assert repo.updates[0][2] == "a.zip::deep.pdf"
 
+    def test_hierarchy_uses_the_rows_own_name(self):
+        """The row's stored name wins over the archive member's name.
+
+        Identical bytes under two member names collapse onto one paths row.
+        Building the chain from the member name wrote the LAST member's name
+        into that row, so file_name and hierarchy_path contradicted each other:
+        observed as file_name='duplicate_a.txt' with
+        hierarchy_path='dup.zip::duplicate_b.txt'. Deriving the chain from the
+        stored name makes the two agree by construction and makes repeated
+        links idempotent.
+        """
+        repo = StubRepo(names={1: "outer.zip", 2: "duplicate_a.txt"})
+        content = {"extracted_files": [
+            {"database_path_id": 2, "Metadata": {"name": "duplicate_a.txt"}},
+            {"database_path_id": 2, "Metadata": {"name": "duplicate_b.txt"}},
+        ]}
+        pipeline_with(repo)._link_extracted_children(content, 1)
+        assert repo.updates == [
+            (2, 1, "outer.zip::duplicate_a.txt"),
+            (2, 1, "outer.zip::duplicate_a.txt"),
+        ], repo.updates
+        assert all(u[2].endswith("::duplicate_a.txt") for u in repo.updates)
+
     def test_recursion_builds_the_full_chain(self):
-        repo = StubRepo(names={1: "outer.zip"})
+        repo = StubRepo(names={1: "outer.zip", 2: "inner.zip", 3: "scan.png"})
         content = {"extracted_files": [{
             "database_path_id": 2,
             "Metadata": {"name": "inner.zip"},
@@ -113,7 +143,7 @@ class TestLinking:
 class TestFailureHandling:
     def test_one_bad_child_does_not_abort_the_rest(self):
         """A failed link must not fail the ingest - the child is still indexed."""
-        repo = StubRepo(names={1: "a.zip"}, fail_ids={2})
+        repo = StubRepo(names={1: "a.zip", 3: "good.pdf"}, fail_ids={2})
         content = {"extracted_files": [
             {"database_path_id": 2, "Metadata": {"name": "bad.pdf"}},
             {"database_path_id": 3, "Metadata": {"name": "good.pdf"}},

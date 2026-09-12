@@ -1585,9 +1585,17 @@ class StoragePipeline:
                 or os.path.basename(str((child.get("Metadata") or {}).get("path", "")))
                 or "unknown"
             )
+            # Build the chain from the ROW's own name, not the archive member's.
+            # Identical bytes under two names collapse onto one paths row, so
+            # writing the member name left the row self-contradictory: observed
+            # as file_name='duplicate_a.txt' with
+            # hierarchy_path='dup.zip::duplicate_b.txt', whichever member was
+            # linked last. Deriving it from the stored name makes the two
+            # consistent by construction and idempotent under repeats.
+            stored_name = self._file_name_of(child_id) or child_name
             child_hierarchy = (
-                f"{parent_hierarchy}{self.HIERARCHY_SEPARATOR}{child_name}"
-                if parent_hierarchy else child_name
+                f"{parent_hierarchy}{self.HIERARCHY_SEPARATOR}{stored_name}"
+                if parent_hierarchy else stored_name
             )
             try:
                 self.db_service.paths_repo.update_lineage(
@@ -1612,6 +1620,20 @@ class StoragePipeline:
                 f"path_id={parent_path_id}"
             )
         return linked
+
+    def _file_name_of(self, path_id: int) -> str:
+        """The stored file_name for a path, or '' if it cannot be read."""
+        try:
+            row = self.db_service.paths_repo.get_lineage(path_id)
+        except Exception:
+            return ""
+        if not row:
+            return ""
+        if isinstance(row, dict):
+            return row.get("file_name") or ""
+        if isinstance(row, (tuple, list)):
+            return row[0] or ""
+        return ""
 
     def _hierarchy_of(self, path_id: int) -> str:
         """The stored hierarchy chain for a path, defaulting to its file name."""
