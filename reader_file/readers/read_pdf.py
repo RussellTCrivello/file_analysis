@@ -199,11 +199,28 @@ class PDFFileReader(BaseReader):
         # without the binary still gets OCR through the engine layer instead of
         # silently returning a blank page.
         use_tesseract = bool(pytesseract and _is_tesseract_available())
+        if use_tesseract and ocr_languages:
+            try:
+                installed_languages = set(pytesseract.get_languages(config=""))
+                missing_languages = [
+                    code for code in ocr_languages if code not in installed_languages
+                ]
+                if missing_languages:
+                    # Route through the strict shared engine so missing script
+                    # data is reported, never silently reduced to English.
+                    logger.error(
+                        "Missing Tesseract language data for %s: %s",
+                        filepath.name, ", ".join(missing_languages),
+                    )
+                    use_tesseract = False
+            except Exception:
+                use_tesseract = False
         fallback_engine = None if use_tesseract else get_ocr_engine()
         if not use_tesseract and fallback_engine is None:
-            return _fallback_to_text_layer("ocr_skipped_no_engine_available")
+            return _fallback_to_text_layer("ocr_required_engine_unavailable")
 
         try:
+            engine_result = None
             pil_image = Image.open(io.BytesIO(page_bytes))
             # Convert palette images with transparency to RGBA to avoid PIL warnings
             if pil_image.mode == 'P' and 'transparency' in pil_image.info:
@@ -279,15 +296,18 @@ class PDFFileReader(BaseReader):
                 if input_variant:
                     result["ocr_input_variant"] = input_variant
             else:
-                # OCR found nothing: fall back to the page's own text layer
-                # rather than discarding content we already have.
-                return _fallback_to_text_layer("ocr_no_text")
+                # OCR found nothing (or could not run). Preserve the native
+                # layer, while retaining the actual diagnostic for retry.
+                reason = "ocr_failed" if (engine_result and engine_result.error) else "ocr_no_text"
+                if engine_result and engine_result.error:
+                    result["error"] = engine_result.error
+                return _fallback_to_text_layer(reason)
 
         except Exception as e:
             error_str = str(e).lower()
             # Suppress verbose tesseract errors - we already checked availability
             if 'tesseract' in error_str and ('not installed' in error_str or 'not in your path' in error_str):
-                reason = "ocr_skipped_tesseract_unavailable"
+                reason = "ocr_required_engine_unavailable"
             else:
                 reason = "ocr_failed"
                 result["error"] = str(e)
@@ -470,9 +490,14 @@ class PDFFileReader(BaseReader):
                 ocr_available = (bool(pytesseract) and _is_tesseract_available()) \
                     or get_ocr_engine() is not None
                 if not ocr_available:
-                    result["ocr_status"] = "no_engine_available"
-                    logger.warning(
-                        "No OCR engine available for %s; extracting text layers only",
+                    # This is a retryable dependency failure, not a completed
+                    # extraction. Native text pages are still retained below.
+                    result["ocr_status"] = "ocr_required_engine_unavailable"
+                    result["extraction_failed"] = True
+                    result["retryable"] = True
+                    result["error"] = "OCR is required for image pages but no OCR engine is available"
+                    logger.error(
+                        "OCR required but no engine is available for %s; native text layers will be preserved",
                         filepath.name,
                     )
                 
@@ -504,16 +529,20 @@ class PDFFileReader(BaseReader):
                                     "method": "direct_extraction"
                                 })
                             elif not ocr_available:
-                                # No OCR engine: keep whatever text layer the
-                                # page has instead of producing a blank page.
+                                # Do not silently classify a scanned page as
+                                # processed. Preserve any native text layer,
+                                # but expose the missing OCR dependency so the
+                                # job cannot claim that the page was read.
                                 stripped = text.strip()
                                 result["pages"].append({
                                     "page_number": page_num + 1,
                                     "text": stripped,
                                     "text_length": len(stripped),
                                     "method": ("text_layer_fallback" if stripped
-                                               else "ocr_skipped_no_engine_available"),
-                                    "ocr_status": "ocr_skipped_no_engine_available"
+                                               else "ocr_required_engine_unavailable"),
+                                    "ocr_status": "ocr_required_engine_unavailable",
+                                    "error": (None if stripped else
+                                              "OCR is required but no OCR engine is available")
                                 })
                             else:
                                 # Page needs OCR - ensure we still track the page number
@@ -604,6 +633,18 @@ class PDFFileReader(BaseReader):
                 methods[method] = methods.get(method, 0) + 1
             result["methods_used"] = methods
             
+            # A missing OCR backend must remain visible to the job runner even
+            # when a PDF also contains a native text layer.
+            unavailable_pages = [
+                p for p in result["pages"]
+                if p.get("method") == "ocr_required_engine_unavailable"
+            ]
+            if unavailable_pages:
+                result["extraction_failed"] = True
+                result["retryable"] = True
+                result["error"] = "OCR required but unavailable for one or more pages"
+                result["ocr_status"] = "ocr_required_engine_unavailable"
+
             # Processing time
             result["processing_time"] = time.time() - start_time
             

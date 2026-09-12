@@ -21,7 +21,7 @@ PDF-02  Pages whose text layer held <= 30 characters were classified as
         Note the status string in the measurement above is the historical one.
         Phase 2A added a fallback engine, so the reason a page is not OCR'd is
         no longer necessarily "tesseract is missing"; the current string is
-        ``ocr_skipped_no_engine_available``, asserted below.
+        ``ocr_required_engine_unavailable``, asserted below.
 """
 
 import io
@@ -132,7 +132,7 @@ class TestTextLayerNeverDiscarded:
     def test_sparse_page_method_is_text_layer_fallback(self, reader, no_ocr_engine):
         result = read_pdf_bytes(reader, build_pdf(["SPARSE-7712"]))
         assert result["pages"][0]["method"] == "text_layer_fallback"
-        assert result["pages"][0]["ocr_status"] == "ocr_skipped_no_engine_available"
+        assert result["pages"][0]["ocr_status"] == "ocr_required_engine_unavailable"
 
     def test_dense_page_uses_direct_extraction(self, reader, no_ocr_engine):
         # A single insert_text run is clipped at the page width (~66 glyphs at
@@ -176,12 +176,12 @@ class TestTextLayerNeverDiscarded:
         page = result["pages"][0]
         assert page["page_number"] == 1
         assert page["text"] == ""
-        assert page["method"] == "ocr_skipped_no_engine_available"
+        assert page["method"] == "ocr_required_engine_unavailable"
 
     def test_no_ocr_engine_skips_rasterisation_entirely(self, reader, no_ocr_engine):
         result = read_pdf_bytes(reader, build_pdf(["sparse text"]))
         assert result.get("ocr_used") is False
-        assert result.get("ocr_status") == "no_engine_available"
+        assert result.get("ocr_status") == "ocr_required_engine_unavailable"
 
 
 class TestProcessPageOptimized:
@@ -199,14 +199,14 @@ class TestProcessPageOptimized:
         result = reader.process_page_optimized(page_data)
         assert result["page_number"] == 3
         assert result["text"] == ""
-        assert result["method"] == "ocr_skipped_no_engine_available"
+        assert result["method"] == "ocr_required_engine_unavailable"
 
     def test_legacy_six_tuple_still_unpacks(self, reader, no_ocr_engine):
         """Backward compatibility for the previous page_data shape."""
         page_data = (1, b"not-a-real-png", "eng", "", True, ["eng"])
         result = reader.process_page_optimized(page_data)
         assert result["page_number"] == 2
-        assert result["method"] == "ocr_skipped_no_engine_available"
+        assert result["method"] == "ocr_required_engine_unavailable"
 
     def test_needs_ocr_false_short_circuits(self, reader, no_ocr_engine):
         page_data = (0, b"", "eng", "", False, ["eng"], "ignored")
@@ -308,7 +308,7 @@ class TestScannedPdfUsesFallbackEngine:
 
     def test_document_is_not_flagged_as_no_engine(self, reader, tesseract_absent):
         result = read_pdf_bytes(reader, build_scanned_pdf("ANYTHING 1234"))
-        assert result.get("ocr_status") != "no_engine_available"
+        assert result.get("ocr_status") != "ocr_required_engine_unavailable"
         assert result.get("ocr_used") is True
 
     def test_blank_scanned_page_falls_back_without_hallucinating(
