@@ -1,3 +1,5 @@
+import json
+
 from .best_repo import BaseRepository
 from datetime import date
 from ..queries.path_queries import FileQueries
@@ -14,9 +16,16 @@ class PathsRepository(BaseRepository):
         hash_id=None,
         file_date=None,
         date_creation=date.today(),
-        coordinates=""
+        coordinates="",
+        extraction_provenance=None
     ):
-        """Insert a new file path and return its ID"""
+        """Insert a new file path and return its ID.
+
+        ``extraction_provenance`` is a JSON-serialisable mapping describing how
+        each extractor derived its data (engine, version, confidence, whether
+        the text is derived rather than authored). ``None`` means the file was
+        ingested before provenance was captured.
+        """
         params = (
             file_name,
             file_path,
@@ -27,6 +36,7 @@ class PathsRepository(BaseRepository):
             hash_id,
             date_creation,
             coordinates,
+            json.dumps(extraction_provenance) if extraction_provenance is not None else None,
         )
         # Don't use commit=True in transaction context - let transaction manager handle commits
         # commit parameter is ignored when _connection is set (transaction context)

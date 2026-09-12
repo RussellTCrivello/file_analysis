@@ -299,6 +299,7 @@ class ImportService:
         * single transaction; caller rolls back on any failure
         """
         from psycopg2 import sql as pg_sql
+        from psycopg2.extras import Json
 
         restored_tables = []
         restored_rows = 0
@@ -437,6 +438,14 @@ class ImportService:
                                 values.append(None)
                             elif isinstance(value, str) and len(value) > ImportService.MAX_BACKUP_VALUE_LENGTH:
                                 raise ValueError("Backup value exceeds size limit")
+                            elif isinstance(value, (dict, list)):
+                                # JSONB columns round-trip through the JSON
+                                # backup as Python dict/list, which psycopg2
+                                # cannot adapt directly. Not specific to
+                                # paths.extraction_provenance: jobs.options,
+                                # jobs.stats, jobs.errors, jobs.warnings and
+                                # job_queue.payload are JSONB too.
+                                values.append(Json(value))
                             else:
                                 values.append(value)
 

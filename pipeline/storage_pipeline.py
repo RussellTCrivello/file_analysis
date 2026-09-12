@@ -652,6 +652,7 @@ class StoragePipeline:
                 try:
                     # PRODUCTION: process_full_document uses its own transaction
                     # If it fails, it will rollback and we can retry with a fresh transaction
+                    extraction_provenance = self._build_extraction_provenance(content)
                     storage_result = self.db_service.process_full_document(
                         hash_value=file_hash,
                         source_id=source_id,
@@ -665,7 +666,8 @@ class StoragePipeline:
                         content_words=content_words,
                         title_words=title_words,
                         coordinates=coordinates,
-                        content_date=content_date
+                        content_date=content_date,
+                        extraction_provenance=extraction_provenance
                     )
                     
                     # Handle case where storage_result is None
@@ -1426,6 +1428,104 @@ class StoragePipeline:
                 logger.warning(f"Fallback hash check also failed: {repo_error}")
             return False, None
     
+    def _build_extraction_provenance(
+        self, content: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Assemble per-extractor provenance for storage in paths.
+
+        The readers already report how each piece of data was derived; this
+        collects that into the JSONB shape persisted by migration 0007, so
+        recognised text is never indistinguishable from authored text and a
+        consumer can tell which engine produced what.
+
+        Returns None when the content carries no provenance, which is the
+        truthful value for extractors that do not report any - never an empty
+        dict, which would claim provenance was recorded when it was not.
+        """
+        if not content or not isinstance(content, dict):
+            return None
+
+        provenance: Dict[str, Any] = {}
+
+        # ---- OCR (images, and per-page for PDFs) ----
+        if content.get("ocr_attempted") is not None or "pages" in content:
+            ocr = self._ocr_provenance(content)
+            if ocr:
+                provenance["ocr"] = ocr
+
+        # ---- type detection, when the reader recorded it ----
+        detection = content.get("type_detection")
+        if isinstance(detection, dict) and detection:
+            provenance["detection"] = {
+                key: detection.get(key)
+                for key in (
+                    "declared_extension", "detected_extension",
+                    "detection_method", "detection_confidence",
+                    "extension_mismatch",
+                )
+                if detection.get(key) is not None
+            } or None
+            if provenance["detection"] is None:
+                provenance.pop("detection", None)
+
+        # ---- extraction diagnostics ----
+        info = content.get("extraction_info")
+        if isinstance(info, dict) and info:
+            diagnostics = {
+                key: info.get(key)
+                for key in ("error", "reason", "skipped", "skip_reason",
+                            "engine_error", "preprocessing")
+                if info.get(key) is not None
+            }
+            if diagnostics:
+                provenance["diagnostics"] = diagnostics
+
+        return provenance or None
+
+    @staticmethod
+    def _ocr_provenance(content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """OCR provenance for either an image result or a multi-page PDF."""
+        pages = content.get("pages")
+        if isinstance(pages, list) and pages:
+            ocr_pages = [p for p in pages if str(p.get("method", "")).startswith("ocr_")]
+            if not ocr_pages:
+                return None
+            engines = sorted({p.get("ocr_engine") for p in ocr_pages if p.get("ocr_engine")})
+            confidences = [
+                p["ocr_confidence"] for p in ocr_pages
+                if isinstance(p.get("ocr_confidence"), (int, float))
+            ]
+            return {
+                "engine": engines[0] if len(engines) == 1 else (engines or None),
+                "engines": engines,
+                "engine_version": next(
+                    (p.get("ocr_engine_version") for p in ocr_pages
+                     if p.get("ocr_engine_version")), None),
+                "derived": True,
+                "ocr_pages": len(ocr_pages),
+                "total_pages": len(pages),
+                "confidence": (sum(confidences) / len(confidences)) if confidences else None,
+                "language": next(
+                    (p.get("ocr_language") for p in ocr_pages
+                     if p.get("ocr_language")), None),
+                "input_variant": next(
+                    (p.get("ocr_input_variant") for p in ocr_pages
+                     if p.get("ocr_input_variant")), None),
+            }
+
+        if content.get("ocr_attempted") is None:
+            return None
+        return {
+            "engine": content.get("ocr_engine"),
+            "engine_version": content.get("ocr_engine_version"),
+            "derived": bool(content.get("ocr_derived")),
+            "attempted": bool(content.get("ocr_attempted")),
+            "successful": bool(content.get("ocr_successful")),
+            "confidence": content.get("ocr_confidence"),
+            "language": content.get("ocr_language"),
+            "input_variant": content.get("ocr_input_variant"),
+        }
+
     def _extract_coordinates(self, content: Dict) -> Optional[str]:
         """
         Extract GPS coordinates from content
