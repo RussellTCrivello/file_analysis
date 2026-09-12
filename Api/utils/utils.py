@@ -113,6 +113,19 @@ def get_query():
     return get_query_cache()
 
 
+def invalidate_query_cache():
+    """Invalidate every in-process read cache after a committed write.
+
+    Category/keyword changes affect dashboard aggregates, dropdowns, filtered
+    lists, and text lookups at the same time. A TTL-only cache makes those
+    changes appear to be lost for up to five minutes.
+    """
+    try:
+        get_query_cache().clear()
+    except Exception:
+        logger.warning("Could not invalidate query cache", exc_info=True)
+
+
 def execute_query(query, params=None, fetch="all", use_cache=False):
     """
     Execute a SQL query with optional caching and fetch modes.

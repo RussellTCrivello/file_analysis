@@ -29,6 +29,7 @@ files_bp = Blueprint("files", __name__)
 
 from core.serialization import pack_int_list, unpack_int_list
 from core.errors import client_error, client_safe_message
+from core.security.rate_limit import limiter
 from Api.utils import (
     execute_query, select_info_sources, select_info_sides, select_info_file_types,
     load_text_content, select_classification, compute_percentage, get_content_stats,
@@ -309,6 +310,7 @@ def upload_progress(task_id):
 
 
 @files_bp.route('/upload/active-tasks', methods=['GET'])
+@limiter.exempt
 def get_active_tasks():
     """
     Get all active (running/pending/paused) processing tasks.

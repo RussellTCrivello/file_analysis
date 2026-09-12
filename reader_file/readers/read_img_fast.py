@@ -135,8 +135,10 @@ class ImageFileReader(BaseReader):
                 "text": "",
                 "ocr_attempted": False,
                 "ocr_successful": False,
+                "retryable": True,
                 "extraction_info": {
                     "error": "PIL/Image library not available",
+                    "reason": "required_dependency_unavailable",
                     "extracted": False,
                     "stored": False
                 }
@@ -160,16 +162,13 @@ class ImageFileReader(BaseReader):
                 width, height = img.size
                 img_format = img.format
                 
-                # Skip tiny images or icons
-                if width < 50 or height < 50 or img_format == "ICO":
-                    logger.info(f"[EXTRACTION] Skipped {os.path.basename(filepath)}: too small ({width}x{height}) or icon format")
-                    result["extraction_info"].update({
-                        "skipped": True,
-                        "skip_reason": "too_small" if width < 50 or height < 50 else "icon_format",
-                        "image_size": f"{width}x{height}",
-                        "image_format": img_format
-                    })
-                    return result
+                # Even small/icon images are content-bearing input. Do not
+                # discard them before OCR; the caller must receive either text
+                # or an explicit retryable OCR failure.
+                result["extraction_info"].update({
+                    "image_size": f"{width}x{height}",
+                    "image_format": img_format
+                })
                 
                 # Extract GPS location (for paths.coordinates field, not content)
                 location_info = None
@@ -192,6 +191,22 @@ class ImageFileReader(BaseReader):
                 # back to a pure-pip engine, so a host without tesseract still
                 # gets OCR instead of silently producing nothing.
                 use_tesseract = bool(pytesseract and self._is_tesseract_available())
+                requested_languages = list(languages or DEFAULT_OCR_LANGUAGES)
+                if use_tesseract:
+                    try:
+                        installed_languages = set(pytesseract.get_languages(config=""))
+                        missing_languages = [
+                            code for code in requested_languages
+                            if code not in installed_languages
+                        ]
+                        if missing_languages:
+                            logger.error(
+                                "Missing Tesseract language data for %s: %s",
+                                os.path.basename(filepath), ", ".join(missing_languages),
+                            )
+                            use_tesseract = False
+                    except Exception:
+                        use_tesseract = False
                 fallback_engine = None if use_tesseract else get_ocr_engine()
 
                 if use_tesseract or fallback_engine is not None:
@@ -339,13 +354,24 @@ class ImageFileReader(BaseReader):
                             f"Language: {lang}"
                         )
                 else:
-                    result["ocr_engine"] = "none"
+                    # Never report an image as successfully processed when its
+                    # pixels were not examined. The original file remains
+                    # stored, but searchable content is explicitly marked as
+                    # unavailable and the job can surface the dependency error.
+                    result["ocr_attempted"] = True
+                    result["ocr_engine"] = "unavailable"
                     result["extraction_info"].update({
-                        "error": "No OCR engine available",
+                        "extracted": False,
+                        "stored": False,
+                        "error": "OCR is required but no OCR engine is available",
+                        "reason": "ocr_required_engine_unavailable",
                         "image_size": f"{width}x{height}",
                         "image_format": img_format
                     })
-                    logger.warning(f"[EXTRACTION] No OCR engine available for: {os.path.basename(filepath)}")
+                    logger.error(
+                        "[EXTRACTION] OCR required but no engine is available for: %s",
+                        os.path.basename(filepath),
+                    )
                 
                 return result
         

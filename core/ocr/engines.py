@@ -229,17 +229,18 @@ class TesseractEngine(BaseOcrEngine):
             self.available()
         return self._version or "unknown"
 
-    def _languages(self, languages: Optional[Sequence[str]]) -> str:
+    def _languages(self, languages: Optional[Sequence[str]]) -> Tuple[str, List[str]]:
         mod = self._module()
         requested = [code for code in (languages or []) if code]
         if not requested:
-            return "eng"
+            return "eng", []
         try:
             installed = set(mod.get_languages(config=""))
         except Exception:
-            installed = {"eng"}
+            installed = set()
+        missing = [code for code in requested if code not in installed]
         usable = [code for code in requested if code in installed]
-        return "+".join(usable) if usable else "eng"
+        return "+".join(usable), missing
 
     def recognize(
         self, image: Any, languages: Optional[Sequence[str]] = None
@@ -248,7 +249,16 @@ class TesseractEngine(BaseOcrEngine):
             return self._result(error="tesseract unavailable")
 
         mod = self._module()
-        lang = self._languages(languages)
+        lang, missing_languages = self._languages(languages)
+        if missing_languages:
+            # Do not silently downgrade heb+eng+ara to whichever one happened
+            # to be installed. That would discard scripts without reporting it.
+            return self._result(
+                language=lang,
+                error="Missing Tesseract language data: " + ", ".join(missing_languages),
+            )
+        if not lang:
+            return self._result(error="No requested Tesseract language data is installed")
 
         for psm in self.PSM_ORDER:
             config = f"--oem 3 --psm {psm}"
@@ -445,8 +455,8 @@ def _select_engine() -> Optional[BaseOcrEngine]:
                     "OCR engine selected: %s (%s)", engine.name, engine.version()
                 )
                 return _SELECTED
-        logger.warning(
-            "No OCR engine available; image and scanned-PDF OCR will be skipped"
+        logger.error(
+            "No OCR engine available; image and scanned-PDF processing will be marked retryable"
         )
         return None
 
