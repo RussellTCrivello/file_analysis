@@ -17,24 +17,10 @@
     
     <!-- Fonts -->
     <link href="{{ url_for('static', filename='fonts/inter.css') }}" rel="stylesheet" crossorigin="anonymous">
-    {% if current_language == 'ar' %}
-    <link href="{{ url_for('static', filename='fonts/noto-arabic.css') }}" rel="stylesheet">
-    {% elif current_language == 'fa' %}
-    <link href="{{ url_for('static', filename='fonts/noto-arabic.css') }}" rel="stylesheet">
-    {% elif current_language == 'ur' %}
+    {% if current_language in ['ar', 'fa', 'ur'] %}
     <link href="{{ url_for('static', filename='fonts/noto-arabic.css') }}" rel="stylesheet">
     {% elif current_language == 'he' %}
     <link href="{{ url_for('static', filename='fonts/noto-hebrew.css') }}" rel="stylesheet">
-    {% elif current_language in ['zh_CN', 'zh_TW'] %}
-    <link href="{{ url_for('static', filename='fonts/noto-cjk.css') }}" rel="stylesheet">
-    {% elif current_language == 'ja' %}
-    <link href="{{ url_for('static', filename='fonts/noto-cjk.css') }}" rel="stylesheet">
-    {% elif current_language == 'ko' %}
-    <link href="{{ url_for('static', filename='fonts/noto-cjk.css') }}" rel="stylesheet">
-    {% elif current_language == 'th' %}
-    <link href="{{ url_for('static', filename='fonts/noto-thai.css') }}" rel="stylesheet">
-    {% elif current_language == 'hi' %}
-    <link href="{{ url_for('static', filename='fonts/noto-devanagari.css') }}" rel="stylesheet">
     {% endif %}
     
     <!-- Local Bootstrap CSS -->
@@ -198,11 +184,11 @@
          2. app-i18n.js - merges UI packs + server catalog, exposes
             window.t() / window.translations and live-translates the DOM
          ============================================================ -->
-    <script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}?v=20260912" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}?v=20260912" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}?v=20260912" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}?v=20260912" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}?v=20260912" defer></script>
 </head>
 
 <body data-page-type="{% block page_type %}default{% endblock %}"

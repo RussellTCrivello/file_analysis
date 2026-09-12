@@ -380,6 +380,11 @@ body {
     font-family: 'Noto Sans Arabic', 'Inter', sans-serif;
 }
 
+[dir="rtl"][lang="he"] body,
+[lang="he"] body {
+    font-family: 'Noto Sans Hebrew', 'Inter', sans-serif;
+}
+
 .btn-sm {
     padding: 0.25rem 0.5rem !important;
     font-size: 0.75rem !important;
