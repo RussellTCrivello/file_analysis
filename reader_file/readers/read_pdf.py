@@ -36,7 +36,7 @@ from reader_file.readers.read_img_fast import (
 
 # PHASE 2A: OCR engine selection. Imported from its owning module rather than
 # re-exported through read_img_fast.
-from core.ocr import get_ocr_engine
+from core.ocr import get_ocr_engine, recognize_best
 
 from .base_reader import BaseReader
 
@@ -245,12 +245,16 @@ class PDFFileReader(BaseReader):
                 except Exception:
                     engine_version = "unknown"
                 confidence = None
+                input_variant = ""
             else:
                 # Alternate engine path. Same contract, plus per-page
                 # confidence and explicit engine provenance.
-                engine_result = fallback_engine.recognize(
+                # Confidence-gated retry on the un-preprocessed page image.
+                engine_result = recognize_best(
+                    fallback_engine,
                     pil_processed,
-                    list(ocr_languages) if ocr_languages else None
+                    rgb_image,
+                    list(ocr_languages) if ocr_languages else None,
                 )
                 text = engine_result.text or ""
                 result["ocr_language"] = engine_result.language
@@ -260,6 +264,7 @@ class PDFFileReader(BaseReader):
                 engine_name = engine_result.engine
                 engine_version = engine_result.engine_version
                 confidence = engine_result.mean_confidence
+                input_variant = engine_result.input_variant
 
             if text and len(text.strip()) > 0:
                 result["text"] = text.strip()
@@ -271,6 +276,8 @@ class PDFFileReader(BaseReader):
                 result["ocr_derived"] = True
                 if confidence is not None:
                     result["ocr_confidence"] = confidence
+                if input_variant:
+                    result["ocr_input_variant"] = input_variant
             else:
                 # OCR found nothing: fall back to the page's own text layer
                 # rather than discarding content we already have.

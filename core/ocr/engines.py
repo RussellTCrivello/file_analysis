@@ -64,6 +64,10 @@ class OcrResult:
     language: str = ""
     attempted: bool = False
     error: Optional[str] = None
+    #: Which input variant produced this result: "preprocessed", "original",
+    #: or "" when the caller passed a single image. Part of provenance - it
+    #: records that the text came from a retry, not the primary pass.
+    input_variant: str = ""
 
     @property
     def succeeded(self) -> bool:
@@ -93,6 +97,7 @@ class OcrResult:
             "ocr_derived": self.succeeded,
             "ocr_confidence": self.mean_confidence,
             "ocr_block_count": self.block_count,
+            "ocr_input_variant": self.input_variant,
         }
 
 
@@ -418,6 +423,66 @@ def reset_engine_cache() -> None:
     with _SELECTED_LOCK:
         _SELECTED = None
         _SELECTION_DONE = False
+
+
+#: Confidence below which the primary (preprocessed) pass is retried on the
+#: un-preprocessed image. Not arbitrary: measured across six image heights the
+#: fallback engine returned 0.92-1.00 on text it read correctly and 0.55-0.65
+#: on text it mangled, so this sits in the observed gap. At 40px height the
+#: shared binarisation step cut a correct 0.841 reading down to 0.632 and
+#: turned "LOWRESTEST" into "APT2T7712", which is what the retry recovers.
+LOW_CONFIDENCE_RETRY_THRESHOLD = 0.75
+
+
+def recognize_best(
+    engine: BaseOcrEngine,
+    preprocessed: Any,
+    original: Optional[Any] = None,
+    languages: Optional[Sequence[str]] = None,
+    threshold: float = LOW_CONFIDENCE_RETRY_THRESHOLD,
+) -> OcrResult:
+    """Recognise, retrying on the un-preprocessed image when confidence is low.
+
+    The shared preprocessing is a hard binarisation tuned for tesseract. For
+    small images it discards the anti-aliasing that helps a neural engine, so
+    the retry is gated on measured confidence rather than applied blindly: a
+    confident first pass costs nothing extra.
+
+    ``original`` is optional; when omitted this behaves exactly like
+    ``engine.recognize``.
+    """
+    result = engine.recognize(preprocessed, languages)
+    result.input_variant = "preprocessed"
+
+    if original is None:
+        return result
+
+    confidence = result.mean_confidence
+    if result.succeeded and confidence is not None and confidence >= threshold:
+        return result
+
+    # The retry must never turn a partial success into a total failure: some
+    # text beats no text, so a retry that raises or finds nothing keeps the
+    # primary reading.
+    try:
+        retry = engine.recognize(original, languages)
+    except Exception as exc:
+        logger.warning("OCR retry on un-preprocessed image failed: %s", exc)
+        return result
+    retry.input_variant = "original"
+    if not retry.succeeded:
+        return result
+
+    retry_confidence = retry.mean_confidence
+    if confidence is None or (
+        retry_confidence is not None and retry_confidence > confidence
+    ):
+        logger.info(
+            "OCR retry on un-preprocessed image improved confidence %s -> %s",
+            confidence, retry_confidence,
+        )
+        return retry
+    return result
 
 
 def recognize_image(

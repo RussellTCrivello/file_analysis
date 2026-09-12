@@ -12,7 +12,7 @@ from pathlib import Path
 import threading
 import warnings
 
-from core.ocr import get_ocr_engine
+from core.ocr import get_ocr_engine, recognize_best
 
 from .base_reader import BaseReader
 
@@ -249,9 +249,14 @@ class ImageFileReader(BaseReader):
                     else:
                         # Alternate engine path. Same result contract, plus the
                         # per-block confidence that engine reports.
-                        engine_result = fallback_engine.recognize(
+                        # Confidence-gated retry on the un-preprocessed image:
+                        # the shared binarisation is tuned for tesseract and
+                        # measurably harms small text for a neural engine.
+                        engine_result = recognize_best(
+                            fallback_engine,
                             ocr_target,
-                            list(languages) if languages else None
+                            rgb_img,
+                            list(languages) if languages else None,
                         )
                         text = engine_result.text or ""
                         ocr_coordinates = [
@@ -271,6 +276,8 @@ class ImageFileReader(BaseReader):
                         ocr_engine_name_used = engine_result.engine
                         ocr_engine_version_used = engine_result.engine_version
                         ocr_confidence_used = engine_result.mean_confidence
+                        # Which input produced this reading - part of provenance.
+                        result["ocr_input_variant"] = engine_result.input_variant
 
                     # Provenance: state how this text was derived so it is
                     # never mistaken for native document text.
