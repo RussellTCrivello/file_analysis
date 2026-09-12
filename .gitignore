@@ -81,3 +81,7 @@ data/
 .system_initialized
 core/.app_instance.lock
 sample_data/
+
+# --- Scratch space for manual verification probes (not shipped) ---
+.probe/
+.test_runtime/

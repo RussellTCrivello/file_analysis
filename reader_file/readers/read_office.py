@@ -76,38 +76,39 @@ class OfficeFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
         
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
         
         try:
             # Microsoft Word formats
-            if file_lower.endswith('.docx') or file_lower.endswith('.docm'):
+            if ext in ('.docx', '.docm'):
                 return self.read_docx_file(file_path)
-            elif file_lower.endswith('.doc'):
+            elif ext == '.doc':
                 return self.read_doc_file(file_path)
             # Microsoft Excel formats
-            elif file_lower.endswith('.xlsx') or file_lower.endswith('.xlsm') or file_lower.endswith('.xltx'):
+            elif ext in ('.xlsx', '.xlsm', '.xltx'):
                 return self.read_xlsx_file(file_path)
-            elif file_lower.endswith('.xls') or file_lower.endswith('.xlsb') or file_lower.endswith('.xlt'):
+            elif ext in ('.xls', '.xlsb', '.xlt'):
                 return self.read_xls_file(file_path)
             # Microsoft PowerPoint formats
-            elif file_lower.endswith('.pptx') or file_lower.endswith('.potx'):
+            elif ext in ('.pptx', '.potx'):
                 return self.read_pptx_file(file_path)
-            elif file_lower.endswith('.ppt') or file_lower.endswith('.pot'):
+            elif ext in ('.ppt', '.pot'):
                 return self.read_ppt_file(file_path)
             # OpenDocument formats
-            elif file_lower.endswith('.odt'):
+            elif ext == '.odt':
                 return self.read_odt_file(file_path)
-            elif file_lower.endswith('.ods'):
+            elif ext == '.ods':
                 return self.read_ods_file(file_path)
-            elif file_lower.endswith('.odp'):
+            elif ext == '.odp':
                 return self.read_odp_file(file_path)
             # Other formats
-            elif file_lower.endswith('.csv'):
+            elif ext == '.csv':
                 return self.read_csv_file(file_path)
-            elif file_lower.endswith('.rtf'):
+            elif ext == '.rtf':
                 return self.read_rtf_file(file_path)
             else:
-                error_msg = f"Unsupported office file type: {file_path}"
+                error_msg = f"Unsupported office file type: {ext or file_path}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")

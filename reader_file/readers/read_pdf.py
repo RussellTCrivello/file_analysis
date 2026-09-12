@@ -77,13 +77,14 @@ class PDFFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
         
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
         
         try:
-            if file_lower.endswith('.pdf'):
+            if ext == '.pdf':
                 return self.read_pdf_file(file_path)
             else:
-                error_msg = f"Unsupported file type: {file_path}"
+                error_msg = f"Unsupported file type: {ext or file_path}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")

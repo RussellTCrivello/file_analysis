@@ -63,7 +63,10 @@ except ImportError as e:
 try:
     from .detect_binanry_utils import (
         detect_file_type,
-        get_filename_with_correct_extension
+        detect_file_type_with_confidence,
+        get_filename_with_correct_extension,
+        read_file_header,
+        sniff_file_type,
     )
 except ImportError as e:
     raise ImportError(f"Failed to import from detect_binanry_utils: {e}")
@@ -100,6 +103,9 @@ __all__ = [
     'get_log_file_path',
     # detect_file utilities
     'detect_file_type',
-    'get_filename_with_correct_extension'
+    'detect_file_type_with_confidence',
+    'get_filename_with_correct_extension',
+    'read_file_header',
+    'sniff_file_type'
 ]
 

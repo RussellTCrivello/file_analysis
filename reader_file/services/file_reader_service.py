@@ -11,6 +11,12 @@ import logging
 from typing import Dict, Any, Optional, Set, List
 from pathlib import Path
 
+from core.detect_binanry_utils import (
+    CONFIDENCE_STRONG,
+    CONFIDENCE_WEAK,
+    sniff_file_type,
+)
+
 from ..readers.base_reader import BaseReader
 from ..readers.read_remaining import RemainingFileReader
 from ..readers.read_archive import ArchiveFileReader
@@ -97,6 +103,141 @@ class FileReaderService:
             extension = '.' + extension
         
         return self._extension_map.get(extension)
+
+    # ------------------------------------------------------------------
+    # DETECT-01: content-based type identification
+    # ------------------------------------------------------------------
+    #: Compound extensions whose full form carries more information than the
+    #: single-component magic-byte sniff (a .tar.gz sniffs as plain '.gz').
+    COMPOUND_EXTENSIONS = ('.tar.gz', '.tar.bz2', '.tar.xz')
+
+    @staticmethod
+    def normalize_extension(extension: Optional[str]) -> str:
+        """Normalize an extension to lower case with a single leading dot."""
+        ext = str(extension or '').strip().lower()
+        if not ext or ext in ('none', '.'):
+            return ''
+        return ext if ext.startswith('.') else '.' + ext
+
+    @classmethod
+    def extension_from_path(cls, file_path: str) -> str:
+        """Return the declared extension of ``file_path``, compound-aware."""
+        lower = str(file_path).lower()
+        for compound in cls.COMPOUND_EXTENSIONS:
+            if lower.endswith(compound):
+                return compound
+        return cls.normalize_extension(os.path.splitext(str(file_path))[1])
+
+    def resolve_type_for_file(
+        self,
+        file_path: str,
+        declared_extension: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Decide the processing type for a file from content *and* name.
+
+        Content wins whenever it produces a strong magic-byte signature that a
+        registered reader can actually handle; the declared extension is used
+        as the fallback and as a tie-breaker when content is inconclusive. A
+        file with no usable extension is no longer rejected outright.
+
+        Args:
+            file_path: Path to the file.
+            declared_extension: Extension reported by discovery, if any.
+
+        Returns:
+            Decision dict with ``effective_extension``, ``declared_extension``,
+            ``detected_extension``, ``detection_confidence``,
+            ``detection_method``, ``extension_mismatch`` and ``detection_note``.
+        """
+        declared = self.normalize_extension(declared_extension) or \
+            self.extension_from_path(file_path)
+
+        detected, confidence = sniff_file_type(file_path)
+
+        decision: Dict[str, Any] = {
+            'declared_extension': declared,
+            'detected_extension': detected,
+            'detection_confidence': confidence,
+            'detection_method': 'extension',
+            'effective_extension': declared,
+            'extension_mismatch': False,
+            'detection_note': None,
+        }
+
+        # A compound archive extension is more specific than the single
+        # compression-layer signature the sniffer reports for the same bytes.
+        if declared in self.COMPOUND_EXTENSIONS:
+            decision['detection_method'] = 'extension'
+            decision['detection_note'] = (
+                'compound archive extension retained over single-layer sniff'
+            )
+            return decision
+
+        if confidence == CONFIDENCE_STRONG and detected != '.bin':
+            if self.is_supported(detected):
+                decision['effective_extension'] = detected
+                decision['detection_method'] = 'magic-bytes'
+                if declared and declared != detected:
+                    decision['extension_mismatch'] = True
+                    decision['detection_note'] = (
+                        f'declared extension {declared} contradicted by content '
+                        f'signature {detected}; content signature used'
+                    )
+                return decision
+            # Strong signature for a format we have no reader for: keep the
+            # declared type rather than sending the file to the wrong reader.
+            decision['detection_note'] = (
+                f'content signature {detected} has no registered reader; '
+                f'declared extension used'
+            )
+            if not declared:
+                decision['effective_extension'] = ''
+            return decision
+
+        if declared and self.is_supported(declared):
+            decision['detection_method'] = 'extension'
+            return decision
+
+        # No strong signature: a textual heuristic may still name the format,
+        # but only to fill a gap - never to override a usable extension.
+        if confidence == CONFIDENCE_WEAK and self.is_supported(detected):
+            decision['effective_extension'] = detected
+            decision['detection_method'] = 'content-heuristic'
+            if declared:
+                decision['detection_note'] = (
+                    f'declared extension {declared} is unsupported; '
+                    f'text heuristic identified {detected}'
+                )
+            return decision
+
+        # Nothing usable. Route to the binary reader so the file is still
+        # recorded rather than dropped with "no extension found".
+        decision['effective_extension'] = '.bin'
+        decision['detection_method'] = 'fallback-binary'
+        decision['detection_note'] = (
+            'no extension and no recognisable content signature; '
+            'treated as binary'
+        )
+        return decision
+
+    def resolve_reader_for_file(
+        self,
+        file_path: str,
+        declared_extension: Optional[str] = None,
+    ) -> tuple[Optional[BaseReader], Dict[str, Any]]:
+        """Resolve both the reader and the identification decision for a file.
+
+        Args:
+            file_path: Path to the file.
+            declared_extension: Extension reported by discovery, if any.
+
+        Returns:
+            ``(reader, decision)`` - ``reader`` is ``None`` when no registered
+            reader handles the resolved type.
+        """
+        decision = self.resolve_type_for_file(file_path, declared_extension)
+        reader = self.get_reader_for_extension(decision['effective_extension'])
+        return reader, decision
     
     def read_file(self, file_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -120,20 +261,27 @@ class FileReaderService:
             logger.error("file_info must contain 'path' key")
             return None
         
-        # Get extension from path if not provided
-        if not extension:
-            extension = os.path.splitext(file_path)[1]
-        
-        # Find appropriate reader
-        reader = self.get_reader_for_extension(extension)
-        
+        # DETECT-01: identify by content first, extension as fallback. The
+        # resolved type is handed to the reader so its internal dispatch uses
+        # the verified type rather than the filename.
+        reader, decision = self.resolve_reader_for_file(file_path, extension)
+
         if not reader:
-            logger.warning(f"No reader found for extension: {extension} (file: {file_path})")
+            effective = decision['effective_extension']
+            logger.warning(
+                "No reader found for %s (declared=%r detected=%r, file: %s)",
+                effective or 'unknown type', decision['declared_extension'],
+                decision['detected_extension'], file_path,
+            )
             return {
-                "error": f"Unsupported file type: {extension}",
-                "path": file_path
+                "error": f"Unsupported file type: {effective or extension or 'unknown'}",
+                "path": file_path,
+                "type_detection": decision,
             }
-        
+
+        file_info = dict(file_info)
+        file_info['effective_extension'] = decision['effective_extension']
+
         # Use reader to read file
         try:
             return reader.read_file(file_info)

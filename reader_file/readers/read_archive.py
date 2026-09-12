@@ -68,25 +68,26 @@ class ArchiveFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
 
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
 
         try:
             extraction_path = None
 
-            if file_lower.endswith('.zip'):
+            if ext == '.zip':
                 extraction_path = self.extract_zip(file_path)
-            elif file_lower.endswith('.tar') or file_lower.endswith('.tar.gz') or file_lower.endswith('.tar.bz2') or file_lower.endswith('.tar.xz'):
-                extraction_path = self.extract_tar(file_path)
-            elif file_lower.endswith('.gz'):
+            elif ext in ('.tar', '.tar.gz', '.tar.bz2', '.tar.xz'):
+                extraction_path = self.extract_tar(file_path, ext)
+            elif ext == '.gz':
                 extraction_path = self.extract_gz(file_path)
-            elif file_lower.endswith('.bz2'):
+            elif ext == '.bz2':
                 extraction_path = self.extract_bz2(file_path)
-            elif file_lower.endswith('.rar'):
+            elif ext == '.rar':
                 extraction_path = self.extract_rar(file_path)
-            elif file_lower.endswith('.7z'):
+            elif ext == '.7z':
                 extraction_path = self.extract_7z(file_path)
             else:
-                error_msg = f"Unsupported archive type: {Path(file_path).suffix}"
+                error_msg = f"Unsupported archive type: {ext or Path(file_path).suffix}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
 
             # STANDARDIZED: Always return dict
@@ -94,7 +95,7 @@ class ArchiveFileReader(BaseReader):
                 return {
                     "extraction_path": extraction_path,
                     "status": "success",
-                    "archive_type": file_lower.split('.')[-1]
+                    "archive_type": ext.lstrip('.')
                 }
             else:
                 error_msg = "Extraction failed"
@@ -117,15 +118,16 @@ class ArchiveFileReader(BaseReader):
         logger.info("Extracted %d files from %s", result.files_extracted, file_path)
         return str(extract_to)
 
-    def extract_tar(self, file_path):
-        """Extract TAR files safely (.tar, .tar.gz, .tar.bz2, .tar.xz)."""
-        if file_path.endswith('.tar.gz'):
-            extension = '.tar.gz'
-        elif file_path.endswith('.tar.bz2'):
-            extension = '.tar.bz2'
-        elif file_path.endswith('.tar.xz'):
-            extension = '.tar.xz'
-        else:
+    def extract_tar(self, file_path, extension=None):
+        """Extract TAR files safely (.tar, .tar.gz, .tar.bz2, .tar.xz).
+
+        Args:
+            file_path: Path to the tarball.
+            extension: Effective (content-verified) extension. When omitted it
+                is derived from the filename, which is wrong for a tarball
+                whose declared extension disagrees with its contents.
+        """
+        if extension not in ('.tar.gz', '.tar.bz2', '.tar.xz'):
             extension = '.tar'
 
         extract_to = get_extraction_name_file(file_path, extension)

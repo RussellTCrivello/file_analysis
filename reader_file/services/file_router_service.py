@@ -137,51 +137,55 @@ class FileRouterService:
             return None
         
         file_path = file_info.get('path')
-        extension = file_info.get('extension', '').lower()
-        
+        declared_extension = self.file_reader_service.normalize_extension(
+            file_info.get('extension')
+        )
+
         start_time = time.time()
-        
-        if not extension:
-            self.logger.warning(f"No extension found for: {file_path}")
-            
-            processing_time = time.time() - start_time
-            result = create_standardized_result(
+
+        # DETECT-01: identify the file from its CONTENT first and fall back to
+        # the declared extension. A missing or lying extension is no longer
+        # fatal - magic-byte inspection decides the processing path, so an
+        # extensionless ZIP is still extracted and a misnamed PDF still gets
+        # PDF treatment.
+        reader, detection = self.file_reader_service.resolve_reader_for_file(
+            file_path,
+            declared_extension
+        )
+        effective_extension = detection['effective_extension']
+
+        if detection['extension_mismatch']:
+            self.logger.warning(
+                "Extension/content mismatch for %s: %s",
                 file_path,
-                {"error": "No file extension found"},
-                processing_time
+                detection['detection_note']
             )
-            # Store even if no extension found
-            if store_result:
-                self._store_result_if_enabled(
-                    file_info,
-                    result,
-                    storage_source,
-                    storage_side,
-                    storage_pipeline
-                )
-            return result
-        
+
+        # Hand the verified type to the reader so its internal format dispatch
+        # uses content evidence rather than the filename.
+        routed_file_info = dict(file_info)
+        routed_file_info['effective_extension'] = effective_extension
+
         content_data = None
-        
+
         try:
-            # Use FileReaderService to get appropriate reader
-            reader = self.file_reader_service.get_reader_for_extension(extension)
-            
             if reader:
                 # Use reader to read file
                 content_data = print_execution_time(
                     f"Reading file: {os.path.basename(file_path)}",
                     reader.read_file,
-                    file_info
+                    routed_file_info
                 )
-                
+
                 # Handle special cases (archives, emails) that return extraction paths
                 if content_data and isinstance(content_data, dict):
                     extraction_path = content_data.get("extraction_path")
                     email_result = content_data
-                    
-                    # Handle archive extraction
-                    if extraction_path and extension in self._get_archive_extensions():
+
+                    # Handle archive extraction. Keyed on the resolved reader
+                    # rather than an extension set, so compound extensions
+                    # (.tar.gz) and content-detected archives both recurse.
+                    if extraction_path and reader is self.file_reader_service.archive_reader:
                         content_data = self._process_extracted_files(
                             extraction_path,
                             'archive',
@@ -193,9 +197,9 @@ class FileRouterService:
                             storage_side=storage_side,
                             storage_pipeline=storage_pipeline
                         )
-                    
+
                     # Handle email extraction
-                    elif extension in self._get_email_extensions():
+                    elif reader is self.file_reader_service.email_reader:
                         content_data = self._process_email_result(
                             email_result,
                             file_path,
@@ -210,7 +214,10 @@ class FileRouterService:
                 processing_time = time.time() - start_time
                 result = create_standardized_result(
                     file_path,
-                    {"error": f"Unsupported file type: {extension}"},
+                    {
+                        "error": f"Unsupported file type: {effective_extension or 'unknown'}",
+                        "type_detection": detection
+                    },
                     processing_time
                 )
                 # Store even if file type is unsupported
@@ -254,7 +261,12 @@ class FileRouterService:
         
         processing_time = time.time() - start_time
         result = create_standardized_result(file_path, content_data, processing_time)
-        
+
+        # Provenance: keep a record of HOW the file was identified so the
+        # decision survives into storage and is visible during review.
+        if isinstance(result.get('Content'), dict):
+            result['Content'].setdefault('type_detection', detection)
+
         # Calculate and display file processing metrics
         calculate_file_processing_metrics(file_info, result)
         

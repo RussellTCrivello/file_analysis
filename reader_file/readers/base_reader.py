@@ -96,6 +96,35 @@ class BaseReader(ABC):
         """
         pass
     
+    def effective_extension(self, file_info: Dict[str, Any]) -> str:
+        """Return the extension that should drive internal format dispatch.
+
+        DETECT-01: readers must not dispatch on the filename alone. The router
+        places a content-verified type in ``file_info['effective_extension']``
+        when magic-byte identification disagrees with (or replaces) the
+        declared extension. Readers consult it first and fall back to the
+        path's own suffix, so a file named ``report.docx`` whose bytes are a
+        PDF is handled by the PDF code path.
+
+        Args:
+            file_info: Dictionary with a ``path`` key and an optional
+                ``effective_extension`` key.
+
+        Returns:
+            Lower-case extension including the leading dot, or ``''``.
+        """
+        declared = str((file_info or {}).get('effective_extension') or '').lower()
+        if declared:
+            return declared if declared.startswith('.') else '.' + declared
+        path = str((file_info or {}).get('path') or '')
+        lower = path.lower()
+        # Compound archive extensions must survive: os.path.splitext('.tar.gz')
+        # reports only '.gz', which would send a tarball down the gzip path.
+        for compound in ('.tar.gz', '.tar.bz2', '.tar.xz'):
+            if lower.endswith(compound):
+                return compound
+        return os.path.splitext(path)[1].lower()
+
     def validate_file_info(self, file_info: Dict[str, Any]) -> tuple[bool, Optional[str]]:
         """
         Validate file_info dictionary.

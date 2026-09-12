@@ -73,19 +73,20 @@ class ImageFileReader(BaseReader):
         
         file_path = str(file_info.get("path"))
         languages = file_info.get("languages")
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
         
         try:
-            if file_lower.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', 
-                                   '.tiff', '.tif', '.webp', '.ico', '.heic', '.heif')):
+            if ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp',
+                       '.tiff', '.tif', '.webp', '.ico', '.heic', '.heif'):
                 result = self.read_image_file_fast(file_path, languages=languages)
                 if result is None:
                     return self.create_error_result("Failed to read image file", file_path)
                 return result
-            elif file_lower.endswith('.svg'):
+            elif ext == '.svg':
                 return self.read_svg_file(file_path)
             else:
-                error_msg = f"Unsupported image file type: {file_path}"
+                error_msg = f"Unsupported image file type: {ext or file_path}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")
