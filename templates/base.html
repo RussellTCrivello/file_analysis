@@ -184,11 +184,12 @@
          2. app-i18n.js - merges UI packs + server catalog, exposes
             window.t() / window.translations and live-translates the DOM
          ============================================================ -->
-    <script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}?v=20260912" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}?v=20260912" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}?v=20260912" defer></script>
-    <script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}?v=20260912" defer></script>
-    <script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}?v=20260912" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/core/csrf-token.js') }}?v=20260912b" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}?v=20260912b" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}?v=20260912b" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}?v=20260912b" defer></script>
+    <script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}?v=20260912b" defer></script>
+    <script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}?v=20260912b" defer></script>
 </head>
 
 <body data-page-type="{% block page_type %}default{% endblock %}"

@@ -308,11 +308,11 @@
 "Hide password": {{ _('Hide password')|tojson }}
 }
 </script>
-<script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}?v=20260912" defer></script>
-<script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}?v=20260912" defer></script>
-<script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}?v=20260912" defer></script>
-<script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}?v=20260912" defer></script>
-<script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}?v=20260912" defer></script>
+<script src="{{ url_for('static', filename='js/i18n/locales/en.js') }}?v=20260912b" defer></script>
+<script src="{{ url_for('static', filename='js/i18n/locales/ar.js') }}?v=20260912b" defer></script>
+<script src="{{ url_for('static', filename='js/i18n/locales/he.js') }}?v=20260912b" defer></script>
+<script src="{{ url_for('static', filename='js/i18n/locales/fa.js') }}?v=20260912b" defer></script>
+<script src="{{ url_for('static', filename='js/modules/core/app-i18n.js') }}?v=20260912b" defer></script>
 <script>
 (function () {
     var form = document.getElementById('login-form');
@@ -340,33 +340,69 @@
         errorBox.classList.add('show');
     }
 
-    form.addEventListener('submit', function (e) {
+    function getCsrfToken() {
+        return document.querySelector('meta[name=csrf-token]').content || '';
+    }
+
+    // Refresh the CSRF token from the public endpoint. Needed when the
+    // anonymous session was rotated (idle timeout, previous login) and the
+    // token rendered into the page is no longer valid.
+    async function refreshCsrfToken() {
+        try {
+            const r = await fetch('/api/csrf-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+            if (r.ok) {
+                const d = await r.json();
+                if (d && d.csrf_token) {
+                    document.querySelector('meta[name=csrf-token]')
+                        .setAttribute('content', d.csrf_token);
+                    return d.csrf_token;
+                }
+            }
+        } catch (e) { /* keep the current token */ }
+        return getCsrfToken();
+    }
+
+    async function postLogin() {
+        return fetch(form.action + window.location.search, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            })
+        }).then(function (r) { return r.json().then(function (j) { return {ok: r.ok, status: r.status, body: j}; }); });
+    }
+
+    form.addEventListener('submit', async function (e) {
         e.preventDefault();
         errorBox.classList.remove('show');
         var btn = document.getElementById('login-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-arrow-repeat icon-spin"></i> ' + tr('Signing in…');
-        fetch(form.action + window.location.search, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
-            },
-            body: JSON.stringify({
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value
-            })
-        }).then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
-          .then(function (res) {
+        try {
+            let res = await postLogin();
+            // Stale CSRF token (rotated session): refresh once and retry.
+            if (!res.ok && res.status === 400 && /csrf|token/i.test(String(res.body && res.body.error || ''))) {
+                await refreshCsrfToken();
+                res = await postLogin();
+            }
             if (res.ok) { window.location.href = res.body.redirect || '/'; return; }
             showError(tr(res.body.error) || tr('Sign-in failed'));
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> ' + tr('Sign in');
-        }).catch(function () {
+        } catch (err) {
             showError(tr('An internal error occurred. Please try again.'));
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> ' + tr('Sign in');
-        });
+        }
     });
 
     // ------------------------------------------------------------------

@@ -196,5 +196,8 @@ window.I18N_UI_PACKS['fa'] = {
     "Applied": "اعمال شد",
     "Are you sure you want to delete {item}? This action cannot be undone.": "مطمئن هستید که می‌خواهید {item} را حذف کنید؟ این عمل قابل بازگشت نیست.",
     "Failed to change language": "تغییر زبان ناموفق بود",
-    "Input": "ورودی"
+    "Input": "ورودی",
+    "Failed to change language. Please try again.": "تغییر زبان ناموفق بود. لطفاً دوباره تلاش کنید.",
+    "Authentication required. Please log in.": "احراز هویت الزامی است. لطفاً وارد شوید.",
+    "Too many requests. Please wait a moment and try again.": "درخواست‌ها بیش از حد است. لطفاً لحظه‌ای صبر کنید و دوباره تلاش کنید."
 };

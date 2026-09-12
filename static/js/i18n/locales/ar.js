@@ -196,5 +196,8 @@ window.I18N_UI_PACKS['ar'] = {
     "Applied": "تم التطبيق",
     "Are you sure you want to delete {item}? This action cannot be undone.": "هل تريد بالتأكيد حذف {item}؟ لا يمكن التراجع عن هذا الإجراء.",
     "Failed to change language": "فشل تغيير اللغة",
-    "Input": "إدخال"
+    "Input": "إدخال",
+    "Failed to change language. Please try again.": "فشل تغيير اللغة. يُرجى المحاولة مرة أخرى.",
+    "Authentication required. Please log in.": "المصادقة مطلوبة. يُرجى تسجيل الدخول.",
+    "Too many requests. Please wait a moment and try again.": "طلبات كثيرة جدًا. يُرجى الانتظار قليلاً والمحاولة مرة أخرى."
 };

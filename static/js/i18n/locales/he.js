@@ -196,5 +196,8 @@ window.I18N_UI_PACKS['he'] = {
     "Applied": "הוחל",
     "Are you sure you want to delete {item}? This action cannot be undone.": "האם אתה בטוח שברצונך למחוק את {item}? פעולה זו אינה ניתנת לשחזור.",
     "Failed to change language": "שינוי השפה נכשל",
-    "Input": "קלט"
+    "Input": "קלט",
+    "Failed to change language. Please try again.": "שינוי השפה נכשל. נא לנסות שוב.",
+    "Authentication required. Please log in.": "נדרש אימות. נא להתחבר.",
+    "Too many requests. Please wait a moment and try again.": "יותר מדי בקשות. נא להמתין רגע ולנסות שוב."
 };
