@@ -695,7 +695,14 @@ class StoragePipeline:
                             # First, try to get hash_id if it exists
                             hash_id = None
                             try:
-                                hash_row = self.db_service.hashs_repo.get_hash_by_value(file_hash)
+                                # DEFECT-FIX: get_hash_by_value does not exist on
+                                # HashsRepository. get_hash_records(hash_value)
+                                # returns (id, source_id, side_id, has_paths) and
+                                # the indexing below already takes [0], so this is
+                                # a drop-in. Previously the AttributeError was
+                                # caught and logged at DEBUG, so hash_id stayed
+                                # None and this fast path never ran.
+                                hash_row = self.db_service.hashs_repo.get_hash_records(file_hash)
                                 if hash_row:
                                     hash_id = hash_row[0] if isinstance(hash_row, tuple) else hash_row.get('id') if isinstance(hash_row, dict) else hash_row
                             except Exception as hash_err:
@@ -703,28 +710,45 @@ class StoragePipeline:
                             
                             # Use direct path insertion as fallback
                             if hash_id:
-                                fallback_path_id = self.db_service.paths_repo.insert_path(
+                                # DEFECT-FIX: this called paths_repo.insert_path,
+                                # which does not exist on PathsRepository (only
+                                # insert_info_paths does). Being inside an error
+                                # handler it raised AttributeError that the
+                                # enclosing except swallowed, so the recovery path
+                                # silently did nothing and the file vanished with
+                                # no record at all.
+                                fallback_path_id = self.db_service.paths_repo.insert_info_paths(
                                     file_name=file_name,
                                     file_path=file_path,
                                     file_size=file_size,
                                     file_type=file_type,
-                                    file_status='Unread',  # Mark as unread since full processing failed
+                                    file_status='Unread',
                                     file_date=file_date,
                                     hash_id=hash_id,
-                                    coordinates=None
+                                    coordinates=None,
+                                    processing_status='failed',
+                                    status_detail=(
+                                        'full processing failed; minimal record '
+                                        'created by the storage fallback path'
+                                    ),
+                                    attempts=1
                                 )
                             else:
                                 # Try without hash_id (may fail but worth trying)
                                 logger.warning("Attempting fallback storage without hash_id")
                                 # Create minimal hash first
                                 try:
-                                    hash_id = self.db_service.hashs_repo.insert_hash(
+                                    # DEFECT-FIX: insert_hash does not exist on
+                                    # HashsRepository either; the method is
+                                    # insert_info_hashs. Same silent-swallow
+                                    # consequence as the paths call above.
+                                    hash_id = self.db_service.hashs_repo.insert_info_hashs(
                                         hash_value=file_hash,
                                         source_id=source_id,
                                         side_id=side_id
                                     )
                                     if hash_id:
-                                        fallback_path_id = self.db_service.paths_repo.insert_path(
+                                        fallback_path_id = self.db_service.paths_repo.insert_info_paths(
                                             file_name=file_name,
                                             file_path=file_path,
                                             file_size=file_size,
@@ -732,7 +756,14 @@ class StoragePipeline:
                                             file_status='Unread',
                                             file_date=file_date,
                                             hash_id=hash_id,
-                                            coordinates=None
+                                            coordinates=None,
+                                            processing_status='failed',
+                                            status_detail=(
+                                                'full processing failed; minimal '
+                                                'record created by the storage '
+                                                'fallback path'
+                                            ),
+                                            attempts=1
                                         )
                                     else:
                                         fallback_path_id = None
