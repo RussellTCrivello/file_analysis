@@ -795,7 +795,14 @@ class StoragePipeline:
                             # Update statistics
                             self.stats['files_stored'] += 1
                             self.stats['files_processed'] += 1
-                        
+
+                        # PARENT-01: children of a container are stored before
+                        # their parent, so the parent's id is only known now.
+                        # Runs for duplicates too - they resolve to an existing
+                        # path_id and their children still need a parent.
+                        if path_id:
+                            self._link_extracted_children(content, path_id)
+
                         # Build success message
                         file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
                         is_duplicate = error_msg and 'Duplicate' in error_msg if error_msg else False
@@ -1428,6 +1435,93 @@ class StoragePipeline:
                 logger.warning(f"Fallback hash check also failed: {repo_error}")
             return False, None
     
+    #: Separator for the human-readable hierarchy chain (archive::child::grandchild).
+    HIERARCHY_SEPARATOR = "::"
+
+    def _link_extracted_children(
+        self,
+        content: Optional[Dict[str, Any]],
+        parent_path_id: int,
+        parent_hierarchy: Optional[str] = None,
+    ) -> int:
+        """Record the container each extracted child came from (PARENT-01).
+
+        Extracted members are stored while their container is still being
+        processed, so at that moment no parent id exists to write. Once the
+        container's own row exists this walks ``extracted_files`` and links each
+        child, recursing so that archive -> child -> nested child keeps its
+        chain. Returns the number of links written.
+
+        Failures are logged, not raised: a child that cannot be linked is still
+        a valid, indexed record, and losing the link must not fail the ingest.
+        """
+        if not parent_path_id or not isinstance(content, dict):
+            return 0
+
+        children = content.get("extracted_files")
+        if not isinstance(children, list):
+            return 0
+        if not self.db_service or not getattr(self.db_service, "paths_repo", None):
+            return 0
+
+        if parent_hierarchy is None:
+            parent_hierarchy = self._hierarchy_of(parent_path_id)
+
+        linked = 0
+        for child in children:
+            if not isinstance(child, dict):
+                continue
+            child_id = child.get("database_path_id")
+            if not child_id:
+                continue
+
+            child_name = (
+                (child.get("Metadata") or {}).get("name")
+                or os.path.basename(str((child.get("Metadata") or {}).get("path", "")))
+                or "unknown"
+            )
+            child_hierarchy = (
+                f"{parent_hierarchy}{self.HIERARCHY_SEPARATOR}{child_name}"
+                if parent_hierarchy else child_name
+            )
+            try:
+                self.db_service.paths_repo.update_lineage(
+                    child_id, parent_path_id, child_hierarchy
+                )
+                linked += 1
+            except Exception as exc:
+                logger.warning(
+                    f"[LINEAGE] Could not link child path_id={child_id} to "
+                    f"parent path_id={parent_path_id}: {exc}"
+                )
+                continue
+
+            # Recurse so nested containers keep the full chain.
+            linked += self._link_extracted_children(
+                child.get("Content"), child_id, child_hierarchy
+            )
+
+        if linked:
+            logger.info(
+                f"[LINEAGE] Linked {linked} extracted item(s) under "
+                f"path_id={parent_path_id}"
+            )
+        return linked
+
+    def _hierarchy_of(self, path_id: int) -> str:
+        """The stored hierarchy chain for a path, defaulting to its file name."""
+        try:
+            row = self.db_service.paths_repo.get_lineage(path_id)
+        except Exception:
+            return ""
+        if not row:
+            return ""
+        if isinstance(row, dict):
+            return row.get("hierarchy_path") or row.get("file_name") or ""
+        if isinstance(row, (tuple, list)) and len(row) >= 2:
+            return row[1] or row[0] or ""
+        return ""
+
     def _build_extraction_provenance(
         self, content: Optional[Dict[str, Any]]
     ) -> Optional[Dict[str, Any]]:

@@ -45,6 +45,21 @@ class PathsRepository(BaseRepository):
             params
         )
 
+    def update_lineage(self, path_id, parent_path_id, hierarchy_path):
+        """Link an extracted child to its container (PARENT-01)."""
+        return self.execute(
+            FileQueries.update_lineage(),
+            (parent_path_id, hierarchy_path, path_id)
+        )
+
+    def get_lineage(self, path_id):
+        """(file_name, hierarchy_path) for a path, or None."""
+        return self.execute(
+            FileQueries.get_lineage(),
+            (path_id,),
+            fetchone=True
+        )
+
     def get_file_by_id(self, path_id):
         """Get full file information by ID"""
         return self.execute(

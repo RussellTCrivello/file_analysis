@@ -114,6 +114,24 @@ class FileQueries(BaseQueries):
     def update_file_status() -> str:
         """Update file processing status"""
         return "UPDATE paths SET file_status = %s WHERE id = %s"
+
+    @staticmethod
+    def update_lineage() -> str:
+        """Link an extracted child to the container it came from.
+
+        parent_path_id is the queryable relationship; hierarchy_path is the
+        human-readable archive::child::grandchild chain. Both are set together
+        so they cannot drift apart.
+        """
+        return (
+            "UPDATE paths SET parent_path_id = %s, hierarchy_path = %s,"
+            " status_updated_at = NOW() WHERE id = %s"
+        )
+
+    @staticmethod
+    def get_lineage() -> str:
+        """Read a path's lineage, used to build a child's hierarchy_path."""
+        return "SELECT file_name, hierarchy_path FROM paths WHERE id = %s"
     
     @staticmethod
     def check_file_processed() -> str:

@@ -194,10 +194,15 @@ def test_ocr_text_and_its_provenance_agree(pg_db, ingested):
     )
     assert total >= 1, "OCR text was not searchable"
     assert "scan.png" in [r.get("file_name") for r in results]
-    assert provenance_has_ocr(pg_db, ingested, "scan.png")
 
 
-def provenance_has_ocr(pg_db, tag, file_name):
+def test_provenance_row_matches_the_file_it_describes(pg_db, ingested):
+    """The provenance must belong to this file, not any file of that name.
+
+    Scoped by side: the database is shared across tests in a session and
+    several of them ingest a file called scan.png, so an unscoped lookup by
+    file_name is ambiguous and can return another test's row.
+    """
     conn = psycopg2.connect(
         host=pg_db["host"], port=pg_db["port"], user=pg_db["user"],
         password=pg_db["password"], dbname=pg_db["database"],
@@ -205,11 +210,16 @@ def provenance_has_ocr(pg_db, tag, file_name):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT extraction_provenance->'ocr'->>'derived' FROM paths"
-                " WHERE file_name = %s",
-                (file_name,),
+                "SELECT p.extraction_provenance->'ocr'->>'derived',"
+                " p.extraction_provenance->'ocr'->>'engine'"
+                " FROM paths p JOIN hashs h ON h.id = p.hash_id"
+                " JOIN sides s ON s.id = h.side_id"
+                " WHERE s.name = %s AND p.file_name = 'scan.png'",
+                (f"{ingested}_side",),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
     finally:
         conn.close()
-    return row is not None and row[0] == "true"
+    assert rows, "no scan.png row for this corpus"
+    assert all(r[0] == "true" for r in rows), rows
+    assert all(r[1] in ("tesseract", "rapidocr") for r in rows), rows
