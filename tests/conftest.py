@@ -95,6 +95,18 @@ def app(pg_db):
     flask_app.config["TESTING"] = True
     flask_app.config["WTF_CSRF_ENABLED"] = False  # API-level tests fetch tokens explicitly
 
+    # The setup gate in Api/routes/setup.py redirects EVERY request to /setup
+    # unless a filesystem marker exists and the critical tables are present.
+    # pg_db bootstraps the tables, so only the marker is missing - which made
+    # every authenticated fixture fail with 302 and blocked the API surface
+    # from being tested at all. Mark it for the duration of the session and
+    # remove it afterwards so no state leaks into the repository.
+    from core.initialization import INIT_MARKER_FILE, mark_system_initialized
+
+    marker_existed = INIT_MARKER_FILE.exists()
+    if not marker_existed:
+        mark_system_initialized()
+
     # API-01: per-route limits would trip the ~30 login fixtures; individual
     # rate-limit tests re-enable the limiter explicitly.
     from core.security.rate_limit import limiter as _limiter
@@ -107,6 +119,9 @@ def app(pg_db):
         flask_app.add_url_rule("/_test/sec08/boom", view_func=_boom, endpoint="_sec08_boom")
 
     yield flask_app
+
+    if not marker_existed and INIT_MARKER_FILE.exists():
+        INIT_MARKER_FILE.unlink()
 
 
 @pytest.fixture()
