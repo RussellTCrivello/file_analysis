@@ -85,6 +85,13 @@ def get_locale():
         session_lang = session.get('language')
         if session_lang and session_lang in app.config['LANGUAGES']:
             return session_lang
+
+    # PRIORITY 1.5: Explicit user preference carried in the user_language
+    # cookie (set by the login-screen language switcher for anonymous
+    # visitors). Session priority still wins once the user signs in.
+    cookie_lang = request.cookies.get('user_language')
+    if cookie_lang and cookie_lang in app.config['LANGUAGES']:
+        return cookie_lang
     
     # PRIORITY 2: Check system settings (persistent across restarts)
     if 'SETTINGS' in app.config and app.config['SETTINGS']:

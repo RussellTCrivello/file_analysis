@@ -24,8 +24,7 @@ msgstr ""
 
 #: Api/routes/common.py:169
 msgid ""
-"This section is currently disabled. Please enable it in Settings to "
-"access."
+"This section is currently disabled. Please enable it in Settings to access."
 msgstr ""
 
 #: Api/routes/notifications.py:80 Api/routes/notifications.py:204
@@ -288,8 +287,8 @@ msgstr ""
 #: templates/Analysis/charts_dashboard.html:388
 #: templates/Analysis/comprehensive_dashboard.html:117
 #: templates/Analysis/comprehensive_dashboard.html:570
-#: templates/Search/search_advanced.html:198 templates/Side/side_detail.html:61
-#: templates/Side/sides_list.html:265
+#: templates/Search/search_advanced.html:198
+#: templates/Side/side_detail.html:61 templates/Side/sides_list.html:265
 #: templates/Sources/source_categories_keywords.html:13
 #: templates/Sources/source_detail.html:13 templates/base.html:286
 #: templates/base.html:504
@@ -320,8 +319,8 @@ msgstr ""
 #: templates/Analysis/path_analysis.html:380
 #: templates/Keyword/keywords_list.html:16
 #: templates/Side/side_categories_keywords.html:89
-#: templates/Sources/source_categories_keywords.html:89 templates/base.html:319
-#: templates/base.html:512
+#: templates/Sources/source_categories_keywords.html:89
+#: templates/base.html:319 templates/base.html:512
 #: templates/file/File_Management_Analysis_System.html:363
 #: templates/file/File_Management_Analysis_System.html:368
 #: templates/file/File_Management_Analysis_System.html:896
@@ -336,10 +335,10 @@ msgstr ""
 #: templates/Category/categories_list.html:281
 #: templates/Category/categories_list.html:340
 #: templates/Category/categories_list.html:520
-#: templates/Category/category_words.html:22 templates/Word/Word_detail.html:13
-#: templates/Word/Word_list.html:12 templates/base.html:330
-#: templates/base.html:513 templates/file/file_detail.html:327
-#: templates/file/full_content.html:79
+#: templates/Category/category_words.html:22
+#: templates/Word/Word_detail.html:13 templates/Word/Word_list.html:12
+#: templates/base.html:330 templates/base.html:513
+#: templates/file/file_detail.html:327 templates/file/full_content.html:79
 msgid "Words"
 msgstr ""
 
@@ -350,7 +349,8 @@ msgstr ""
 #: templates/Category/category_words.html:18
 #: templates/Search/search_advanced.html:187
 #: templates/Side/side_categories_keywords.html:72
-#: templates/Sources/source_categories_keywords.html:72 templates/base.html:341
+#: templates/Sources/source_categories_keywords.html:72
+#: templates/base.html:341
 #: templates/file/File_Management_Analysis_System.html:906
 msgid "Categories"
 msgstr ""
@@ -392,7 +392,8 @@ msgid "Version"
 msgstr ""
 
 #: templates/base.html:457
-msgid "You are signed in with a temporary password. Please set a new password."
+msgid ""
+"You are signed in with a temporary password. Please set a new password."
 msgstr ""
 
 #: templates/base.html:460 templates/base.html:566 templates/base.html:598
@@ -546,8 +547,8 @@ msgstr ""
 
 #: templates/base.html:720
 msgid ""
-"The server did not respond. This may be due to network issues or the "
-"server being unavailable."
+"The server did not respond. This may be due to network issues or the server "
+"being unavailable."
 msgstr ""
 
 #: templates/base.html:721
@@ -960,7 +961,8 @@ msgstr ""
 #: templates/Word/Word_list.html:16 templates/base.html:815
 #: templates/email_words/email_words.html:158
 #: templates/email_words/email_words.html:336
-#: templates/email_words/email_words.html:359 templates/file/files_list.html:18
+#: templates/email_words/email_words.html:359
+#: templates/file/files_list.html:18
 msgid "Refresh"
 msgstr ""
 
@@ -1361,8 +1363,7 @@ msgstr ""
 
 #: templates/Analysis/analysis_batch.html:41
 msgid ""
-"Upload files or enter folder paths to analyze large collections "
-"efficiently"
+"Upload files or enter folder paths to analyze large collections efficiently"
 msgstr ""
 
 #: templates/Analysis/analysis_batch.html:42
@@ -1387,8 +1388,8 @@ msgstr ""
 
 #: templates/Analysis/analysis_batch.html:54
 msgid ""
-"Load saved templates to apply consistent analysis settings across "
-"multiple batches"
+"Load saved templates to apply consistent analysis settings across multiple "
+"batches"
 msgstr ""
 
 #: templates/Analysis/analysis_batch.html:55
@@ -1563,7 +1564,8 @@ msgstr ""
 #: templates/Analysis/comprehensive_dashboard.html:340
 #: templates/Analysis/path_analysis.html:124
 #: templates/Search/search_advanced.html:78
-#: templates/Search/search_enhanced.html:157 templates/Side/sides_list.html:220
+#: templates/Search/search_enhanced.html:157
+#: templates/Side/sides_list.html:220
 #: templates/file/File_Management_Analysis_System.html:268
 #: templates/file/files_list.html:149
 msgid "All Sides"
@@ -1587,7 +1589,8 @@ msgstr ""
 #: templates/Analysis/comprehensive_dashboard.html:525
 #: templates/Analysis/dashboard.html:418
 #: templates/Search/search_advanced.html:172
-#: templates/Search/search_enhanced.html:134 templates/file/files_list.html:164
+#: templates/Search/search_enhanced.html:134
+#: templates/file/files_list.html:164
 msgid "All Types"
 msgstr ""
 
@@ -1595,8 +1598,9 @@ msgstr ""
 #: templates/Analysis/charts_dashboard.html:414
 #: templates/Analysis/comprehensive_dashboard.html:602
 #: templates/Category/category_words.html:234
-#: templates/Category/category_words.html:390 templates/Word/Word_list.html:141
-#: templates/Word/Word_list.html:220 templates/Word/Word_list.html:328
+#: templates/Category/category_words.html:390
+#: templates/Word/Word_list.html:141 templates/Word/Word_list.html:220
+#: templates/Word/Word_list.html:328
 #: templates/file/File_Management_Analysis_System.html:933
 msgid "Word"
 msgstr ""
@@ -1630,7 +1634,8 @@ msgstr ""
 #: templates/Analysis/analysis_batch.html:254
 #: templates/Analysis/analysis_batch.html:487
 #: templates/Analysis/dashboard.html:537
-#: templates/Search/search_enhanced.html:118 templates/file/files_list.html:281
+#: templates/Search/search_enhanced.html:118
+#: templates/file/files_list.html:281
 msgid "Type"
 msgstr ""
 
@@ -1789,8 +1794,8 @@ msgstr ""
 
 #: templates/Analysis/analysis_batch.html:478
 msgid ""
-"These files failed to save, were not saved, or had processing errors. "
-"Click Retry to attempt reading and saving again."
+"These files failed to save, were not saved, or had processing errors. Click "
+"Retry to attempt reading and saving again."
 msgstr ""
 
 #: templates/Analysis/analysis_batch.html:512
@@ -1875,24 +1880,25 @@ msgstr ""
 
 #: templates/Analysis/charts_dashboard.html:29
 msgid ""
-"This dashboard displays visual analytics and charts for files, "
-"categories, keywords, sources, and words"
+"This dashboard displays visual analytics and charts for files, categories, "
+"keywords, sources, and words"
 msgstr ""
 
 #: templates/Analysis/charts_dashboard.html:30
 msgid ""
-"Each section contains interactive charts that update based on your filter"
-" selections"
+"Each section contains interactive charts that update based on your filter "
+"selections"
 msgstr ""
 
 #: templates/Analysis/charts_dashboard.html:31
-msgid "Charts help you visualize trends, distributions, and patterns in your data"
+msgid ""
+"Charts help you visualize trends, distributions, and patterns in your data"
 msgstr ""
 
 #: templates/Analysis/charts_dashboard.html:32
 msgid ""
-"Use filters at the top of each section to customize the data displayed in"
-" charts"
+"Use filters at the top of each section to customize the data displayed in "
+"charts"
 msgstr ""
 
 #: templates/Analysis/charts_dashboard.html:38
@@ -2057,7 +2063,8 @@ msgstr ""
 #: templates/Analysis/comprehensive_dashboard.html:344
 #: templates/Analysis/comprehensive_dashboard.html:421
 #: templates/Analysis/comprehensive_dashboard.html:563
-#: templates/Keyword/keywords_list.html:246 templates/file/file_detail.html:431
+#: templates/Keyword/keywords_list.html:246
+#: templates/file/file_detail.html:431
 msgid "Keyword"
 msgstr ""
 
@@ -2287,8 +2294,8 @@ msgstr ""
 #: templates/Analysis/charts_dashboard.html:409
 #: templates/Analysis/comprehensive_dashboard.html:558
 #: templates/Analysis/comprehensive_dashboard.html:597
-#: templates/Analysis/path_analysis.html:165 templates/Side/side_detail.html:77
-#: templates/Sources/source_detail.html:89
+#: templates/Analysis/path_analysis.html:165
+#: templates/Side/side_detail.html:77 templates/Sources/source_detail.html:89
 msgid "Total Size"
 msgstr ""
 
@@ -2393,7 +2400,8 @@ msgstr ""
 #: templates/Analysis/charts_dashboard.html:394
 #: templates/Analysis/comprehensive_dashboard.html:576
 #: templates/Category/category_words.html:329
-#: templates/Category/category_words.html:389 templates/Word/Word_list.html:194
+#: templates/Category/category_words.html:389
+#: templates/Word/Word_list.html:194
 msgid "No words found"
 msgstr ""
 
@@ -2488,8 +2496,8 @@ msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:18
 msgid ""
-"Advanced filtering and analysis across files, categories, keywords, "
-"sources, and words"
+"Advanced filtering and analysis across files, categories, keywords, sources,"
+" and words"
 msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:29
@@ -2509,7 +2517,8 @@ msgid ""
 msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:34
-msgid "Each tab contains advanced filtering options to narrow down your analysis"
+msgid ""
+"Each tab contains advanced filtering options to narrow down your analysis"
 msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:35
@@ -2558,8 +2567,7 @@ msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:59
 msgid ""
-"Export filtered results to CSV, Excel, or JSON formats for further "
-"analysis"
+"Export filtered results to CSV, Excel, or JSON formats for further analysis"
 msgstr ""
 
 #: templates/Analysis/comprehensive_dashboard.html:79
@@ -2772,8 +2780,8 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:34
 msgid ""
-"All data updates automatically as files are processed - no manual refresh"
-" needed"
+"All data updates automatically as files are processed - no manual refresh "
+"needed"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:40
@@ -2804,8 +2812,7 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:47
 msgid ""
-"Categories: Number of classification categories used to organize your "
-"files"
+"Categories: Number of classification categories used to organize your files"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:48
@@ -2818,8 +2825,8 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:50
 msgid ""
-"Database Size: Size of the analysis database storing metadata and "
-"extracted content"
+"Database Size: Size of the analysis database storing metadata and extracted "
+"content"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:56
@@ -2836,12 +2843,13 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:61
 msgid ""
-"Displays file name, processing status, percentage complete, and estimated"
-" time remaining"
+"Displays file name, processing status, percentage complete, and estimated "
+"time remaining"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:62
-msgid "Tasks disappear automatically when processing completes - no action needed"
+msgid ""
+"Tasks disappear automatically when processing completes - no action needed"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:68
@@ -2850,14 +2858,14 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:71
 msgid ""
-"Overview Tab: File timeline chart, file type distribution, and processing"
-" statistics"
+"Overview Tab: File timeline chart, file type distribution, and processing "
+"statistics"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:72
 msgid ""
-"Categories Tab: Pie and bar charts showing category distribution across "
-"your files"
+"Categories Tab: Pie and bar charts showing category distribution across your"
+" files"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:73
@@ -2909,8 +2917,8 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:88
 msgid ""
-"Chart Legends: Click on legend items to show/hide specific data series in"
-" the chart"
+"Chart Legends: Click on legend items to show/hide specific data series in "
+"the chart"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:89
@@ -2931,26 +2939,26 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:99
 msgid ""
-"Search Bar: Enter keywords, category names, or file paths to search "
-"across all files"
+"Search Bar: Enter keywords, category names, or file paths to search across "
+"all files"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:100
 msgid ""
-"Type Filter: Use the dropdown next to the search bar to filter by "
-"specific file types (PDF, DOCX, etc.)"
+"Type Filter: Use the dropdown next to the search bar to filter by specific "
+"file types (PDF, DOCX, etc.)"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:101
 msgid ""
-"Category Tags: Click on category filter tags below the search bar to "
-"filter by specific categories"
+"Category Tags: Click on category filter tags below the search bar to filter "
+"by specific categories"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:102
 msgid ""
-"Search Results: Results appear in a grid below with file details - click "
-"any file to view full details"
+"Search Results: Results appear in a grid below with file details - click any"
+" file to view full details"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:103
@@ -2969,32 +2977,32 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:113
 msgid ""
-"Storage Distribution: Use \"By Type\", \"By Status\", or \"By Size\" "
-"buttons to change how storage is visualized"
+"Storage Distribution: Use \"By Type\", \"By Status\", or \"By Size\" buttons"
+" to change how storage is visualized"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:114
 msgid ""
-"Storage Details: Scrollable list showing breakdown of storage by selected"
-" view with file counts and sizes"
+"Storage Details: Scrollable list showing breakdown of storage by selected "
+"view with file counts and sizes"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:115
 msgid ""
-"Storage Growth Timeline: Line chart showing how your storage has grown "
-"over time"
+"Storage Growth Timeline: Line chart showing how your storage has grown over "
+"time"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:116
 msgid ""
-"Processing Performance: Two charts showing success rates by file type and"
-" processing speed trends"
+"Processing Performance: Two charts showing success rates by file type and "
+"processing speed trends"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:117
 msgid ""
-"Content Analysis: Charts showing content coverage (with/without content) "
-"and top categories distribution"
+"Content Analysis: Charts showing content coverage (with/without content) and"
+" top categories distribution"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:118
@@ -3015,8 +3023,8 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:128
 msgid ""
-"Upload Files: Go to \"Upload Files\" in the sidebar to add new files to "
-"the system"
+"Upload Files: Go to \"Upload Files\" in the sidebar to add new files to the "
+"system"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:129
@@ -3033,20 +3041,20 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:131
 msgid ""
-"Keywords: Manage keywords from the Keywords page - they are automatically"
-" extracted or can be manually added"
+"Keywords: Manage keywords from the Keywords page - they are automatically "
+"extracted or can be manually added"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:132
 msgid ""
-"Sources & Sides: Configure sources and sides from their respective pages "
-"to classify file origins"
+"Sources & Sides: Configure sources and sides from their respective pages to "
+"classify file origins"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:133
 msgid ""
-"Refresh Data: Statistics update automatically, but you can refresh the "
-"page to ensure latest data is displayed"
+"Refresh Data: Statistics update automatically, but you can refresh the page "
+"to ensure latest data is displayed"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:139
@@ -3055,12 +3063,13 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:142
 msgid ""
-"Hide Tips: Toggle this tips section using the chevron icon in the top-"
-"right, or disable permanently in Settings → Display"
+"Hide Tips: Toggle this tips section using the chevron icon in the top-right,"
+" or disable permanently in Settings → Display"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:143
-msgid "Theme: Change appearance (light/dark/auto) from Settings → Display → Theme"
+msgid ""
+"Theme: Change appearance (light/dark/auto) from Settings → Display → Theme"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:144
@@ -3077,8 +3086,8 @@ msgstr ""
 
 #: templates/Analysis/dashboard.html:146
 msgid ""
-"Export Data: Export charts, search results, and reports using export "
-"buttons (when available) or from the File Library page"
+"Export Data: Export charts, search results, and reports using export buttons"
+" (when available) or from the File Library page"
 msgstr ""
 
 #: templates/Analysis/dashboard.html:150
@@ -3427,10 +3436,10 @@ msgstr ""
 #: templates/Analysis/dashboard.html:590
 #: templates/Keyword/keywords_list.html:133
 #: templates/Keyword/keywords_list.html:262
-#: templates/Search/search_advanced.html:233 templates/Word/Word_detail.html:89
-#: templates/Word/Word_list.html:125 templates/Word/Word_list.html:236
-#: templates/auth/users.html:31 templates/file/files_list.html:178
-#: templates/file/files_list.html:285
+#: templates/Search/search_advanced.html:233
+#: templates/Word/Word_detail.html:89 templates/Word/Word_list.html:125
+#: templates/Word/Word_list.html:236 templates/auth/users.html:31
+#: templates/file/files_list.html:178 templates/file/files_list.html:285
 msgid "Status"
 msgstr ""
 
@@ -3445,20 +3454,18 @@ msgstr ""
 
 #: templates/Analysis/file_classification.html:49
 msgid ""
-"File Classification automatically categorizes files based on their "
-"content and characteristics"
+"File Classification automatically categorizes files based on their content "
+"and characteristics"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:50
 msgid ""
-"Analyze individual files or entire folders to classify them into "
-"categories"
+"Analyze individual files or entire folders to classify them into categories"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:51
 msgid ""
-"View classification results with confidence scores and suggested "
-"categories"
+"View classification results with confidence scores and suggested categories"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:52
@@ -3470,7 +3477,8 @@ msgid "Analysis Modes"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:61
-msgid "Folder Analysis: Analyze all files in a directory and its subdirectories"
+msgid ""
+"Folder Analysis: Analyze all files in a directory and its subdirectories"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:62
@@ -3479,8 +3487,7 @@ msgstr ""
 
 #: templates/Analysis/file_classification.html:63
 msgid ""
-"Text Classification: Classify text content directly without uploading "
-"files"
+"Text Classification: Classify text content directly without uploading files"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:64
@@ -3535,8 +3542,7 @@ msgstr ""
 
 #: templates/Analysis/file_classification.html:127
 msgid ""
-"Enter full folder path (e.g., C:\\Users\\Documents or "
-"/home/user/documents)"
+"Enter full folder path (e.g., C:\\Users\\Documents or /home/user/documents)"
 msgstr ""
 
 #: templates/Analysis/file_classification.html:129
@@ -3618,7 +3624,8 @@ msgid "Path Analysis Overview"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:29
-msgid "Path Analysis displays your files organized by their directory structure"
+msgid ""
+"Path Analysis displays your files organized by their directory structure"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:30
@@ -3644,9 +3651,7 @@ msgid "Click on any folder in the tree to view its contents and statistics"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:42
-msgid ""
-"Use \"Expand All\" to show all directories, or \"Collapse All\" to hide "
-"them"
+msgid "Use \"Expand All\" to show all directories, or \"Collapse All\" to hide them"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:43
@@ -3666,7 +3671,8 @@ msgid "Selecting a directory shows its files in the main panel"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:54
-msgid "View file details including name, size, type, status, and analysis results"
+msgid ""
+"View file details including name, size, type, status, and analysis results"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:55
@@ -3902,8 +3908,7 @@ msgstr ""
 
 #: templates/Analysis/path_analysis.html:375
 msgid ""
-"This folder appears to be empty or the path pattern doesn't match any "
-"files"
+"This folder appears to be empty or the path pattern doesn't match any files"
 msgstr ""
 
 #: templates/Analysis/path_analysis.html:376
@@ -4109,8 +4114,8 @@ msgstr ""
 
 #: templates/Category/categories_list.html:54
 msgid ""
-"Categories help organize and classify your files for easier management "
-"and retrieval"
+"Categories help organize and classify your files for easier management and "
+"retrieval"
 msgstr ""
 
 #: templates/Category/categories_list.html:55
@@ -4120,13 +4125,14 @@ msgid ""
 msgstr ""
 
 #: templates/Category/categories_list.html:56
-msgid "Edit existing categories by clicking the edit icon next to each category"
+msgid ""
+"Edit existing categories by clicking the edit icon next to each category"
 msgstr ""
 
 #: templates/Category/categories_list.html:57
 msgid ""
-"Delete categories that are no longer needed, but be aware this may affect"
-" file classifications"
+"Delete categories that are no longer needed, but be aware this may affect "
+"file classifications"
 msgstr ""
 
 #: templates/Category/categories_list.html:63
@@ -4164,7 +4170,8 @@ msgid "See which categories have the most files associated with them"
 msgstr ""
 
 #: templates/Category/categories_list.html:80
-msgid "Monitor category usage to identify frequently used or unused categories"
+msgid ""
+"Monitor category usage to identify frequently used or unused categories"
 msgstr ""
 
 #: templates/Category/categories_list.html:84
@@ -4220,8 +4227,9 @@ msgstr ""
 #: templates/Category/categories_list.html:159
 #: templates/Category/category_words.html:162
 #: templates/Keyword/keywords_list.html:155
-#: templates/Search/search_enhanced.html:113 templates/Side/sides_list.html:145
-#: templates/Sources/sources_list.html:147 templates/Word/Word_list.html:137
+#: templates/Search/search_enhanced.html:113
+#: templates/Side/sides_list.html:145 templates/Sources/sources_list.html:147
+#: templates/Word/Word_list.html:137
 #: templates/file/File_Management_Analysis_System.html:317
 #: templates/file/File_Management_Analysis_System.html:318
 #: templates/file/files_list.html:190
@@ -4229,8 +4237,8 @@ msgid "Sort By"
 msgstr ""
 
 #: templates/Category/categories_list.html:162
-#: templates/Search/search_advanced.html:305 templates/Side/sides_list.html:148
-#: templates/Sources/sources_list.html:150
+#: templates/Search/search_advanced.html:305
+#: templates/Side/sides_list.html:148 templates/Sources/sources_list.html:150
 #: templates/file/File_Management_Analysis_System.html:321
 #: templates/file/files_list.html:195
 msgid "Name (A-Z)"
@@ -4348,10 +4356,11 @@ msgstr ""
 #: templates/Category/category_words.html:240
 #: templates/Category/category_words.html:391
 #: templates/Keyword/keyword_detail.html:89
-#: templates/Keyword/keywords_list.html:269 templates/Side/side_detail.html:101
-#: templates/Sources/source_detail.html:187 templates/Word/Word_detail.html:114
-#: templates/Word/Word_list.html:242 templates/auth/users.html:33
-#: templates/email_words/email_words.html:136
+#: templates/Keyword/keywords_list.html:269
+#: templates/Side/side_detail.html:101
+#: templates/Sources/source_detail.html:187
+#: templates/Word/Word_detail.html:114 templates/Word/Word_list.html:242
+#: templates/auth/users.html:33 templates/email_words/email_words.html:136
 #: templates/email_words/email_words.html:265
 #: templates/file/files_list.html:287
 msgid "Actions"
@@ -4448,7 +4457,8 @@ msgstr ""
 #: templates/Category/category_words.html:400
 #: templates/Keyword/keywords_list.html:218
 #: templates/Keyword/keywords_list.html:439 templates/Word/Word_list.html:192
-#: templates/Word/Word_list.html:360 templates/email_words/email_words.html:333
+#: templates/Word/Word_list.html:360
+#: templates/email_words/email_words.html:333
 #: templates/file/File_Management_Analysis_System.html:890
 msgid "Showing"
 msgstr ""
@@ -4502,8 +4512,8 @@ msgstr ""
 
 #: templates/Category/categories_list.html:534
 msgid ""
-"Are you sure you want to remove all duplicate categories? This action "
-"cannot be undone."
+"Are you sure you want to remove all duplicate categories? This action cannot"
+" be undone."
 msgstr ""
 
 #: templates/Category/categories_list.html:536
@@ -4589,11 +4599,13 @@ msgstr ""
 msgid "Visible Words"
 msgstr ""
 
-#: templates/Category/category_words.html:145 templates/Word/Word_list.html:108
+#: templates/Category/category_words.html:145
+#: templates/Word/Word_list.html:108
 msgid "Search Words"
 msgstr ""
 
-#: templates/Category/category_words.html:151 templates/Word/Word_list.html:114
+#: templates/Category/category_words.html:151
+#: templates/Word/Word_list.html:114
 msgid "Search words..."
 msgstr ""
 
@@ -4606,8 +4618,8 @@ msgid "Word (Z-A)"
 msgstr ""
 
 #: templates/Category/category_words.html:207
-#: templates/Category/category_words.html:387 templates/Word/Word_list.html:192
-#: templates/Word/Word_list.html:363
+#: templates/Category/category_words.html:387
+#: templates/Word/Word_list.html:192 templates/Word/Word_list.html:363
 msgid "words"
 msgstr ""
 
@@ -4615,7 +4627,8 @@ msgstr ""
 msgid "in category"
 msgstr ""
 
-#: templates/Category/category_words.html:235 templates/Word/Word_list.html:221
+#: templates/Category/category_words.html:235
+#: templates/Word/Word_list.html:221
 msgid "Sort by word"
 msgstr ""
 
@@ -4662,8 +4675,7 @@ msgstr ""
 
 #: templates/ImportExport/import_export.html:28
 msgid ""
-"Import files in bulk using file paths or CSV files for efficient "
-"processing"
+"Import files in bulk using file paths or CSV files for efficient processing"
 msgstr ""
 
 #: templates/ImportExport/import_export.html:29
@@ -4686,7 +4698,8 @@ msgid "Batch File Import"
 msgstr ""
 
 #: templates/ImportExport/import_export.html:40
-msgid "Import files by entering file paths (one per line) or uploading a CSV file"
+msgid ""
+"Import files by entering file paths (one per line) or uploading a CSV file"
 msgstr ""
 
 #: templates/ImportExport/import_export.html:41
@@ -4709,8 +4722,8 @@ msgstr ""
 
 #: templates/ImportExport/import_export.html:52
 msgid ""
-"Export files, categories, keywords, sources, and other data to CSV or "
-"Excel formats"
+"Export files, categories, keywords, sources, and other data to CSV or Excel "
+"formats"
 msgstr ""
 
 #: templates/ImportExport/import_export.html:53
@@ -4866,8 +4879,7 @@ msgstr ""
 
 #: templates/Keyword/keyword_detail.html:27
 msgid ""
-"View comprehensive information about this keyword including usage "
-"statistics"
+"View comprehensive information about this keyword including usage statistics"
 msgstr ""
 
 #: templates/Keyword/keyword_detail.html:28
@@ -4912,7 +4924,8 @@ msgstr ""
 
 #: templates/Keyword/keyword_detail.html:60
 #: templates/Keyword/keywords_list.html:158 templates/Word/Word_detail.html:80
-#: templates/Word/Word_list.html:140 templates/email_words/email_words.html:260
+#: templates/Word/Word_list.html:140
+#: templates/email_words/email_words.html:260
 msgid "Usage Count"
 msgstr ""
 
@@ -4968,18 +4981,18 @@ msgstr ""
 
 #: templates/Keyword/keywords_list.html:39
 msgid ""
-"Keywords are automatically extracted from file content during analysis, "
-"or can be manually added"
+"Keywords are automatically extracted from file content during analysis, or "
+"can be manually added"
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:40
 msgid ""
-"Each keyword can be associated with multiple files, categories, and "
-"sources"
+"Each keyword can be associated with multiple files, categories, and sources"
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:41
-msgid "Keywords help improve search accuracy and enable better file organization"
+msgid ""
+"Keywords help improve search accuracy and enable better file organization"
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:47
@@ -4992,8 +5005,8 @@ msgstr ""
 
 #: templates/Keyword/keywords_list.html:51
 msgid ""
-"Edit keywords by clicking the edit icon, and associate them with "
-"categories or files"
+"Edit keywords by clicking the edit icon, and associate them with categories "
+"or files"
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:52
@@ -5002,8 +5015,8 @@ msgstr ""
 
 #: templates/Keyword/keywords_list.html:53
 msgid ""
-"Delete keywords that are no longer needed, but check usage first to avoid"
-" breaking associations"
+"Delete keywords that are no longer needed, but check usage first to avoid "
+"breaking associations"
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:59 templates/Side/sides_list.html:63
@@ -5031,8 +5044,8 @@ msgstr ""
 
 #: templates/Keyword/keywords_list.html:69
 msgid ""
-"Regularly updating keyword associations ensures your files remain "
-"properly tagged and searchable."
+"Regularly updating keyword associations ensures your files remain properly "
+"tagged and searchable."
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:80
@@ -5078,7 +5091,8 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-#: templates/Keyword/keywords_list.html:161 templates/file/file_detail.html:500
+#: templates/Keyword/keywords_list.html:161
+#: templates/file/file_detail.html:500
 msgid "Date Created"
 msgstr ""
 
@@ -5213,8 +5227,8 @@ msgstr ""
 #: templates/Keyword/keywords_list.html:372
 #: templates/file/File_Management_Analysis_System.html:621
 msgid ""
-"Type a new word name to create it, or search for an existing word. You "
-"must select at least 2 words to create a keyword phrase."
+"Type a new word name to create it, or search for an existing word. You must "
+"select at least 2 words to create a keyword phrase."
 msgstr ""
 
 #: templates/Keyword/keywords_list.html:378
@@ -5376,11 +5390,13 @@ msgid "Notifications Overview"
 msgstr ""
 
 #: templates/Notifications/notifications.html:47
-msgid "Notifications alert you to important system events, issues, and findings"
+msgid ""
+"Notifications alert you to important system events, issues, and findings"
 msgstr ""
 
 #: templates/Notifications/notifications.html:48
-msgid "View all notifications, or filter by type (duplicates, future dates, etc.)"
+msgid ""
+"View all notifications, or filter by type (duplicates, future dates, etc.)"
 msgstr ""
 
 #: templates/Notifications/notifications.html:49
@@ -5398,14 +5414,13 @@ msgstr ""
 
 #: templates/Notifications/notifications.html:59
 msgid ""
-"Duplicate file notifications identify files that appear multiple times in"
-" your system"
+"Duplicate file notifications identify files that appear multiple times in "
+"your system"
 msgstr ""
 
 #: templates/Notifications/notifications.html:60
 msgid ""
-"Use \"Scan for Duplicates\" to find files with identical content or "
-"metadata"
+"Use \"Scan for Duplicates\" to find files with identical content or metadata"
 msgstr ""
 
 #: templates/Notifications/notifications.html:61
@@ -5413,7 +5428,8 @@ msgid "Review duplicate notifications to decide which files to keep or remove"
 msgstr ""
 
 #: templates/Notifications/notifications.html:62
-msgid "Resolve duplicates to clean up your file library and save storage space"
+msgid ""
+"Resolve duplicates to clean up your file library and save storage space"
 msgstr ""
 
 #: templates/Notifications/notifications.html:68
@@ -5534,13 +5550,13 @@ msgid "Saved Searches Overview"
 msgstr ""
 
 #: templates/Search/saved_searches.html:27
-msgid "Saved Searches stores your frequently used search queries for quick access"
+msgid ""
+"Saved Searches stores your frequently used search queries for quick access"
 msgstr ""
 
 #: templates/Search/saved_searches.html:28
 msgid ""
-"Save a search from the Enhanced Search page using the \"Save Search\" "
-"button"
+"Save a search from the Enhanced Search page using the \"Save Search\" button"
 msgstr ""
 
 #: templates/Search/saved_searches.html:29
@@ -5586,8 +5602,8 @@ msgstr ""
 
 #: templates/Search/saved_searches.html:98
 msgid ""
-"Run a search on the Enhanced Search page and use \"Save Search\" to "
-"bookmark it here."
+"Run a search on the Enhanced Search page and use \"Save Search\" to bookmark"
+" it here."
 msgstr ""
 
 #: templates/Search/saved_searches.html:101
@@ -5620,20 +5636,19 @@ msgstr ""
 
 #: templates/Search/search.html:27
 msgid ""
-"Enter keywords or phrases in the search box to find files containing "
-"those terms"
+"Enter keywords or phrases in the search box to find files containing those "
+"terms"
 msgstr ""
 
 #: templates/Search/search.html:28
 msgid ""
-"Search looks through file names, content, metadata, and associated "
-"keywords"
+"Search looks through file names, content, metadata, and associated keywords"
 msgstr ""
 
 #: templates/Search/search.html:29
 msgid ""
-"Results are displayed in order of relevance, with the most relevant "
-"matches first"
+"Results are displayed in order of relevance, with the most relevant matches "
+"first"
 msgstr ""
 
 #: templates/Search/search.html:30
@@ -5762,8 +5777,7 @@ msgstr ""
 
 #: templates/Search/search_advanced.html:18
 msgid ""
-"Find exactly what you need with powerful filters and intelligent "
-"algorithms"
+"Find exactly what you need with powerful filters and intelligent algorithms"
 msgstr ""
 
 #: templates/Search/search_advanced.html:28
@@ -5993,8 +6007,8 @@ msgstr ""
 
 #: templates/Search/search_enhanced.html:52
 msgid ""
-"Use the sidebar filters to narrow down results by category, source, date,"
-" and more"
+"Use the sidebar filters to narrow down results by category, source, date, "
+"and more"
 msgstr ""
 
 #: templates/Search/search_enhanced.html:53
@@ -6029,7 +6043,8 @@ msgstr ""
 msgid "Relevance"
 msgstr ""
 
-#: templates/Search/search_enhanced.html:116 templates/file/files_list.html:286
+#: templates/Search/search_enhanced.html:116
+#: templates/file/files_list.html:286
 msgid "Date"
 msgstr ""
 
@@ -6291,7 +6306,8 @@ msgid "Display Results Per Page"
 msgstr ""
 
 #: templates/Settings/settings.html:473
-msgid "Number of results per page for search and file lists (Display-specific)"
+msgid ""
+"Number of results per page for search and file lists (Display-specific)"
 msgstr ""
 
 #: templates/Settings/settings.html:487
@@ -6730,10 +6746,10 @@ msgstr ""
 
 #: templates/Settings/settings.html:2007
 msgid ""
-"Paste CSS here to override unified styles. This CSS is injected globally "
-"and applies to ALL pages. You can target unified classes like .page-"
-"header, .page-title, .section-card, .stat-card, .id-card, etc. Changes "
-"are saved system-wide."
+"Paste CSS here to override unified styles. This CSS is injected globally and"
+" applies to ALL pages. You can target unified classes like .page-header, "
+".page-title, .section-card, .stat-card, .id-card, etc. Changes are saved "
+"system-wide."
 msgstr ""
 
 #: templates/Settings/settings.html:2016
@@ -6883,7 +6899,8 @@ msgid "Calculate File Hashes"
 msgstr ""
 
 #: templates/Settings/settings.html:2442
-msgid "Calculate and store file hash values (MD5, SHA256) for duplicate detection"
+msgid ""
+"Calculate and store file hash values (MD5, SHA256) for duplicate detection"
 msgstr ""
 
 #: templates/Settings/settings.html:2457
@@ -7004,15 +7021,15 @@ msgstr ""
 
 #: templates/Settings/settings.html:2673
 msgid ""
-"Toggle interfaces on/off to control what appears in your navigation menu "
-"and throughout the application. Changes are saved automatically and "
-"applied immediately."
+"Toggle interfaces on/off to control what appears in your navigation menu and"
+" throughout the application. Changes are saved automatically and applied "
+"immediately."
 msgstr ""
 
 #: templates/Settings/settings.html:2677
 msgid ""
-"Disabled interfaces are completely hidden from view on all pages. Toggle "
-"the switch to enable/disable - no need to click Save."
+"Disabled interfaces are completely hidden from view on all pages. Toggle the"
+" switch to enable/disable - no need to click Save."
 msgstr ""
 
 #: templates/Settings/settings.html:2729
@@ -7117,8 +7134,8 @@ msgstr ""
 
 #: templates/Settings/settings.html:2951
 msgid ""
-"Changing database settings may require application restart and could "
-"affect database connectivity."
+"Changing database settings may require application restart and could affect "
+"database connectivity."
 msgstr ""
 
 #: templates/Settings/settings.html:2957
@@ -7538,8 +7555,7 @@ msgstr ""
 
 #: templates/Settings/settings.html:3471
 msgid ""
-"Colors are applied in real-time. Scroll to see changes throughout the "
-"page."
+"Colors are applied in real-time. Scroll to see changes throughout the page."
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:3
@@ -7567,21 +7583,20 @@ msgstr ""
 
 #: templates/Side/side_categories_keywords.html:49
 msgid ""
-"View categories and keywords to understand the content and themes for "
-"this side"
+"View categories and keywords to understand the content and themes for this "
+"side"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:50
 #: templates/Sources/source_categories_keywords.html:50
 msgid ""
-"See statistics showing how many files are associated with each category "
-"or keyword"
+"See statistics showing how many files are associated with each category or "
+"keyword"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:51
 msgid ""
-"Use this information to understand the distribution of data across this "
-"side"
+"Use this information to understand the distribution of data across this side"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:57
@@ -7590,16 +7605,19 @@ msgid "Understanding Associations"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:60
-msgid "Categories show the main themes and classifications for files in this side"
+msgid ""
+"Categories show the main themes and classifications for files in this side"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:61
-msgid "Keywords identify important terms and concepts associated with this side"
+msgid ""
+"Keywords identify important terms and concepts associated with this side"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:62
 #: templates/Sources/source_categories_keywords.html:62
-msgid "File counts indicate how many files are linked to each category or keyword"
+msgid ""
+"File counts indicate how many files are linked to each category or keyword"
 msgstr ""
 
 #: templates/Side/side_categories_keywords.html:63
@@ -7640,7 +7658,8 @@ msgid ""
 msgstr ""
 
 #: templates/Side/side_detail.html:28
-msgid "See document count, source count, total file size, and other key metrics"
+msgid ""
+"See document count, source count, total file size, and other key metrics"
 msgstr ""
 
 #: templates/Side/side_detail.html:29
@@ -7736,26 +7755,24 @@ msgstr ""
 
 #: templates/Side/sides_list.html:42
 msgid ""
-"Sides represent different parties, organizations, or entities in your "
-"file analysis system"
+"Sides represent different parties, organizations, or entities in your file "
+"analysis system"
 msgstr ""
 
 #: templates/Side/sides_list.html:43
 msgid ""
-"Each side can be associated with multiple files, sources, categories, and"
-" keywords"
+"Each side can be associated with multiple files, sources, categories, and "
+"keywords"
 msgstr ""
 
 #: templates/Side/sides_list.html:44
 msgid ""
-"Sides help organize files by the parties involved or referenced in "
-"documents"
+"Sides help organize files by the parties involved or referenced in documents"
 msgstr ""
 
 #: templates/Side/sides_list.html:45
 msgid ""
-"Use sides to track relationships and associations between different "
-"entities"
+"Use sides to track relationships and associations between different entities"
 msgstr ""
 
 #: templates/Side/sides_list.html:51
@@ -7764,8 +7781,8 @@ msgstr ""
 
 #: templates/Side/sides_list.html:54
 msgid ""
-"Click \"Add Side\" to create a new side with name, description, and "
-"optional metadata"
+"Click \"Add Side\" to create a new side with name, description, and optional"
+" metadata"
 msgstr ""
 
 #: templates/Side/sides_list.html:55
@@ -7780,8 +7797,7 @@ msgstr ""
 
 #: templates/Side/sides_list.html:57
 msgid ""
-"Delete sides that are no longer needed, but check for associated files "
-"first"
+"Delete sides that are no longer needed, but check for associated files first"
 msgstr ""
 
 #: templates/Side/sides_list.html:66
@@ -7797,7 +7813,8 @@ msgid "Sort sides by name, file count, or creation date"
 msgstr ""
 
 #: templates/Side/sides_list.html:69
-msgid "View statistics showing total sides, documents per side, and other metrics"
+msgid ""
+"View statistics showing total sides, documents per side, and other metrics"
 msgstr ""
 
 #: templates/Side/sides_list.html:82
@@ -7890,7 +7907,8 @@ msgid "Create a copy of this side?"
 msgstr ""
 
 #: templates/Side/sides_list.html:519
-msgid "Are you sure you want to delete this side? This action cannot be undone."
+msgid ""
+"Are you sure you want to delete this side? This action cannot be undone."
 msgstr ""
 
 #: templates/Side/sides_list.html:520
@@ -7979,7 +7997,8 @@ msgid "Source Categories & Keywords Overview"
 msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:48
-msgid "This page shows all categories and keywords associated with this source"
+msgid ""
+"This page shows all categories and keywords associated with this source"
 msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:49
@@ -7989,7 +8008,8 @@ msgid ""
 msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:51
-msgid "Use this information to understand the types of documents from this source"
+msgid ""
+"Use this information to understand the types of documents from this source"
 msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:60
@@ -8000,8 +8020,7 @@ msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:61
 msgid ""
-"Keywords identify important terms and concepts in documents from this "
-"source"
+"Keywords identify important terms and concepts in documents from this source"
 msgstr ""
 
 #: templates/Sources/source_categories_keywords.html:63
@@ -8020,8 +8039,8 @@ msgstr ""
 
 #: templates/Sources/source_detail.html:39
 msgid ""
-"View comprehensive information about this source including statistics and"
-" metadata"
+"View comprehensive information about this source including statistics and "
+"metadata"
 msgstr ""
 
 #: templates/Sources/source_detail.html:40
@@ -8042,7 +8061,8 @@ msgid "Source Information"
 msgstr ""
 
 #: templates/Sources/source_detail.html:51
-msgid "View source metadata including country, city, ownership, and access status"
+msgid ""
+"View source metadata including country, city, ownership, and access status"
 msgstr ""
 
 #: templates/Sources/source_detail.html:52
@@ -8050,13 +8070,14 @@ msgid "See all files originating from this source"
 msgstr ""
 
 #: templates/Sources/source_detail.html:53
-msgid "Review categories and keywords most commonly associated with this source"
+msgid ""
+"Review categories and keywords most commonly associated with this source"
 msgstr ""
 
 #: templates/Sources/source_detail.html:54
 msgid ""
-"Use this information to understand the origin and characteristics of your"
-" files"
+"Use this information to understand the origin and characteristics of your "
+"files"
 msgstr ""
 
 #: templates/Sources/source_detail.html:108
@@ -8146,7 +8167,8 @@ msgstr ""
 msgid "Source deleted successfully!"
 msgstr ""
 
-#: templates/Sources/sources_list.html:6 templates/Sources/sources_list.html:17
+#: templates/Sources/sources_list.html:6
+#: templates/Sources/sources_list.html:17
 msgid "Sources Management"
 msgstr ""
 
@@ -8161,20 +8183,20 @@ msgstr ""
 
 #: templates/Sources/sources_list.html:41
 msgid ""
-"Sources represent the origin or provider of your files (e.g., "
-"organizations, departments, external entities)"
+"Sources represent the origin or provider of your files (e.g., organizations,"
+" departments, external entities)"
 msgstr ""
 
 #: templates/Sources/sources_list.html:42
 msgid ""
-"Each source can have additional information like country, city, "
-"ownership, and access status"
+"Each source can have additional information like country, city, ownership, "
+"and access status"
 msgstr ""
 
 #: templates/Sources/sources_list.html:43
 msgid ""
-"Sources help organize files by their origin and track where documents "
-"come from"
+"Sources help organize files by their origin and track where documents come "
+"from"
 msgstr ""
 
 #: templates/Sources/sources_list.html:44
@@ -8203,8 +8225,8 @@ msgstr ""
 
 #: templates/Sources/sources_list.html:56
 msgid ""
-"Delete sources that are no longer needed, but ensure no important files "
-"are associated with them"
+"Delete sources that are no longer needed, but ensure no important files are "
+"associated with them"
 msgstr ""
 
 #: templates/Sources/sources_list.html:65
@@ -8233,8 +8255,8 @@ msgstr ""
 
 #: templates/Sources/sources_list.html:72
 msgid ""
-"Sources with higher importance levels are displayed first and may be used"
-" for priority processing."
+"Sources with higher importance levels are displayed first and may be used "
+"for priority processing."
 msgstr ""
 
 #: templates/Sources/sources_list.html:84
@@ -8349,7 +8371,8 @@ msgid "Create a copy of this source?"
 msgstr ""
 
 #: templates/Sources/sources_list.html:654
-msgid "Are you sure you want to delete this source? This action cannot be undone."
+msgid ""
+"Are you sure you want to delete this source? This action cannot be undone."
 msgstr ""
 
 #: templates/Sources/sources_list.html:655
@@ -8426,7 +8449,8 @@ msgid "Word Details Overview"
 msgstr ""
 
 #: templates/Word/Word_detail.html:47
-msgid "View comprehensive information about this word including usage statistics"
+msgid ""
+"View comprehensive information about this word including usage statistics"
 msgstr ""
 
 #: templates/Word/Word_detail.html:48
@@ -8504,20 +8528,19 @@ msgstr ""
 
 #: templates/Word/Word_list.html:30
 msgid ""
-"Words represent individual terms extracted from file content during "
-"analysis"
+"Words represent individual terms extracted from file content during analysis"
 msgstr ""
 
 #: templates/Word/Word_list.html:31
 msgid ""
-"The system tracks word frequency, usage across files, and associations "
-"with categories"
+"The system tracks word frequency, usage across files, and associations with "
+"categories"
 msgstr ""
 
 #: templates/Word/Word_list.html:32
 msgid ""
-"Words help identify common themes, patterns, and important terminology in"
-" your documents"
+"Words help identify common themes, patterns, and important terminology in "
+"your documents"
 msgstr ""
 
 #: templates/Word/Word_list.html:33
@@ -8543,7 +8566,8 @@ msgid ""
 msgstr ""
 
 #: templates/Word/Word_list.html:45
-msgid "View word details to see which files contain each word and their frequency"
+msgid ""
+"View word details to see which files contain each word and their frequency"
 msgstr ""
 
 #: templates/Word/Word_list.html:54
@@ -8571,7 +8595,8 @@ msgid "Note:"
 msgstr ""
 
 #: templates/Word/Word_list.html:61
-msgid "Words with zero usage count are unused and may be candidates for cleanup."
+msgid ""
+"Words with zero usage count are unused and may be candidates for cleanup."
 msgstr ""
 
 #: templates/Word/Word_list.html:298
@@ -8700,8 +8725,8 @@ msgstr ""
 
 #: templates/auth/users.html:153
 msgid ""
-"Their sessions are revoked immediately and this cannot be undone. The "
-"audit history is kept."
+"Their sessions are revoked immediately and this cannot be undone. The audit "
+"history is kept."
 msgstr ""
 
 #: templates/auth/users.html:170
@@ -8710,8 +8735,8 @@ msgstr ""
 
 #: templates/auth/users.html:175
 msgid ""
-"Share this temporary password with the user. It is shown only once and "
-"all their sessions have been revoked."
+"Share this temporary password with the user. It is shown only once and all "
+"their sessions have been revoked."
 msgstr ""
 
 #: templates/auth/users.html:179
@@ -8728,8 +8753,8 @@ msgstr ""
 
 #: templates/auth/users.html:194
 msgid ""
-"Generate a new temporary password for this user? Their current sessions "
-"will be revoked."
+"Generate a new temporary password for this user? Their current sessions will"
+" be revoked."
 msgstr ""
 
 #: templates/components/page_tips.html:24
@@ -8792,14 +8817,12 @@ msgstr ""
 
 #: templates/concurrency/dashboard.html:20
 msgid ""
-"Track active tasks, completed tasks, and system resource usage in real-"
-"time"
+"Track active tasks, completed tasks, and system resource usage in real-time"
 msgstr ""
 
 #: templates/concurrency/dashboard.html:21
 msgid ""
-"Monitor thread, process, async, and multiprocessing managers "
-"simultaneously"
+"Monitor thread, process, async, and multiprocessing managers simultaneously"
 msgstr ""
 
 #: templates/concurrency/dashboard.html:22
@@ -8843,7 +8866,8 @@ msgid "Monitor trends over time to understand system behavior patterns"
 msgstr ""
 
 #: templates/concurrency/dashboard.html:46
-msgid "Use this information to tune concurrency settings for optimal performance"
+msgid ""
+"Use this information to tune concurrency settings for optimal performance"
 msgstr ""
 
 #: templates/email_words/email_words.html:4
@@ -8863,11 +8887,13 @@ msgid "Email Addresses Overview"
 msgstr ""
 
 #: templates/email_words/email_words.html:36
-msgid "This page displays all email addresses found in your files during analysis"
+msgid ""
+"This page displays all email addresses found in your files during analysis"
 msgstr ""
 
 #: templates/email_words/email_words.html:37
-msgid "Email addresses are automatically extracted from file content and metadata"
+msgid ""
+"Email addresses are automatically extracted from file content and metadata"
 msgstr ""
 
 #: templates/email_words/email_words.html:38
@@ -8876,8 +8902,8 @@ msgstr ""
 
 #: templates/email_words/email_words.html:39
 msgid ""
-"Use email addresses to identify contacts, senders, and recipients in your"
-" documents"
+"Use email addresses to identify contacts, senders, and recipients in your "
+"documents"
 msgstr ""
 
 #: templates/email_words/email_words.html:45
@@ -9041,7 +9067,8 @@ msgid "No Email-like Words Found"
 msgstr ""
 
 #: templates/email_words/email_words.html:356
-msgid "No words matching the email pattern (@ and .) were found in the database."
+msgid ""
+"No words matching the email pattern (@ and .) were found in the database."
 msgstr ""
 
 #: templates/email_words/email_words.html:362
@@ -9070,8 +9097,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:32
 msgid ""
-"This is the File Management and Analysis System - a comprehensive "
-"interface for exploring, analyzing, and managing all your file data"
+"This is the File Management and Analysis System - a comprehensive interface "
+"for exploring, analyzing, and managing all your file data"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:33
@@ -9082,14 +9109,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:34
 msgid ""
-"All navigation is handled by JavaScript, maintaining state and history "
-"for easy back/forward navigation"
+"All navigation is handled by JavaScript, maintaining state and history for "
+"easy back/forward navigation"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:35
 msgid ""
-"The system supports cursor-based pagination for efficient handling of "
-"large datasets"
+"The system supports cursor-based pagination for efficient handling of large "
+"datasets"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:41
@@ -9098,8 +9125,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:44
 msgid ""
-"Navigation Bar: Use Back/Forward buttons to navigate through your "
-"browsing history, just like a web browser"
+"Navigation Bar: Use Back/Forward buttons to navigate through your browsing "
+"history, just like a web browser"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:45
@@ -9139,8 +9166,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:58
 msgid ""
-"Keywords: Explore keyword phrases (combinations of 2+ words). Keywords "
-"help identify themes and topics across your files"
+"Keywords: Explore keyword phrases (combinations of 2+ words). Keywords help "
+"identify themes and topics across your files"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:59
@@ -9151,9 +9178,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:60
 msgid ""
-"Sources: Manage information sources (news agencies, organizations, etc.)."
-" Each source shows associated categories and keywords before displaying "
-"files"
+"Sources: Manage information sources (news agencies, organizations, etc.). "
+"Each source shows associated categories and keywords before displaying files"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:61
@@ -9164,8 +9190,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:62
 msgid ""
-"Relations (Hash): View files grouped by hash values. Files with identical"
-" content share the same hash, helping identify duplicates"
+"Relations (Hash): View files grouped by hash values. Files with identical "
+"content share the same hash, helping identify duplicates"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:63
@@ -9217,8 +9243,7 @@ msgstr ""
 #: templates/file/File_Management_Analysis_System.html:78
 msgid ""
 "Source/Side Special View: For sources and sides, clicking an item first "
-"shows its associated categories and keywords, then you can navigate to "
-"files"
+"shows its associated categories and keywords, then you can navigate to files"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:79
@@ -9239,8 +9264,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:89
 msgid ""
-"Category Filter: Filter files by specific categories. Select from a "
-"dropdown of available categories"
+"Category Filter: Filter files by specific categories. Select from a dropdown"
+" of available categories"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:90
@@ -9251,8 +9276,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:91
 msgid ""
-"Side Filter: Filter by sides/parties. Helps analyze data related to "
-"specific groups or entities"
+"Side Filter: Filter by sides/parties. Helps analyze data related to specific"
+" groups or entities"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:92
@@ -9263,20 +9288,20 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:93
 msgid ""
-"Apply Filters: Click \"Apply Filters\" to execute the filter combination."
-" Filters work across all sections"
+"Apply Filters: Click \"Apply Filters\" to execute the filter combination. "
+"Filters work across all sections"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:94
 msgid ""
-"Reset Filters: Click \"Reset\" to clear all filters and return to "
-"unfiltered view"
+"Reset Filters: Click \"Reset\" to clear all filters and return to unfiltered"
+" view"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:95
 msgid ""
-"Filter Persistence: Applied filters are maintained as you navigate "
-"between sections until you reset them"
+"Filter Persistence: Applied filters are maintained as you navigate between "
+"sections until you reset them"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:101
@@ -9285,8 +9310,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:104
 msgid ""
-"Comprehensive Search: The global search bar searches across all data "
-"types: files, categories, keywords, sources, sides, words, and titles"
+"Comprehensive Search: The global search bar searches across all data types: "
+"files, categories, keywords, sources, sides, words, and titles"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:105
@@ -9297,14 +9322,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:106
 msgid ""
-"Search Scope: Searches file content, metadata, names, descriptions, and "
-"all associated data"
+"Search Scope: Searches file content, metadata, names, descriptions, and all "
+"associated data"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:107
 msgid ""
-"Search Results: Results are displayed in the unified content view, "
-"showing matching items from all sections"
+"Search Results: Results are displayed in the unified content view, showing "
+"matching items from all sections"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:108
@@ -9325,20 +9350,20 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:118
 msgid ""
-"Default Sort: File Count (High to Low) - shows items with most files "
-"first, helping identify most important categories/keywords"
+"Default Sort: File Count (High to Low) - shows items with most files first, "
+"helping identify most important categories/keywords"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:119
 msgid ""
-"Per Page: Control how many items display per page (10, 25, 50, 100, or "
-"200). Default is 50 items per page"
+"Per Page: Control how many items display per page (10, 25, 50, 100, or 200)."
+" Default is 50 items per page"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:120
 msgid ""
-"Item Count Display: Shows current position (e.g., \"Showing 1-50 of "
-"250\") to help you track your location in large datasets"
+"Item Count Display: Shows current position (e.g., \"Showing 1-50 of 250\") "
+"to help you track your location in large datasets"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:121
@@ -9349,8 +9374,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:122
 msgid ""
-"Pagination Controls: Navigate between pages using Previous/Next buttons "
-"or direct page number links"
+"Pagination Controls: Navigate between pages using Previous/Next buttons or "
+"direct page number links"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:128
@@ -9383,8 +9408,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:135
 msgid ""
-"File View Modes: When viewing files, you can also switch between grid and"
-" list views for different perspectives"
+"File View Modes: When viewing files, you can also switch between grid and "
+"list views for different perspectives"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:141
@@ -9393,9 +9418,9 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:144
 msgid ""
-"Add Source: Create new information sources with details like name, "
-"job/type, importance, country, city, description, social media accounts, "
-"ownership, and access status"
+"Add Source: Create new information sources with details like name, job/type,"
+" importance, country, city, description, social media accounts, ownership, "
+"and access status"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:145
@@ -9406,21 +9431,20 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:146
 msgid ""
-"Add Keyword: Create keyword phrases by selecting or creating multiple "
-"words (minimum 2 words required). Keywords can be associated with "
-"categories"
+"Add Keyword: Create keyword phrases by selecting or creating multiple words "
+"(minimum 2 words required). Keywords can be associated with categories"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:147
 msgid ""
-"Add Category: Create categories by selecting or creating a word. "
-"Categories organize files into logical groups"
+"Add Category: Create categories by selecting or creating a word. Categories "
+"organize files into logical groups"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:148
 msgid ""
-"Add Word-Category Relationship: Link existing words to categories, "
-"creating associations that help with file classification"
+"Add Word-Category Relationship: Link existing words to categories, creating "
+"associations that help with file classification"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:149
@@ -9431,8 +9455,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:150
 msgid ""
-"Category Search: When adding keywords, you can search and select "
-"categories from the categories table"
+"Category Search: When adding keywords, you can search and select categories "
+"from the categories table"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:156
@@ -9441,14 +9465,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:159
 msgid ""
-"Opening Files: Click any file card or list item to open the comprehensive"
-" file details modal"
+"Opening Files: Click any file card or list item to open the comprehensive "
+"file details modal"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:160
 msgid ""
-"File Content Section: View the complete extracted text content with "
-"search functionality, copy, download, and export options"
+"File Content Section: View the complete extracted text content with search "
+"functionality, copy, download, and export options"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:161
@@ -9459,14 +9483,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:162
 msgid ""
-"Search Navigation: Use Previous/Next buttons to jump between search "
-"matches within the file"
+"Search Navigation: Use Previous/Next buttons to jump between search matches "
+"within the file"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:163
 msgid ""
-"Classification & Analysis: View all categories, keywords, sources, sides,"
-" and other classifications associated with the file"
+"Classification & Analysis: View all categories, keywords, sources, sides, "
+"and other classifications associated with the file"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:164
@@ -9477,20 +9501,20 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:165
 msgid ""
-"File Navigation: Use Previous/Next buttons in the modal header to "
-"navigate between files without closing the modal"
+"File Navigation: Use Previous/Next buttons in the modal header to navigate "
+"between files without closing the modal"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:166
 msgid ""
-"File Counter: Shows your position (e.g., \"3 / 25\") when viewing files "
-"in sequence"
+"File Counter: Shows your position (e.g., \"3 / 25\") when viewing files in "
+"sequence"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:167
 msgid ""
-"Export Options: Copy content to clipboard, download as text file, or "
-"export the entire file"
+"Export Options: Copy content to clipboard, download as text file, or export "
+"the entire file"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:173
@@ -9511,8 +9535,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:178
 msgid ""
-"Batch Analysis: Access batch processing tools for analyzing multiple "
-"files simultaneously"
+"Batch Analysis: Access batch processing tools for analyzing multiple files "
+"simultaneously"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:179
@@ -9527,8 +9551,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:188
 msgid ""
-"Function Manager: Central module system (FunctionManager) coordinates all"
-" page functionality through organized modules"
+"Function Manager: Central module system (FunctionManager) coordinates all "
+"page functionality through organized modules"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:189
@@ -9539,20 +9563,20 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:190
 msgid ""
-"View Modules: Separate modules for root view, section view, item view, "
-"and file view - each handles its specific rendering"
+"View Modules: Separate modules for root view, section view, item view, and "
+"file view - each handles its specific rendering"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:191
 msgid ""
-"Rendering Modules: Grid and list renderers create the visual display, "
-"with pagination handling cursor-based navigation"
+"Rendering Modules: Grid and list renderers create the visual display, with "
+"pagination handling cursor-based navigation"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:192
 msgid ""
-"API Client: Centralized API communication handles all server requests "
-"with proper error handling and CSRF token management"
+"API Client: Centralized API communication handles all server requests with "
+"proper error handling and CSRF token management"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:193
@@ -9569,8 +9593,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:195
 msgid ""
-"File Operations: Modules for file details, export, navigation, selection,"
-" and management provide comprehensive file handling"
+"File Operations: Modules for file details, export, navigation, selection, "
+"and management provide comprehensive file handling"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:196
@@ -9581,8 +9605,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:197
 msgid ""
-"Search System: Global search and modal search modules provide "
-"comprehensive search capabilities across all data"
+"Search System: Global search and modal search modules provide comprehensive "
+"search capabilities across all data"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:203
@@ -9591,14 +9615,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:206
 msgid ""
-"Efficient Data Exploration: Navigate through thousands of files and items"
-" without page reloads, with smooth transitions and maintained state"
+"Efficient Data Exploration: Navigate through thousands of files and items "
+"without page reloads, with smooth transitions and maintained state"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:207
 msgid ""
-"Comprehensive Search: Find information across all data types with a "
-"single search interface, saving time and effort"
+"Comprehensive Search: Find information across all data types with a single "
+"search interface, saving time and effort"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:208
@@ -9633,14 +9657,14 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:213
 msgid ""
-"Scalable Performance: Cursor-based pagination and efficient rendering "
-"handle large datasets without performance issues"
+"Scalable Performance: Cursor-based pagination and efficient rendering handle"
+" large datasets without performance issues"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:214
 msgid ""
-"Keyboard Accessibility: Full keyboard navigation support for all "
-"interactive elements, improving accessibility"
+"Keyboard Accessibility: Full keyboard navigation support for all interactive"
+" elements, improving accessibility"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:215
@@ -9994,16 +10018,18 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:952
 msgid ""
-"Network error: Unable to connect to server. Please check your connection "
-"and try again."
+"Network error: Unable to connect to server. Please check your connection and"
+" try again."
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:953
-msgid "Error processing server response. Please try again or refresh the page."
+msgid ""
+"Error processing server response. Please try again or refresh the page."
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:954
-msgid "Unable to retrieve security token. Please refresh the page and try again."
+msgid ""
+"Unable to retrieve security token. Please refresh the page and try again."
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:955
@@ -10045,8 +10071,8 @@ msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:975
 msgid ""
-"This will scan all files in the database and update keyword associations."
-" This may take a while. Continue?"
+"This will scan all files in the database and update keyword associations. "
+"This may take a while. Continue?"
 msgstr ""
 
 #: templates/file/File_Management_Analysis_System.html:977
@@ -10071,8 +10097,8 @@ msgstr ""
 
 #: templates/file/file_detail.html:22
 msgid ""
-"View comprehensive information about this file including metadata, "
-"content, and analysis results"
+"View comprehensive information about this file including metadata, content, "
+"and analysis results"
 msgstr ""
 
 #: templates/file/file_detail.html:23
@@ -10312,11 +10338,13 @@ msgid "View statistics showing total files, analyzed files, and pending files"
 msgstr ""
 
 #: templates/file/files_list.html:34
-msgid "Use filters to find files by type, status, source, category, or date range"
+msgid ""
+"Use filters to find files by type, status, source, category, or date range"
 msgstr ""
 
 #: templates/file/files_list.html:35
-msgid "Select multiple files to perform batch operations like export or delete"
+msgid ""
+"Select multiple files to perform batch operations like export or delete"
 msgstr ""
 
 #: templates/file/files_list.html:41
@@ -10351,8 +10379,8 @@ msgstr ""
 
 #: templates/file/files_list.html:57 templates/file/upload.html:38
 msgid ""
-"Files are automatically analyzed after upload to extract text, metadata, "
-"and keywords"
+"Files are automatically analyzed after upload to extract text, metadata, and"
+" keywords"
 msgstr ""
 
 #: templates/file/files_list.html:58
@@ -10361,8 +10389,8 @@ msgstr ""
 
 #: templates/file/files_list.html:59
 msgid ""
-"Delete files that are no longer needed, but be aware this action cannot "
-"be undone"
+"Delete files that are no longer needed, but be aware this action cannot be "
+"undone"
 msgstr ""
 
 #: templates/file/files_list.html:100
@@ -10414,7 +10442,8 @@ msgid "This page displays the complete extracted text content from the file"
 msgstr ""
 
 #: templates/file/full_content.html:23
-msgid "View the full text in a readable format with customizable display options"
+msgid ""
+"View the full text in a readable format with customizable display options"
 msgstr ""
 
 #: templates/file/full_content.html:24
@@ -10423,8 +10452,7 @@ msgstr ""
 
 #: templates/file/full_content.html:25
 msgid ""
-"Content statistics show word count, character count, and storage "
-"information"
+"Content statistics show word count, character count, and storage information"
 msgstr ""
 
 #: templates/file/full_content.html:31
@@ -10532,7 +10560,8 @@ msgid "Uploading Files"
 msgstr ""
 
 #: templates/file/upload.html:35
-msgid "Enter a file path or folder path to process files from your local system"
+msgid ""
+"Enter a file path or folder path to process files from your local system"
 msgstr ""
 
 #: templates/file/upload.html:36
@@ -10555,8 +10584,8 @@ msgstr ""
 
 #: templates/file/upload.html:48
 msgid ""
-"Select a source and side to associate uploaded files with your "
-"organization structure"
+"Select a source and side to associate uploaded files with your organization "
+"structure"
 msgstr ""
 
 #: templates/file/upload.html:49
@@ -10565,8 +10594,8 @@ msgstr ""
 
 #: templates/file/upload.html:50
 msgid ""
-"Files are queued and processed automatically, with status updates as they"
-" complete"
+"Files are queued and processed automatically, with status updates as they "
+"complete"
 msgstr ""
 
 #: templates/file/upload.html:59
@@ -10581,14 +10610,13 @@ msgstr ""
 
 #: templates/file/upload.html:61
 msgid ""
-"After processing, files are available in the File Library for viewing and"
-" searching"
+"After processing, files are available in the File Library for viewing and "
+"searching"
 msgstr ""
 
 #: templates/file/upload.html:62
 msgid ""
-"Check the processing log for detailed information about each file's "
-"analysis"
+"Check the processing log for detailed information about each file's analysis"
 msgstr ""
 
 #: templates/file/upload.html:66
@@ -10787,3 +10815,58 @@ msgstr ""
 msgid "Selected folder with {count} files"
 msgstr ""
 
+#: templates/403.html:5
+msgid "403 - Access Denied"
+msgstr ""
+
+#: templates/403.html:9
+msgid "Access Denied"
+msgstr ""
+
+#: templates/403.html:12
+msgid "You do not have permission to access this resource."
+msgstr ""
+
+#: templates/403.html:14
+msgid "If you believe this is an error, contact your administrator."
+msgstr ""
+
+#: templates/auth/login.html:213 templates/auth/login.html:241
+msgid "Sign in"
+msgstr ""
+
+#: templates/auth/login.html:141
+msgid "Sign in to continue"
+msgstr ""
+
+#: templates/auth/login.html:149
+msgid "Your username"
+msgstr ""
+
+#: templates/auth/login.html:157
+msgid "Your password"
+msgstr ""
+
+#: templates/auth/login.html:159
+msgid "Show password"
+msgstr ""
+
+#: templates/auth/login.html:226
+msgid "Hide password"
+msgstr ""
+
+#: templates/auth/login.html:231
+msgid "Signing in…"
+msgstr ""
+
+#: templates/auth/login.html:245
+msgid "Sign-in failed"
+msgstr ""
+
+#: templates/auth/login.html:166
+msgid "Accounts are managed by your administrator."
+msgstr ""
+
+#: templates/auth/login.html:251
+msgid "An internal error occurred. Please try again."
+msgstr ""

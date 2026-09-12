@@ -54,6 +54,9 @@ msgstr "۲۵"
 msgid "3+ files"
 msgstr "۳ فایل یا بیشتر"
 
+msgid "403 - Access Denied"
+msgstr "۴۰۳ - دسترسی مجاز نیست"
+
 msgid "404"
 msgstr "404"
 
@@ -85,6 +88,9 @@ msgstr "Aa"
 msgid "Accent color"
 msgstr "رنگ تأکیدی"
 
+msgid "Access Denied"
+msgstr "دسترسی مجاز نیست"
+
 msgid "Access Status"
 msgstr "وضعیت دسترسی"
 
@@ -100,6 +106,9 @@ msgstr "منوی حساب"
 
 msgid "Accounts"
 msgstr "حساب‌ها"
+
+msgid "Accounts are managed by your administrator."
+msgstr "حساب‌ها توسط مدیر سامانه مدیریت می‌شوند."
 
 msgid "Action"
 msgstr "عملیات"
@@ -393,6 +402,9 @@ msgstr ""
 
 msgid "An error occurred"
 msgstr "خطایی رخ داد"
+
+msgid "An internal error occurred. Please try again."
+msgstr "خطای داخلی رخ داد. لطفاً دوباره تلاش کنید."
 
 msgid "An unexpected error occurred"
 msgstr "خطای غیرمنتظره‌ای رخ داد"
@@ -3405,6 +3417,9 @@ msgstr ""
 "پنهان‌کردن نکته‌ها: این بخش نکته‌ها را با آیکون فلش گوشه بالا-راست باز و "
 "بسته کنید یا در تنظیمات ← نمایش برای همیشه غیرفعالش کنید"
 
+msgid "Hide password"
+msgstr "پنهان‌کردن گذرواژه"
+
 msgid "High"
 msgstr "بالا"
 
@@ -3480,6 +3495,9 @@ msgstr "بیکار"
 
 msgid "Identify the most common words to understand category themes"
 msgstr "رایج‌ترین واژه‌ها را شناسایی کنید تا موضوعات دسته‌بندی را درک کنید"
+
+msgid "If you believe this is an error, contact your administrator."
+msgstr "اگر فکر می‌کنید این یک خطاست، با مدیر سامانه تماس بگیرید."
 
 msgid "Import"
 msgstr "درون‌ریزی"
@@ -5911,6 +5929,9 @@ msgstr "نمایش مسیر راهنما در بالای صفحات"
 msgid "Show confirmation dialogs for important or destructive actions"
 msgstr "نمایش گفت‌وگوهای تأیید برای عملیات مهم یا مخرب"
 
+msgid "Show password"
+msgstr "نمایش گذرواژه"
+
 msgid "Show system notifications and alerts"
 msgstr "نمایش اعلان‌ها و هشدارهای سامانه"
 
@@ -6046,6 +6067,18 @@ msgid ""
 msgstr ""
 "طرف‌ها: داده‌ها را بر اساس طرف/گروه سازمان‌دهی کنید. مانند منابع، طرف‌ها "
 "ابتدا دسته‌بندی‌ها و کلیدواژه‌ها و سپس فایل‌ها را نشان می‌دهند"
+
+msgid "Sign in"
+msgstr "ورود"
+
+msgid "Sign in to continue"
+msgstr "برای ادامه وارد شوید"
+
+msgid "Sign-in failed"
+msgstr "ورود ناموفق بود"
+
+msgid "Signing in…"
+msgstr "در حال ورود…"
 
 msgid "Similar Files"
 msgstr "فایل‌های مشابه"
@@ -7845,8 +7878,17 @@ msgstr ""
 msgid "You cannot change your own role or status."
 msgstr "نمی‌توانید نقش یا وضعیت خودتان را تغییر دهید."
 
+msgid "You do not have permission to access this resource."
+msgstr "شما اجازه دسترسی به این منبع را ندارید."
+
 msgid "You do not have permission to perform this action."
 msgstr "شما اجازه انجام این عملیات را ندارید."
+
+msgid "Your password"
+msgstr "گذرواژه شما"
+
+msgid "Your username"
+msgstr "نام کاربری شما"
 
 msgid ""
 "Zoom: Some charts support zooming - click and drag to zoom into specific "

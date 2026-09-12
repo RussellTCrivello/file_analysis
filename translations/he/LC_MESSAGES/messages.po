@@ -53,6 +53,9 @@ msgstr "25"
 msgid "3+ files"
 msgstr "3 קבצים ומעלה"
 
+msgid "403 - Access Denied"
+msgstr "403 - הגישה נדחתה"
+
 msgid "404"
 msgstr "404"
 
@@ -84,6 +87,9 @@ msgstr "Aa"
 msgid "Accent color"
 msgstr "צבע הדגשה"
 
+msgid "Access Denied"
+msgstr "הגישה נדחתה"
+
 msgid "Access Status"
 msgstr "מצב גישה"
 
@@ -97,6 +103,9 @@ msgstr "תפריט חשבון"
 
 msgid "Accounts"
 msgstr "חשבונות"
+
+msgid "Accounts are managed by your administrator."
+msgstr "החשבונות מנוהלים על ידי מנהל המערכת."
 
 msgid "Action"
 msgstr "פעולה"
@@ -383,6 +392,9 @@ msgstr "תמיד גבו את מסד הנתונים לפני ביצוע פעול�
 
 msgid "An error occurred"
 msgstr "אירעה שגיאה"
+
+msgid "An internal error occurred. Please try again."
+msgstr "אירעה שגיאה פנימית. נא לנסות שוב."
 
 msgid "An unexpected error occurred"
 msgstr "אירעה שגיאה בלתי צפויה"
@@ -3296,6 +3308,9 @@ msgstr ""
 "הסתרת טיפים: גישו את מקטע הטיפים באמצעות סמל החץ שבפינה העליונה, או נטרלו "
 "אותו לצמיתות בהגדרות ← תצוגה"
 
+msgid "Hide password"
+msgstr "הסתר סיסמה"
+
 msgid "High"
 msgstr "גבוה"
 
@@ -3368,6 +3383,9 @@ msgstr "מוסר"
 
 msgid "Identify the most common words to understand category themes"
 msgstr "זהו את המילים הנפוצות ביותר להבנת נושאי הקטגוריה"
+
+msgid "If you believe this is an error, contact your administrator."
+msgstr "אם אתה סבור שמדובר בשגיאה، פנה למנהל המערכת."
 
 msgid "Import"
 msgstr "ייבוא"
@@ -5733,6 +5751,9 @@ msgstr "הצגת נתיב ניווט בראש העמודים"
 msgid "Show confirmation dialogs for important or destructive actions"
 msgstr "הצגת חלונות אישור לפעולות חשובות או הרסניות"
 
+msgid "Show password"
+msgstr "הצג סיסמה"
+
 msgid "Show system notifications and alerts"
 msgstr "הצגת התראות ועדכוני מערכת"
 
@@ -5865,6 +5886,18 @@ msgid ""
 msgstr ""
 "צדדים: ארגנו נתונים לפי צדדים/גורמים. בדומה למקורות, הצדדים מציגים תחילה "
 "קטגוריות ומילות מפתח, ואז קבצים"
+
+msgid "Sign in"
+msgstr "התחברות"
+
+msgid "Sign in to continue"
+msgstr "התחברו כדי להמשיך"
+
+msgid "Sign-in failed"
+msgstr "ההתחברות נכשלה"
+
+msgid "Signing in…"
+msgstr "מתחבר…"
 
 msgid "Similar Files"
 msgstr "קבצים דומים"
@@ -7583,8 +7616,17 @@ msgstr "ניתן להעלות קבצים בודדים או תיקיות שלמו
 msgid "You cannot change your own role or status."
 msgstr "אינכם יכולים לשנות את התפקיד או המצב של עצמכם."
 
+msgid "You do not have permission to access this resource."
+msgstr "אין לך הרשאה לגשת למשאב זה."
+
 msgid "You do not have permission to perform this action."
 msgstr "אין לכם הרשאה לבצע פעולה זו."
+
+msgid "Your password"
+msgstr "הסיסמה שלך"
+
+msgid "Your username"
+msgstr "שם המשתמש שלך"
 
 msgid ""
 "Zoom: Some charts support zooming - click and drag to zoom into specific "
