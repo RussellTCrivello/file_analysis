@@ -64,6 +64,53 @@ DEFAULT_POLICY = ExtractionPolicy()
 
 _FORBIDDEN_MEMBERS = ("", ".", "..")
 
+#: Windows reserved device names. These are devices, not files: opening
+#: ``CON.txt`` writes to the console and ``NUL`` discards data, with or without
+#: an extension and regardless of case. Archives are frequently authored on
+#: other platforms where such names are ordinary, so they arrive here intact.
+_WINDOWS_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
+#: Per-component filename limit. Windows rejects longer components outright,
+#: and the legacy MAX_PATH of 260 is still the default for most tools.
+_MAX_COMPONENT_LENGTH = 200
+
+
+def windows_safe_component(part: str) -> str:
+    """Make one path component writable on Windows without discarding the file.
+
+    Windows is the primary production platform, so a member name that is legal
+    on the authoring platform must not become an unwritable path here. Renaming
+    is deliberate over rejecting: refusing the whole archive because one member
+    happened to be called ``CON`` would discard every other object in it, and an
+    unsupported or awkward child must stay part of the parent's object graph.
+    """
+    if not part:
+        return part
+
+    # Reserved device names, with or without an extension, case-insensitive.
+    stem = part.split(".", 1)[0].upper()
+    if stem in _WINDOWS_RESERVED_NAMES:
+        part = "_" + part
+
+    # Windows strips trailing dots and spaces; leaving them makes the written
+    # name differ from the requested one and can collide with a sibling.
+    part = part.rstrip(". ")
+
+    # Keep the extension when truncating so the type is still identifiable.
+    if len(part) > _MAX_COMPONENT_LENGTH:
+        stem_part, dot, ext = part.rpartition(".")
+        if dot and len(ext) <= 20 and stem_part:
+            keep = _MAX_COMPONENT_LENGTH - len(ext) - 1
+            part = f"{stem_part[:keep]}.{ext}"
+        else:
+            part = part[:_MAX_COMPONENT_LENGTH]
+
+    return part or "_"
+
 
 def _check_deadline(deadline: Optional[float]) -> None:
     if deadline is not None and time.monotonic() > deadline:
@@ -105,7 +152,7 @@ def validate_member_path(name: str) -> str:
                 parts.pop()
             continue
         depth += 1
-        parts.append(part)
+        parts.append(windows_safe_component(part))
 
     if not parts:
         raise ArchiveSafetyError(f"Empty archive member path: {name!r}")

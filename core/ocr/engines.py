@@ -26,6 +26,7 @@ derived rather than presenting OCR output as if it were source text.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -128,6 +129,54 @@ class BaseOcrEngine(ABC):
         return OcrResult(**kwargs)
 
 
+def _tesseract_candidates() -> List[str]:
+    """Plausible tesseract executable locations, in preference order.
+
+    pytesseract resolves the binary through PATH. On Windows the standard
+    installer writes ``C:\\Program Files\\Tesseract-OCR\\tesseract.exe`` and
+    does not necessarily extend PATH, so a correct installation would otherwise
+    be invisible and OCR would silently degrade to whatever fallback exists -
+    with no indication that a working engine was present. An explicit
+    TESSERACT_CMD always wins.
+    """
+    explicit = os.environ.get("TESSERACT_CMD")
+    found: List[str] = []
+    if explicit:
+        found.append(explicit)
+    if os.name == "nt":
+        for var in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+            base = os.environ.get(var)
+            if base:
+                found.append(
+                    os.path.join(base, "Tesseract-OCR", "tesseract.exe")
+                )
+    else:
+        found.extend((
+            "/usr/bin/tesseract",
+            "/usr/local/bin/tesseract",
+            "/opt/homebrew/bin/tesseract",
+        ))
+    return found
+
+
+def _configure_tesseract_cmd(mod) -> None:
+    """Point pytesseract at a binary that is installed but not on PATH."""
+    try:
+        current = getattr(mod.pytesseract, "tesseract_cmd", "")
+    except Exception:
+        return
+    if current and current != "tesseract":
+        return  # already configured explicitly by the caller
+    for candidate in _tesseract_candidates():
+        if candidate and os.path.isfile(candidate):
+            try:
+                mod.pytesseract.tesseract_cmd = candidate
+                logger.info("Using tesseract binary at %s", candidate)
+            except Exception:
+                logger.debug("Could not set tesseract_cmd", exc_info=True)
+            return
+
+
 class TesseractEngine(BaseOcrEngine):
     """pytesseract-backed engine. Preferred when the binary is installed."""
 
@@ -153,6 +202,7 @@ class TesseractEngine(BaseOcrEngine):
             try:
                 import pytesseract
 
+                _configure_tesseract_cmd(pytesseract)
                 self._pytesseract = pytesseract
             except ImportError:
                 self._pytesseract = None
