@@ -8,8 +8,8 @@ class TitleQueries(BaseQueries):
     def insert_title() -> str:
         """Insert title"""
         return """
-            INSERT INTO titles_content (title_data, title_status, path_id)
-            VALUES (%s, %s, %s)
+            INSERT INTO titles_content (title_data, title_status, title_content_id, path_id)
+            VALUES (%s, %s, %s, %s)
             RETURNING id
         """
     @staticmethod
