@@ -26,6 +26,12 @@ from Hdg_Err_Ex_Log import (
 logger = logging.getLogger(__name__)
 
 
+#: Cap for paths.status_detail so a pathological error string cannot bloat the
+#: row. Module level on purpose: the resolver is pure and should not need
+#: instance state to be called or tested.
+STATUS_DETAIL_MAX_LENGTH = 2000
+
+
 def _parse_file_size_to_bytes(size_value):
     """
     Convert file size to integer bytes.
@@ -653,6 +659,9 @@ class StoragePipeline:
                     # PRODUCTION: process_full_document uses its own transaction
                     # If it fails, it will rollback and we can retry with a fresh transaction
                     extraction_provenance = self._build_extraction_provenance(content)
+                    processing_status, status_detail = self._resolve_processing_status(
+                        content, file_status
+                    )
                     storage_result = self.db_service.process_full_document(
                         hash_value=file_hash,
                         source_id=source_id,
@@ -667,7 +676,10 @@ class StoragePipeline:
                         title_words=title_words,
                         coordinates=coordinates,
                         content_date=content_date,
-                        extraction_provenance=extraction_provenance
+                        extraction_provenance=extraction_provenance,
+                        processing_status=processing_status,
+                        status_detail=status_detail,
+                        attempts=1
                     )
                     
                     # Handle case where storage_result is None
@@ -1436,6 +1448,99 @@ class StoragePipeline:
             return False, None
     
     #: Separator for the human-readable hierarchy chain (archive::child::grandchild).
+    #: Processing states this pipeline can determine truthfully.
+    #:
+    #: 'queued', 'processing' and 'retrying' are deliberately absent: they
+    #: describe work in flight, which this synchronous write path cannot
+    #: observe. Recording them here would fabricate a state. They belong to the
+    #: job layer (m0006), not to the point where a row is first written.
+    TERMINAL_PROCESSING_STATES = (
+        "processed",
+        "partially_processed",
+        "failed",
+        "unsupported",
+        "skipped",
+    )
+
+    def _resolve_processing_status(
+        self,
+        content: Optional[Dict[str, Any]],
+        file_status: str,
+    ) -> Tuple[str, Optional[str]]:
+        """Derive (processing_status, status_detail) from what actually happened.
+
+        ``file_status`` says only whether content exists. This distinguishes the
+        outcomes that otherwise cannot be told apart: a corrupt file, a
+        deliberately skipped icon and an unrecognised type all come back
+        'Unread', and nothing recorded which. Order matters - unsupported is
+        checked before failed, because an unsupported type also carries an error
+        string and would otherwise be misreported as a failure.
+        """
+        if not isinstance(content, dict):
+            content = {}
+
+        info = content.get("extraction_info")
+        info = info if isinstance(info, dict) else {}
+        error = content.get("error")
+        error_text = str(error) if error else ""
+
+        # 1. Unsupported input - the reader could not identify the type at all.
+        lowered = error_text.lower()
+        if error_text and (
+            "unsupported file type" in lowered or "no file extension" in lowered
+        ):
+            return "unsupported", error_text[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 2. Explicit extraction failure.
+        if error_text:
+            return "failed", error_text[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 3. Deliberately skipped (icon, below the reader's size floor, ...).
+        if info.get("skipped"):
+            reason = info.get("skip_reason") or "skipped"
+            return "skipped", str(reason)[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 4. Partial success - some pages or sub-extractors did not succeed.
+        pages = content.get("pages")
+        if isinstance(pages, list) and pages:
+            bad = [
+                pg for pg in pages
+                if isinstance(pg, dict) and (
+                    pg.get("error")
+                    or str(pg.get("method", "")).startswith(
+                        ("conversion_failed", "ocr_failed", "ocr_skipped")
+                    )
+                )
+            ]
+            if bad and len(bad) < len(pages):
+                return (
+                    "partially_processed",
+                    f"{len(bad)} of {len(pages)} pages failed or were skipped"
+                    [:STATUS_DETAIL_MAX_LENGTH],
+                )
+            if bad:
+                return (
+                    "failed",
+                    f"all {len(pages)} pages failed or were skipped"
+                    [:STATUS_DETAIL_MAX_LENGTH],
+                )
+
+        warnings = []
+        if content.get("ocr_attempted") and not content.get("ocr_successful"):
+            warnings.append("ocr attempted but produced no text")
+        if info.get("engine_error"):
+            warnings.append(f"ocr engine error: {info['engine_error']}")
+        if info.get("truncated"):
+            warnings.append("input truncated at the configured row limit")
+        if warnings:
+            return "partially_processed", "; ".join(warnings)[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 5. Clean success. A file with no extractable text was still processed
+        #    successfully - that is a different fact from failing to read it.
+        if content.get("text") or pages or file_status == "Read":
+            return "processed", None
+        return "processed", "no extractable text"
+
     HIERARCHY_SEPARATOR = "::"
 
     def _link_extracted_children(

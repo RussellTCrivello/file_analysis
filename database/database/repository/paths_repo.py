@@ -17,7 +17,10 @@ class PathsRepository(BaseRepository):
         file_date=None,
         date_creation=date.today(),
         coordinates="",
-        extraction_provenance=None
+        extraction_provenance=None,
+        processing_status="discovered",
+        status_detail=None,
+        attempts=0
     ):
         """Insert a new file path and return its ID.
 
@@ -37,6 +40,9 @@ class PathsRepository(BaseRepository):
             date_creation,
             coordinates,
             json.dumps(extraction_provenance) if extraction_provenance is not None else None,
+            processing_status,
+            status_detail,
+            attempts,
         )
         # Don't use commit=True in transaction context - let transaction manager handle commits
         # commit parameter is ignored when _connection is set (transaction context)

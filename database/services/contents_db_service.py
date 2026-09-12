@@ -438,7 +438,10 @@ class ContentDBService:
         file_date: date,
         hash_id: int,
         coordinates: Optional[str] = None,
-        extraction_provenance: Optional[dict] = None
+        extraction_provenance: Optional[dict] = None,
+        processing_status: str = "discovered",
+        status_detail: Optional[str] = None,
+        attempts: int = 0
     ) -> int:
         # Note: Parameter order matches the params tuple in insert_info_paths, not the method signature
         # params tuple order: file_name, file_path, file_size, file_type, file_status, file_date, hash_id, date_creation, coordinates
@@ -449,7 +452,10 @@ class ContentDBService:
             file_date=file_date,
             date_creation=date.today(),
             coordinates=coordinates or "",
-            extraction_provenance=extraction_provenance
+            extraction_provenance=extraction_provenance,
+            processing_status=processing_status,
+            status_detail=status_detail,
+            attempts=attempts
         )
     
     def get_path_id_by_hash_id(self, hash_id: int) -> Optional[int]:
@@ -1240,7 +1246,10 @@ class ContentDBService:
         title_words: Optional[List[str]] = None,
         coordinates: Optional[str] = None,
         content_date: Optional[date] = None,
-        extraction_provenance: Optional[dict] = None
+        extraction_provenance: Optional[dict] = None,
+        processing_status: str = "discovered",
+        status_detail: Optional[str] = None,
+        attempts: int = 0
     ) -> Dict[str, any]:
         """
         Process a complete document with all steps in a single transaction.
@@ -1429,7 +1438,10 @@ class ContentDBService:
                         file_name, file_path, file_size, file_type,
                         file_status, file_date, hash_id,
                         coordinates=coordinates,
-                        extraction_provenance=extraction_provenance
+                        extraction_provenance=extraction_provenance,
+                        processing_status=processing_status,
+                        status_detail=status_detail,
+                        attempts=attempts
                     )
                     # Normalize path_id
                     if path_id:

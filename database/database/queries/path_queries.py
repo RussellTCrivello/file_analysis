@@ -105,8 +105,8 @@ class FileQueries(BaseQueries):
         """Insert file path with conflict handling"""
         return """
             INSERT INTO paths
-            (file_name, file_path, file_size, file_type, file_status, file_date, hash_id, date_creation, coordinates, extraction_provenance)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)
+            (file_name, file_path, file_size, file_type, file_status, file_date, hash_id, date_creation, coordinates, extraction_provenance, processing_status, status_detail, attempts, status_updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,NOW())
             RETURNING id;
         """
     
