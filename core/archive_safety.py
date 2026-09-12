@@ -33,6 +33,16 @@ class ArchiveSafetyError(Exception):
     """Raised when an archive violates the extraction safety policy."""
 
 
+class ArchiveEncrypted(ArchiveSafetyError):
+    """The archive is password-protected and no usable password was supplied.
+
+    A subclass of ArchiveSafetyError so existing handlers keep working, but
+    distinguishable: a locked archive is a different fact from a corrupt one,
+    and reporting both as an opaque extraction error makes an actionable
+    condition (supply a password) look like a defect.
+    """
+
+
 class ArchiveTimeout(ArchiveSafetyError):
     pass
 
@@ -156,6 +166,14 @@ def extract_zip(
 
     with zipfile.ZipFile(archive_path) as zf:
         infos = zf.infolist()
+        # Bit 0 of the general-purpose flag marks an encrypted member. Check it
+        # before any read: zipfile raises an opaque RuntimeError from deep
+        # inside read(), which is indistinguishable from corruption and gives
+        # the caller nothing actionable.
+        if any((i.flag_bits & 0x1) for i in infos):
+            raise ArchiveEncrypted(
+                "Archive is password-protected and no password was supplied"
+            )
         if len(infos) > policy.max_files:
             raise ArchiveSafetyError(
                 f"Archive contains {len(infos)} members (limit {policy.max_files})"
@@ -326,6 +344,10 @@ def extract_7z(
     result = ExtractionResult(output_dir=root)
 
     with py7zr.SevenZipFile(archive_path, "r") as sz:
+        if sz.needs_password():
+            raise ArchiveEncrypted(
+                "Archive is password-protected and no password was supplied"
+            )
         file_list = sz.list()
         if len(file_list) > policy.max_files:
             raise ArchiveSafetyError(
