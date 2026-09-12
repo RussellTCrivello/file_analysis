@@ -20,6 +20,62 @@ logger = logging.getLogger(__name__)
 MAX_BACKUP_JSON_BYTES = 512 * 1024 * 1024
 
 
+def order_paths_by_lineage(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Order ``paths`` rows so a parent precedes any child referencing it.
+
+    ``paths.parent_path_id`` is a self-referencing foreign key (migration 0007),
+    so a bulk insert must create parents first. A JSON backup preserves the
+    original ids, so the required order is recoverable from the data itself.
+
+    Iterative rather than recursive: a crafted backup could otherwise exhaust
+    the Python stack. A row whose parent is absent from the batch is emitted in
+    place, so the foreign key still rejects it loudly instead of the restore
+    silently reordering around corrupt data.
+    """
+    if not rows:
+        return rows
+
+    by_id = {
+        row["id"]: row
+        for row in rows
+        if isinstance(row, dict) and row.get("id") is not None
+    }
+    if not by_id:
+        return list(rows)
+
+    ordered: List[Dict[str, Any]] = []
+    emitted = set()
+
+    for row in rows:
+        if not isinstance(row, dict):
+            ordered.append(row)
+            continue
+
+        # Walk up to the topmost ancestor, then emit downwards.
+        pending = []
+        current = row
+        seen = set()
+        while isinstance(current, dict):
+            rid = current.get("id")
+            if rid in emitted or rid in seen:
+                break
+            seen.add(rid)
+            pending.append(current)
+            parent_id = current.get("parent_path_id")
+            if parent_id is None or parent_id not in by_id or parent_id in emitted:
+                break
+            current = by_id[parent_id]
+
+        for item in reversed(pending):
+            item_id = item.get("id")
+            if item_id in emitted:
+                continue
+            ordered.append(item)
+            emitted.add(item_id)
+
+    return ordered
+
+
 class ImportService:
     """
     Service for importing data in various formats.
@@ -299,6 +355,7 @@ class ImportService:
         * single transaction; caller rolls back on any failure
         """
         from psycopg2 import sql as pg_sql
+        from psycopg2.extras import Json
 
         restored_tables = []
         restored_rows = 0
@@ -418,6 +475,11 @@ class ImportService:
                 batch_size = 1000
                 data_rows = table_info['data']
 
+                # paths.parent_path_id is a self-FK, so parents must be
+                # inserted before the children that reference them.
+                if table_name == 'paths':
+                    data_rows = order_paths_by_lineage(data_rows)
+
                 for i in range(0, len(data_rows), batch_size):
                     batch = data_rows[i:i + batch_size]
                     batch_values = []
@@ -437,6 +499,14 @@ class ImportService:
                                 values.append(None)
                             elif isinstance(value, str) and len(value) > ImportService.MAX_BACKUP_VALUE_LENGTH:
                                 raise ValueError("Backup value exceeds size limit")
+                            elif isinstance(value, (dict, list)):
+                                # JSONB columns round-trip through the JSON
+                                # backup as Python dict/list, which psycopg2
+                                # cannot adapt directly. Not specific to
+                                # paths.extraction_provenance: jobs.options,
+                                # jobs.stats, jobs.errors, jobs.warnings and
+                                # job_queue.payload are JSONB too.
+                                values.append(Json(value))
                             else:
                                 values.append(value)
 

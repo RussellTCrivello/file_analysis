@@ -9,7 +9,6 @@ Part 1: Core pipeline and text extraction
 import logging
 import os
 from typing import Dict, Any, Optional, List, Tuple
-from collections import Counter
 import time
 from datetime import date
 
@@ -24,6 +23,12 @@ from Hdg_Err_Ex_Log import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+#: Cap for paths.status_detail so a pathological error string cannot bloat the
+#: row. Module level on purpose: the resolver is pure and should not need
+#: instance state to be called or tested.
+STATUS_DETAIL_MAX_LENGTH = 2000
 
 
 def _parse_file_size_to_bytes(size_value):
@@ -411,8 +416,12 @@ class StoragePipeline:
                 # removed: a file that cannot be hashed is a processing
                 # FAILURE (counted in stats), never stored under a fake
                 # identity.
+                # HASH-01: a hash supplied by an upstream producer is only
+                # trusted if it is a well-formed digest. Sentinels such as
+                # SKIPPED_LARGE_FILE are recomputed here rather than stored.
+                from core.hashing import is_valid_digest
                 file_hash = metadata.get('hash') or file_info.get('hash')
-                file_hash_valid = bool(file_hash) and file_hash not in ('N/A', 'SKIPPED_LARGE_FILE', 'ERROR')
+                file_hash_valid = is_valid_digest(file_hash)
                 if not file_hash_valid:
                     from core.hashing import hash_file, HashingError
                     file_path_for_hash = file_info.get('path')
@@ -433,9 +442,8 @@ class StoragePipeline:
                         self.stats['storage_failed'] = self.stats.get('storage_failed', 0) + 1
                         return None
 
-                # Validate hash shape (64 lowercase hex for sha256); never
-                # replace with a synthetic value.
-                if not file_hash or len(file_hash) < 10:
+                # Validate hash shape; never replace with a synthetic value.
+                if not is_valid_digest(file_hash):
                     logger.error("Invalid hash value %r - refusing to store", file_hash[:16] if file_hash else file_hash)
                     self.stats['files_failed'] = self.stats.get('files_failed', 0) + 1
                     self.stats.setdefault('storage_failed', 0)
@@ -649,6 +657,10 @@ class StoragePipeline:
                 try:
                     # PRODUCTION: process_full_document uses its own transaction
                     # If it fails, it will rollback and we can retry with a fresh transaction
+                    extraction_provenance = self._build_extraction_provenance(content)
+                    processing_status, status_detail = self._resolve_processing_status(
+                        content, file_status
+                    )
                     storage_result = self.db_service.process_full_document(
                         hash_value=file_hash,
                         source_id=source_id,
@@ -662,7 +674,11 @@ class StoragePipeline:
                         content_words=content_words,
                         title_words=title_words,
                         coordinates=coordinates,
-                        content_date=content_date
+                        content_date=content_date,
+                        extraction_provenance=extraction_provenance,
+                        processing_status=processing_status,
+                        status_detail=status_detail,
+                        attempts=1
                     )
                     
                     # Handle case where storage_result is None
@@ -678,7 +694,14 @@ class StoragePipeline:
                             # First, try to get hash_id if it exists
                             hash_id = None
                             try:
-                                hash_row = self.db_service.hashs_repo.get_hash_by_value(file_hash)
+                                # DEFECT-FIX: get_hash_by_value does not exist on
+                                # HashsRepository. get_hash_records(hash_value)
+                                # returns (id, source_id, side_id, has_paths) and
+                                # the indexing below already takes [0], so this is
+                                # a drop-in. Previously the AttributeError was
+                                # caught and logged at DEBUG, so hash_id stayed
+                                # None and this fast path never ran.
+                                hash_row = self.db_service.hashs_repo.get_hash_records(file_hash)
                                 if hash_row:
                                     hash_id = hash_row[0] if isinstance(hash_row, tuple) else hash_row.get('id') if isinstance(hash_row, dict) else hash_row
                             except Exception as hash_err:
@@ -686,28 +709,45 @@ class StoragePipeline:
                             
                             # Use direct path insertion as fallback
                             if hash_id:
-                                fallback_path_id = self.db_service.paths_repo.insert_path(
+                                # DEFECT-FIX: this called paths_repo.insert_path,
+                                # which does not exist on PathsRepository (only
+                                # insert_info_paths does). Being inside an error
+                                # handler it raised AttributeError that the
+                                # enclosing except swallowed, so the recovery path
+                                # silently did nothing and the file vanished with
+                                # no record at all.
+                                fallback_path_id = self.db_service.paths_repo.insert_info_paths(
                                     file_name=file_name,
                                     file_path=file_path,
                                     file_size=file_size,
                                     file_type=file_type,
-                                    file_status='Unread',  # Mark as unread since full processing failed
+                                    file_status='Unread',
                                     file_date=file_date,
                                     hash_id=hash_id,
-                                    coordinates=None
+                                    coordinates=None,
+                                    processing_status='failed',
+                                    status_detail=(
+                                        'full processing failed; minimal record '
+                                        'created by the storage fallback path'
+                                    ),
+                                    attempts=1
                                 )
                             else:
                                 # Try without hash_id (may fail but worth trying)
                                 logger.warning("Attempting fallback storage without hash_id")
                                 # Create minimal hash first
                                 try:
-                                    hash_id = self.db_service.hashs_repo.insert_hash(
+                                    # DEFECT-FIX: insert_hash does not exist on
+                                    # HashsRepository either; the method is
+                                    # insert_info_hashs. Same silent-swallow
+                                    # consequence as the paths call above.
+                                    hash_id = self.db_service.hashs_repo.insert_info_hashs(
                                         hash_value=file_hash,
                                         source_id=source_id,
                                         side_id=side_id
                                     )
                                     if hash_id:
-                                        fallback_path_id = self.db_service.paths_repo.insert_path(
+                                        fallback_path_id = self.db_service.paths_repo.insert_info_paths(
                                             file_name=file_name,
                                             file_path=file_path,
                                             file_size=file_size,
@@ -715,7 +755,14 @@ class StoragePipeline:
                                             file_status='Unread',
                                             file_date=file_date,
                                             hash_id=hash_id,
-                                            coordinates=None
+                                            coordinates=None,
+                                            processing_status='failed',
+                                            status_detail=(
+                                                'full processing failed; minimal '
+                                                'record created by the storage '
+                                                'fallback path'
+                                            ),
+                                            attempts=1
                                         )
                                     else:
                                         fallback_path_id = None
@@ -790,7 +837,14 @@ class StoragePipeline:
                             # Update statistics
                             self.stats['files_stored'] += 1
                             self.stats['files_processed'] += 1
-                        
+
+                        # PARENT-01: children of a container are stored before
+                        # their parent, so the parent's id is only known now.
+                        # Runs for duplicates too - they resolve to an existing
+                        # path_id and their children still need a parent.
+                        if path_id:
+                            self._link_extracted_children(content, path_id)
+
                         # Build success message
                         file_size_mb = file_size / (1024 * 1024) if file_size > 0 else 0
                         is_duplicate = error_msg and 'Duplicate' in error_msg if error_msg else False
@@ -1252,11 +1306,18 @@ class StoragePipeline:
                     # File has content error - error message already stored in metadata step
                     logger.info(f"Metadata stored for file with content error, path_id: {path_id}, error: {error_message}")
                 
-                # Step 8: Store title
+                # Step 8: Title.
+                #
+                # _store_title_pipeline was removed. It called
+                # self.db_hub.word_operations and .title_operations, neither of
+                # which exists on DatabaseHub, so it raised AttributeError on
+                # every file with a title, logged it, and always returned False.
+                # Titles are stored by the content path instead
+                # (contents_db_service.create_title_content), which is verified
+                # to write titles_content rows. Keeping the local so the
+                # "Stored Components" report below is unchanged in shape.
                 title = self._extract_title(result, file_info)
                 title_stored = False
-                if title:
-                    title_stored = self._store_title_pipeline(title, path_id, parent_path_id)
                 
                 self.stats['files_stored'] += 1
                 self.stats['files_processed'] += 1
@@ -1416,6 +1477,306 @@ class StoragePipeline:
                 logger.warning(f"Fallback hash check also failed: {repo_error}")
             return False, None
     
+    #: Separator for the human-readable hierarchy chain (archive::child::grandchild).
+    #: Processing states this pipeline can determine truthfully.
+    #:
+    #: 'queued', 'processing' and 'retrying' are deliberately absent: they
+    #: describe work in flight, which this synchronous write path cannot
+    #: observe. Recording them here would fabricate a state. They belong to the
+    #: job layer (m0006), not to the point where a row is first written.
+    TERMINAL_PROCESSING_STATES = (
+        "processed",
+        "partially_processed",
+        "failed",
+        "unsupported",
+        "skipped",
+    )
+
+    def _resolve_processing_status(
+        self,
+        content: Optional[Dict[str, Any]],
+        file_status: str,
+    ) -> Tuple[str, Optional[str]]:
+        """Derive (processing_status, status_detail) from what actually happened.
+
+        ``file_status`` says only whether content exists. This distinguishes the
+        outcomes that otherwise cannot be told apart: a corrupt file, a
+        deliberately skipped icon and an unrecognised type all come back
+        'Unread', and nothing recorded which. Order matters - unsupported is
+        checked before failed, because an unsupported type also carries an error
+        string and would otherwise be misreported as a failure.
+        """
+        if not isinstance(content, dict):
+            content = {}
+
+        info = content.get("extraction_info")
+        info = info if isinstance(info, dict) else {}
+        error = content.get("error")
+        error_text = str(error) if error else ""
+
+        # 1. Unsupported input - the reader could not identify the type at all.
+        lowered = error_text.lower()
+        if error_text and (
+            "unsupported file type" in lowered or "no file extension" in lowered
+        ):
+            return "unsupported", error_text[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 2. Explicit extraction failure.
+        if error_text:
+            return "failed", error_text[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 3. Deliberately skipped (icon, below the reader's size floor, ...).
+        if info.get("skipped"):
+            reason = info.get("skip_reason") or "skipped"
+            return "skipped", str(reason)[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 4. Partial success - some pages or sub-extractors did not succeed.
+        pages = content.get("pages")
+        if isinstance(pages, list) and pages:
+            bad = [
+                pg for pg in pages
+                if isinstance(pg, dict) and (
+                    pg.get("error")
+                    or str(pg.get("method", "")).startswith(
+                        ("conversion_failed", "ocr_failed", "ocr_skipped")
+                    )
+                )
+            ]
+            if bad and len(bad) < len(pages):
+                return (
+                    "partially_processed",
+                    f"{len(bad)} of {len(pages)} pages failed or were skipped"
+                    [:STATUS_DETAIL_MAX_LENGTH],
+                )
+            if bad:
+                return (
+                    "failed",
+                    f"all {len(pages)} pages failed or were skipped"
+                    [:STATUS_DETAIL_MAX_LENGTH],
+                )
+
+        warnings = []
+        if content.get("ocr_attempted") and not content.get("ocr_successful"):
+            warnings.append("ocr attempted but produced no text")
+        if info.get("engine_error"):
+            warnings.append(f"ocr engine error: {info['engine_error']}")
+        if info.get("truncated"):
+            warnings.append("input truncated at the configured row limit")
+        if warnings:
+            return "partially_processed", "; ".join(warnings)[:STATUS_DETAIL_MAX_LENGTH]
+
+        # 5. Clean success. A file with no extractable text was still processed
+        #    successfully - that is a different fact from failing to read it.
+        if content.get("text") or pages or file_status == "Read":
+            return "processed", None
+        return "processed", "no extractable text"
+
+    HIERARCHY_SEPARATOR = "::"
+
+    def _link_extracted_children(
+        self,
+        content: Optional[Dict[str, Any]],
+        parent_path_id: int,
+        parent_hierarchy: Optional[str] = None,
+    ) -> int:
+        """Record the container each extracted child came from (PARENT-01).
+
+        Extracted members are stored while their container is still being
+        processed, so at that moment no parent id exists to write. Once the
+        container's own row exists this walks ``extracted_files`` and links each
+        child, recursing so that archive -> child -> nested child keeps its
+        chain. Returns the number of links written.
+
+        Failures are logged, not raised: a child that cannot be linked is still
+        a valid, indexed record, and losing the link must not fail the ingest.
+        """
+        if not parent_path_id or not isinstance(content, dict):
+            return 0
+
+        children = content.get("extracted_files")
+        if not isinstance(children, list):
+            return 0
+        if not self.db_service or not getattr(self.db_service, "paths_repo", None):
+            return 0
+
+        if parent_hierarchy is None:
+            parent_hierarchy = self._hierarchy_of(parent_path_id)
+
+        linked = 0
+        for child in children:
+            if not isinstance(child, dict):
+                continue
+            child_id = child.get("database_path_id")
+            if not child_id:
+                continue
+
+            child_name = (
+                (child.get("Metadata") or {}).get("name")
+                or os.path.basename(str((child.get("Metadata") or {}).get("path", "")))
+                or "unknown"
+            )
+            # Build the chain from the ROW's own name, not the archive member's.
+            # Identical bytes under two names collapse onto one paths row, so
+            # writing the member name left the row self-contradictory: observed
+            # as file_name='duplicate_a.txt' with
+            # hierarchy_path='dup.zip::duplicate_b.txt', whichever member was
+            # linked last. Deriving it from the stored name makes the two
+            # consistent by construction and idempotent under repeats.
+            stored_name = self._file_name_of(child_id) or child_name
+            child_hierarchy = (
+                f"{parent_hierarchy}{self.HIERARCHY_SEPARATOR}{stored_name}"
+                if parent_hierarchy else stored_name
+            )
+            try:
+                self.db_service.paths_repo.update_lineage(
+                    child_id, parent_path_id, child_hierarchy
+                )
+                linked += 1
+            except Exception as exc:
+                logger.warning(
+                    f"[LINEAGE] Could not link child path_id={child_id} to "
+                    f"parent path_id={parent_path_id}: {exc}"
+                )
+                continue
+
+            # Recurse so nested containers keep the full chain.
+            linked += self._link_extracted_children(
+                child.get("Content"), child_id, child_hierarchy
+            )
+
+        if linked:
+            logger.info(
+                f"[LINEAGE] Linked {linked} extracted item(s) under "
+                f"path_id={parent_path_id}"
+            )
+        return linked
+
+    def _file_name_of(self, path_id: int) -> str:
+        """The stored file_name for a path, or '' if it cannot be read."""
+        try:
+            row = self.db_service.paths_repo.get_lineage(path_id)
+        except Exception:
+            return ""
+        if not row:
+            return ""
+        if isinstance(row, dict):
+            return row.get("file_name") or ""
+        if isinstance(row, (tuple, list)):
+            return row[0] or ""
+        return ""
+
+    def _hierarchy_of(self, path_id: int) -> str:
+        """The stored hierarchy chain for a path, defaulting to its file name."""
+        try:
+            row = self.db_service.paths_repo.get_lineage(path_id)
+        except Exception:
+            return ""
+        if not row:
+            return ""
+        if isinstance(row, dict):
+            return row.get("hierarchy_path") or row.get("file_name") or ""
+        if isinstance(row, (tuple, list)) and len(row) >= 2:
+            return row[1] or row[0] or ""
+        return ""
+
+    def _build_extraction_provenance(
+        self, content: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Assemble per-extractor provenance for storage in paths.
+
+        The readers already report how each piece of data was derived; this
+        collects that into the JSONB shape persisted by migration 0007, so
+        recognised text is never indistinguishable from authored text and a
+        consumer can tell which engine produced what.
+
+        Returns None when the content carries no provenance, which is the
+        truthful value for extractors that do not report any - never an empty
+        dict, which would claim provenance was recorded when it was not.
+        """
+        if not content or not isinstance(content, dict):
+            return None
+
+        provenance: Dict[str, Any] = {}
+
+        # ---- OCR (images, and per-page for PDFs) ----
+        if content.get("ocr_attempted") is not None or "pages" in content:
+            ocr = self._ocr_provenance(content)
+            if ocr:
+                provenance["ocr"] = ocr
+
+        # ---- type detection, when the reader recorded it ----
+        detection = content.get("type_detection")
+        if isinstance(detection, dict) and detection:
+            provenance["detection"] = {
+                key: detection.get(key)
+                for key in (
+                    "declared_extension", "detected_extension",
+                    "detection_method", "detection_confidence",
+                    "extension_mismatch",
+                )
+                if detection.get(key) is not None
+            } or None
+            if provenance["detection"] is None:
+                provenance.pop("detection", None)
+
+        # ---- extraction diagnostics ----
+        info = content.get("extraction_info")
+        if isinstance(info, dict) and info:
+            diagnostics = {
+                key: info.get(key)
+                for key in ("error", "reason", "skipped", "skip_reason",
+                            "engine_error", "preprocessing")
+                if info.get(key) is not None
+            }
+            if diagnostics:
+                provenance["diagnostics"] = diagnostics
+
+        return provenance or None
+
+    @staticmethod
+    def _ocr_provenance(content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """OCR provenance for either an image result or a multi-page PDF."""
+        pages = content.get("pages")
+        if isinstance(pages, list) and pages:
+            ocr_pages = [p for p in pages if str(p.get("method", "")).startswith("ocr_")]
+            if not ocr_pages:
+                return None
+            engines = sorted({p.get("ocr_engine") for p in ocr_pages if p.get("ocr_engine")})
+            confidences = [
+                p["ocr_confidence"] for p in ocr_pages
+                if isinstance(p.get("ocr_confidence"), (int, float))
+            ]
+            return {
+                "engine": engines[0] if len(engines) == 1 else (engines or None),
+                "engines": engines,
+                "engine_version": next(
+                    (p.get("ocr_engine_version") for p in ocr_pages
+                     if p.get("ocr_engine_version")), None),
+                "derived": True,
+                "ocr_pages": len(ocr_pages),
+                "total_pages": len(pages),
+                "confidence": (sum(confidences) / len(confidences)) if confidences else None,
+                "language": next(
+                    (p.get("ocr_language") for p in ocr_pages
+                     if p.get("ocr_language")), None),
+                "input_variant": next(
+                    (p.get("ocr_input_variant") for p in ocr_pages
+                     if p.get("ocr_input_variant")), None),
+            }
+
+        if content.get("ocr_attempted") is None:
+            return None
+        return {
+            "engine": content.get("ocr_engine"),
+            "engine_version": content.get("ocr_engine_version"),
+            "derived": bool(content.get("ocr_derived")),
+            "attempted": bool(content.get("ocr_attempted")),
+            "successful": bool(content.get("ocr_successful")),
+            "confidence": content.get("ocr_confidence"),
+            "language": content.get("ocr_language"),
+            "input_variant": content.get("ocr_input_variant"),
+        }
+
     def _extract_coordinates(self, content: Dict) -> Optional[str]:
         """
         Extract GPS coordinates from content
@@ -2388,381 +2749,6 @@ class StoragePipeline:
                 text_parts.append(row_text)
         
         return '\n'.join(text_parts)
-    
-    def _store_content_pipeline(self, text: str, path_id: int) -> bool:
-        """
-        Process and store text content with punctuation preservation
-        
-        Args:
-            text: Extracted text
-            path_id: Path ID
-        
-        Returns:
-            Success status
-        """
-        try:
-            # Check if db_hub is available (required for this method)
-            if not self.db_hub:
-                logger.error("db_hub is required for _store_content_pipeline but is None")
-                return False
-            
-            # OPTIMIZED: Use global singleton ContentProcessor
-            from database.processors import get_content_processor
-            processor = get_content_processor()
-            tokens = processor.extract_words_with_punctuation_chunked(text)
-            
-            # CRITICAL: Allow empty files to be stored - they should still have metadata stored
-            if not tokens:
-                logger.info("No tokens extracted from text - file may be empty or binary, but metadata will be stored")
-                # Return True to indicate metadata storage succeeded, even if content is empty
-                # The calling code will still store the file metadata
-                return True  # Changed from False to True - empty files should still be considered "stored"
-            
-            # Step 2: Extract unique words
-            words = set(token[0] for token in tokens)
-            
-            # Step 3: Check connection health before database operations
-            if not self.db_hub._check_connection_health():
-                logger.warning("Database connection unhealthy before storing content, attempting reconnect...")
-                if not self.db_hub._reconnect():
-                    logger.error("Failed to reconnect, cannot store content")
-                    return False
-            
-            # Step 4: Get/create word IDs (batch operation)
-            # Wrap in try-except to handle connection errors that might occur between check and use
-            try:
-                word_id_map = self.db_hub.word_operations.get_word_ids(list(words))
-            except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                # Connection was closed between check and use - reconnect and retry
-                logger.warning(f"Connection error during get_word_ids, reconnecting: {conn_error}")
-                if self.db_hub._reconnect():
-                    # Recreate word_operations with fresh connection
-                    self.db_hub._word_operations = None
-                    word_id_map = self.db_hub.word_operations.get_word_ids(list(words))
-                else:
-                    logger.error("Failed to reconnect after connection error")
-                    return False
-            
-            # Step 4: Insert missing words
-            missing_words = [w for w in words if w not in word_id_map]
-            if missing_words:
-                try:
-                    new_word_ids = self.db_hub.word_operations.batch_insert_words(missing_words)
-                    if new_word_ids:
-                        word_id_map.update(new_word_ids)
-                    else:
-                        # If batch insert failed, try to get IDs again (they might have been inserted by another process)
-                        logger.warning(f"Batch insert returned no IDs, retrying get_word_ids for {len(missing_words)} words")
-                        retry_ids = self.db_hub.word_operations.get_word_ids(missing_words)
-                        word_id_map.update(retry_ids)
-                except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                    # Connection error - reconnect and retry
-                    logger.warning(f"Connection error during batch_insert_words, reconnecting: {conn_error}")
-                    if self.db_hub._reconnect():
-                        self.db_hub._word_operations = None
-                        # Try to get IDs (might have been inserted by another process)
-                        try:
-                            retry_ids = self.db_hub.word_operations.get_word_ids(missing_words)
-                            word_id_map.update(retry_ids)
-                        except Exception as retry_error:
-                            logger.error(f"Error retrying get_word_ids after reconnect: {retry_error}")
-                            return False
-                    else:
-                        logger.error("Failed to reconnect after connection error in batch_insert_words")
-                        return False
-                except Exception as e:
-                    logger.error(f"Error inserting missing words: {e}")
-                    # Try to get IDs anyway (might have been inserted by another process)
-                    try:
-                        retry_ids = self.db_hub.word_operations.get_word_ids(missing_words)
-                        word_id_map.update(retry_ids)
-                    except Exception as retry_error:
-                        logger.error(f"Error retrying get_word_ids: {retry_error}")
-                        return False
-            
-            # Step 5: Get/create punctuation IDs (batch operation)
-            all_punctuation = []
-            # Handle both 4-element (legacy) and 5-element (with position) token formats
-            for token in tokens:
-                if len(token) == 4:
-                    # Legacy format: (word, punct_before, punct_after, spacing)
-                    _, punct_before, punct_after, spacing = token
-                elif len(token) == 5:
-                    # New format with position: (word, punct_before, punct_after, spacing, char_position)
-                    _, punct_before, punct_after, spacing, _ = token
-                else:
-                    logger.warning(f"Unexpected token format with {len(token)} elements, skipping")
-                    continue
-                
-                if punct_before:
-                    all_punctuation.append(punct_before)
-                if punct_after:
-                    all_punctuation.append(punct_after)
-                if spacing:
-                    all_punctuation.append(spacing)
-            
-            punctuation_id_map = {}
-            if all_punctuation:
-                try:
-                    punctuation_id_map = self.db_hub.punctuation_operations.get_or_create_punctuation_ids_batch(
-                        all_punctuation
-                    )
-                except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                    # Connection error - reconnect and retry
-                    logger.warning(f"Connection error during get_or_create_punctuation_ids_batch, reconnecting: {conn_error}")
-                    if self.db_hub._reconnect():
-                        self.db_hub._punctuation_operations = None
-                        punctuation_id_map = self.db_hub.punctuation_operations.get_or_create_punctuation_ids_batch(
-                            all_punctuation
-                        )
-                    else:
-                        logger.error("Failed to reconnect after connection error in punctuation operations")
-                        return False
-            
-            # Step 6: Create token tuples with IDs and positions
-            token_tuples = []
-            word_counts = Counter()
-            
-            # Handle both 4-element (legacy) and 5-element (with position) token formats
-            for token in tokens:
-                if len(token) == 4:
-                    # Legacy format: (word, punct_before, punct_after, spacing)
-                    word, punct_before, punct_after, spacing = token
-                    char_position = None
-                elif len(token) == 5:
-                    # New format with position: (word, punct_before, punct_after, spacing, char_position)
-                    word, punct_before, punct_after, spacing, char_position = token
-                else:
-                    logger.warning(f"Unexpected token format with {len(token)} elements, skipping")
-                    continue
-                
-                word_id = word_id_map.get(word)
-                if word_id:
-                    punct_before_id = punctuation_id_map.get(punct_before) if punct_before else None
-                    punct_after_id = punctuation_id_map.get(punct_after) if punct_after else None
-                    spacing_id = punctuation_id_map.get(spacing) if spacing else None
-                    
-                    # Create token tuple with position (5 elements)
-                    token_tuples.append((
-                        word_id,
-                        punct_before_id,
-                        punct_after_id,
-                        spacing_id,
-                        char_position  # Character position in original text
-                    ))
-                    
-                    # Count word frequency
-                    word_counts[word_id] += 1
-            
-            # Step 7: Store content (compressed chunks) with retry and reconnection
-            if not token_tuples:
-                logger.warning("No token tuples to store")
-                return False
-            
-            content_retry_count = 0
-            max_content_retries = 2
-            content_stored = False
-            
-            while content_retry_count <= max_content_retries and not content_stored:
-                try:
-                    # Check connection health before operation
-                    if not self.db_hub._check_connection_health():
-                        logger.warning("Database connection unhealthy before storing content, attempting reconnect...")
-                        if not self.db_hub._reconnect():
-                            logger.error("Failed to reconnect to database for content storage")
-                            if content_retry_count < max_content_retries:
-                                content_retry_count += 1
-                                time.sleep(0.5 * content_retry_count)
-                                continue
-                            return False
-                    
-                    content_ids = self.db_hub.content_operations.store_text_content_with_punctuation(
-                        token_tuples, path_id
-                    )
-                    
-                    if content_ids:
-                        content_stored = True
-                    else:
-                        if content_retry_count < max_content_retries:
-                            content_retry_count += 1
-                            logger.warning(f"Content storage returned no IDs, retrying (attempt {content_retry_count}/{max_content_retries})...")
-                            time.sleep(0.5 * content_retry_count)
-                            continue
-                        else:
-                            logger.error("Failed to store content - no content IDs returned after retries")
-                            return False
-                except Exception as e:
-                    if is_retryable_error(e) and content_retry_count < max_content_retries:
-                        content_retry_count += 1
-                        logger.warning(f"Retryable error storing content, retrying (attempt {content_retry_count}/{max_content_retries}): {e}")
-                        # Trigger reconnection if it's a connection error
-                        if is_connection_error(e):
-                            logger.warning("Connection error detected in content storage, attempting reconnect...")
-                            try:
-                                # Try to rollback any failed transaction before reconnecting
-                                if hasattr(self.db_hub, '_connection') and self.db_hub._connection:
-                                    try:
-                                        if not self.db_hub._connection.closed:
-                                            self.db_hub._connection.rollback()
-                                    except Exception:
-                                        pass  # Ignore rollback errors
-                            except Exception:
-                                pass  # Ignore errors during rollback attempt
-                            
-                            if not self.db_hub._reconnect():
-                                logger.error("Failed to reconnect after content error")
-                        time.sleep(0.5 * content_retry_count)
-                        continue
-                    else:
-                        logger.error(f"Error storing content: {e}")
-                        return False
-            
-            # Step 8: Store word frequencies (with retry and reconnection)
-            if word_counts:
-                word_freq_retry_count = 0
-                max_word_freq_retries = 2
-                word_freq_success = False
-                
-                while word_freq_retry_count <= max_word_freq_retries and not word_freq_success:
-                    try:
-                        # Check connection health before operation
-                        if not self.db_hub._check_connection_health():
-                            logger.warning("Database connection unhealthy before storing word frequencies, attempting reconnect...")
-                            if not self.db_hub._reconnect():
-                                logger.error("Failed to reconnect to database for word frequencies")
-                                if word_freq_retry_count < max_word_freq_retries:
-                                    word_freq_retry_count += 1
-                                    time.sleep(0.5 * word_freq_retry_count)
-                                    continue
-                                break
-                        
-                        success = self.db_hub.word_operations.store_word_frequencies(path_id, dict(word_counts))
-                        if success:
-                            word_freq_success = True
-                        else:
-                            if word_freq_retry_count < max_word_freq_retries:
-                                word_freq_retry_count += 1
-                                logger.warning(f"Word frequencies storage returned False, retrying (attempt {word_freq_retry_count}/{max_word_freq_retries})...")
-                                time.sleep(0.5 * word_freq_retry_count)
-                                continue
-                            else:
-                                logger.warning(f"Failed to store word frequencies for path_id {path_id} after {max_word_freq_retries} attempts, but content was stored")
-                                break
-                    except Exception as e:
-                        if is_retryable_error(e) and word_freq_retry_count < max_word_freq_retries:
-                            word_freq_retry_count += 1
-                            logger.warning(f"Retryable error storing word frequencies, retrying (attempt {word_freq_retry_count}/{max_word_freq_retries}): {e}")
-                            # Trigger reconnection if it's a connection error
-                            if is_connection_error(e):
-                                try:
-                                    # Try to rollback any failed transaction before reconnecting
-                                    if hasattr(self.db_hub, '_connection') and self.db_hub._connection:
-                                        try:
-                                            if not self.db_hub._connection.closed:
-                                                self.db_hub._connection.rollback()
-                                        except Exception:
-                                            pass  # Ignore rollback errors
-                                except Exception:
-                                    pass  # Ignore errors during rollback attempt
-                                
-                                if not self.db_hub._reconnect():
-                                    logger.error("Failed to reconnect after word frequencies error")
-                            time.sleep(0.5 * word_freq_retry_count)
-                            continue
-                        else:
-                            logger.error(f"Error storing word frequencies: {e}")
-                            # Don't fail the whole operation if word frequencies fail
-                            break
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error in content storage pipeline: {e}", exc_info=True)
-            return False
-        
-    def _store_title_pipeline(
-        self,
-        title: str,
-        path_id: int,
-        parent_path_id: Optional[int] = None
-        ) -> bool:
-        """
-        Process and store title
-        
-        Args:
-            title: Title string
-            path_id: Path ID
-            parent_path_id: Parent path ID (for nested files)
-        
-        Returns:
-            Success status
-        """
-        try:
-            # OPTIMIZED: Use global singleton ContentProcessor
-            from database.processors import get_content_processor
-            processor = get_content_processor()
-            words = processor.extract_words_simple(title)
-            
-            if not words:
-                return False
-            
-            # Get/create word IDs - handle connection errors
-            try:
-                word_id_map = self.db_hub.word_operations.get_word_ids(words)
-            except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                # Connection was closed - reconnect and retry
-                logger.warning(f"Connection error during get_word_ids in title storage, reconnecting: {conn_error}")
-                if self.db_hub._reconnect():
-                    self.db_hub._word_operations = None
-                    word_id_map = self.db_hub.word_operations.get_word_ids(words)
-                else:
-                    logger.error("Failed to reconnect after connection error in title storage")
-                    return False
-            
-            # Insert missing words
-            missing_words = [w for w in words if w not in word_id_map]
-            if missing_words:
-                try:
-                    new_word_ids = self.db_hub.word_operations.batch_insert_words(missing_words)
-                    word_id_map.update(new_word_ids)
-                except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                    # Connection error - reconnect and retry
-                    logger.warning(f"Connection error during batch_insert_words in title storage, reconnecting: {conn_error}")
-                    if self.db_hub._reconnect():
-                        self.db_hub._word_operations = None
-                        # Try to get IDs (might have been inserted by another process)
-                        retry_ids = self.db_hub.word_operations.get_word_ids(missing_words)
-                        word_id_map.update(retry_ids)
-                    else:
-                        logger.error("Failed to reconnect after connection error in title storage batch_insert")
-                        return False
-            
-            # Create word ID list (preserve order)
-            word_ids = [word_id_map[w] for w in words if w in word_id_map]
-            
-            # Store title - handle connection errors
-            try:
-                title_status = 'Branch' if parent_path_id else 'Main'
-                title_id = self.db_hub.title_operations.store_title(
-                    word_ids, path_id, parent_path_id, title_status
-                )
-                return title_id is not None
-            except (psycopg2.InterfaceError, psycopg2.OperationalError) as conn_error:
-                # Connection error - reconnect and retry
-                logger.warning(f"Connection error during store_title, reconnecting: {conn_error}")
-                if self.db_hub._reconnect():
-                    self.db_hub._title_operations = None
-                    title_id = self.db_hub.title_operations.store_title(
-                        word_ids, path_id, parent_path_id, title_status
-                    )
-                    return title_id is not None
-                else:
-                    logger.error("Failed to reconnect after connection error in store_title")
-                    return False
-        
-        except Exception as e:
-            logger.error(f"Error in title storage pipeline: {e}")
-            return False
     
     def get_statistics(self) -> Dict[str, int]:
         """Get pipeline statistics"""

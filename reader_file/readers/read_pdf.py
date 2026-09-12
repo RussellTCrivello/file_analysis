@@ -34,6 +34,10 @@ from reader_file.readers.read_img_fast import (
     DEFAULT_OCR_LANGUAGES
 )
 
+# PHASE 2A: OCR engine selection. Imported from its owning module rather than
+# re-exported through read_img_fast.
+from core.ocr import get_ocr_engine, recognize_best
+
 from .base_reader import BaseReader
 
 from Hdg_Err_Ex_Log import (
@@ -77,13 +81,14 @@ class PDFFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
         
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
         
         try:
-            if file_lower.endswith('.pdf'):
+            if ext == '.pdf':
                 return self.read_pdf_file(file_path)
             else:
-                error_msg = f"Unsupported file type: {file_path}"
+                error_msg = f"Unsupported file type: {ext or file_path}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")
@@ -118,17 +123,24 @@ class PDFFileReader(BaseReader):
         """
         total_pages = len(doc)
         pages_to_check = min(sample_pages, total_pages)
-        
+
+        # PDF-01: a PDF with no pages has nothing to sample. Dividing by
+        # pages_to_check raised ZeroDivisionError, which surfaced as an opaque
+        # "division by zero" failure for the whole document.
+        if pages_to_check <= 0:
+            return "image"
+
         text_chars = 0
-        
+
         for page_num in range(pages_to_check):
             page = doc[page_num]
             text = page.get_text("text")
-            text_chars += len(text.strip())
-        
+            if text:
+                text_chars += len(str(text).strip())
+
         # If we found substantial text in sample, it's a text-based PDF
         avg_chars_per_page = text_chars / pages_to_check
-        
+
         if avg_chars_per_page > 50:  # Threshold: 50 chars per page
             return "text"
         else:
@@ -138,7 +150,18 @@ class PDFFileReader(BaseReader):
         """
         Optimized page processing - uses shared OCR functions from read_img_fast
         """
-        page_num, page_bytes, tesseract_lang, tesseract_config, needs_ocr, ocr_languages = page_data
+        # PDF-02: page_data carries the page's own text layer so a page whose
+        # text is too sparse to skip OCR can still fall back to it. Optional
+        # for backward compatibility with the previous 6-element tuple.
+        unpacked = tuple(page_data)
+        if len(unpacked) >= 7:
+            (page_num, page_bytes, tesseract_lang, tesseract_config,
+             needs_ocr, ocr_languages, native_text) = unpacked[:7]
+        else:
+            (page_num, page_bytes, tesseract_lang, tesseract_config,
+             needs_ocr, ocr_languages) = unpacked[:6]
+            native_text = ""
+        native_text = native_text or ""
         
         libs = _get_libraries()  # Shared function
         Image = libs.get('Image')
@@ -152,74 +175,124 @@ class PDFFileReader(BaseReader):
             "text_length": 0,
             "method": "unknown"
         }
-        
+
+        def _fallback_to_text_layer(reason):
+            """Keep the page's own text layer instead of discarding it."""
+            result["ocr_status"] = reason
+            stripped = native_text.strip()
+            if stripped:
+                result["text"] = stripped
+                result["text_length"] = len(stripped)
+                result["method"] = "text_layer_fallback"
+            else:
+                result["text"] = ""
+                result["text_length"] = 0
+                result["method"] = reason
+            return result
+
         if not needs_ocr:
             result["method"] = "skipped_text_based_pdf"
             return result
-        
-        # Check if tesseract is available before attempting OCR
-        if not pytesseract or not _is_tesseract_available():
-            result["method"] = "ocr_skipped_tesseract_unavailable"
-            result["text"] = ""
-            result["text_length"] = 0
-            return result
-        
+
+        # PHASE 2A: tesseract is preferred (it covers this project's declared
+        # heb/eng/ara defaults) but it is no longer the only option. A host
+        # without the binary still gets OCR through the engine layer instead of
+        # silently returning a blank page.
+        use_tesseract = bool(pytesseract and _is_tesseract_available())
+        fallback_engine = None if use_tesseract else get_ocr_engine()
+        if not use_tesseract and fallback_engine is None:
+            return _fallback_to_text_layer("ocr_skipped_no_engine_available")
+
         try:
             pil_image = Image.open(io.BytesIO(page_bytes))
             # Convert palette images with transparency to RGBA to avoid PIL warnings
             if pil_image.mode == 'P' and 'transparency' in pil_image.info:
                 pil_image = pil_image.convert('RGBA')
             rgb_image = pil_image.convert("RGB")
-            
-            # Use shared language detection from read_img_fast
-            detected_lang = _detect_language(rgb_image, pytesseract)
-            result["detected_language"] = detected_lang
-            
-            # Use shared config function from read_img_fast
-            if detected_lang:
-                lang_to_use, config_to_use = _get_optimized_tesseract_config(detected_lang, tuple(ocr_languages) if ocr_languages else None)
-            else:
-                lang_to_use, config_to_use = tesseract_lang, tesseract_config
-            
-            result["ocr_language"] = lang_to_use
-            
-            # Use shared preprocessing from read_img_fast
+
+            # Use shared preprocessing from read_img_fast (shared by every engine)
             if cv2 and np:
                 img_array = np.array(rgb_image)
                 processed = _fast_preprocess(img_array, libs)
                 pil_processed = Image.fromarray(processed)
             else:
                 pil_processed = pil_image.convert("L")
-            
-            text = pytesseract.image_to_string(pil_processed, lang=lang_to_use, config=config_to_use)
-            
-            # Handle None and ensure string type
-            if text is None:
-                text = ""
+
+            if use_tesseract:
+                # Use shared language detection from read_img_fast
+                detected_lang = _detect_language(rgb_image, pytesseract)
+                result["detected_language"] = detected_lang
+
+                # Use shared config function from read_img_fast
+                if detected_lang:
+                    lang_to_use, config_to_use = _get_optimized_tesseract_config(detected_lang, tuple(ocr_languages) if ocr_languages else None)
+                else:
+                    lang_to_use, config_to_use = tesseract_lang, tesseract_config
+
+                result["ocr_language"] = lang_to_use
+
+                text = pytesseract.image_to_string(pil_processed, lang=lang_to_use, config=config_to_use)
+
+                # Handle None and ensure string type
+                if text is None:
+                    text = ""
+                else:
+                    text = str(text)
+
+                engine_name = "tesseract"
+                try:
+                    engine_version = str(pytesseract.get_tesseract_version())
+                except Exception:
+                    engine_version = "unknown"
+                confidence = None
+                input_variant = ""
             else:
-                text = str(text)
-            
+                # Alternate engine path. Same contract, plus per-page
+                # confidence and explicit engine provenance.
+                # Confidence-gated retry on the un-preprocessed page image.
+                engine_result = recognize_best(
+                    fallback_engine,
+                    pil_processed,
+                    rgb_image,
+                    list(ocr_languages) if ocr_languages else None,
+                )
+                text = engine_result.text or ""
+                result["ocr_language"] = engine_result.language
+                if engine_result.error:
+                    result["engine_error"] = engine_result.error
+
+                engine_name = engine_result.engine
+                engine_version = engine_result.engine_version
+                confidence = engine_result.mean_confidence
+                input_variant = engine_result.input_variant
+
             if text and len(text.strip()) > 0:
                 result["text"] = text.strip()
                 result["text_length"] = len(text.strip())
-                result["method"] = "ocr_multilang"
+                result["method"] = "ocr_multilang" if use_tesseract else f"ocr_{engine_name}"
+                # Provenance: this text was recognised, not authored.
+                result["ocr_engine"] = engine_name
+                result["ocr_engine_version"] = engine_version
+                result["ocr_derived"] = True
+                if confidence is not None:
+                    result["ocr_confidence"] = confidence
+                if input_variant:
+                    result["ocr_input_variant"] = input_variant
             else:
-                # Still store empty text to preserve page order
-                result["text"] = ""
-                result["text_length"] = 0
-                result["method"] = "ocr_no_text"
-        
+                # OCR found nothing: fall back to the page's own text layer
+                # rather than discarding content we already have.
+                return _fallback_to_text_layer("ocr_no_text")
+
         except Exception as e:
             error_str = str(e).lower()
             # Suppress verbose tesseract errors - we already checked availability
             if 'tesseract' in error_str and ('not installed' in error_str or 'not in your path' in error_str):
-                result["method"] = "ocr_skipped_tesseract_unavailable"
+                reason = "ocr_skipped_tesseract_unavailable"
             else:
-                result["method"] = "ocr_failed"
+                reason = "ocr_failed"
                 result["error"] = str(e)
-            result["text"] = ""
-            result["text_length"] = 0
-        
+            return _fallback_to_text_layer(reason)
+
         return result
     
     def read_pdf_file(self, filepath, max_workers=None, languages=None):
@@ -389,6 +462,19 @@ class PDFFileReader(BaseReader):
                 ocr_languages = languages if languages else DEFAULT_OCR_LANGUAGES
                 tesseract_lang, tesseract_config = _get_optimized_tesseract_config(None, tuple(ocr_languages))
                 result["ocr_languages"] = ocr_languages
+
+                # PDF-02: if no OCR engine is present, rasterizing every page is
+                # pure waste and previously ended with the text layer thrown
+                # away. Decide once, up front. PHASE 2A: "available" now means
+                # any engine, not specifically the tesseract binary.
+                ocr_available = (bool(pytesseract) and _is_tesseract_available()) \
+                    or get_ocr_engine() is not None
+                if not ocr_available:
+                    result["ocr_status"] = "no_engine_available"
+                    logger.warning(
+                        "No OCR engine available for %s; extracting text layers only",
+                        filepath.name,
+                    )
                 
                 # Prepare page data for parallel processing
                 page_data_list = []
@@ -417,6 +503,18 @@ class PDFFileReader(BaseReader):
                                     "text_length": len(text),
                                     "method": "direct_extraction"
                                 })
+                            elif not ocr_available:
+                                # No OCR engine: keep whatever text layer the
+                                # page has instead of producing a blank page.
+                                stripped = text.strip()
+                                result["pages"].append({
+                                    "page_number": page_num + 1,
+                                    "text": stripped,
+                                    "text_length": len(stripped),
+                                    "method": ("text_layer_fallback" if stripped
+                                               else "ocr_skipped_no_engine_available"),
+                                    "ocr_status": "ocr_skipped_no_engine_available"
+                                })
                             else:
                                 # Page needs OCR - ensure we still track the page number
                                 try:
@@ -430,7 +528,8 @@ class PDFFileReader(BaseReader):
                                         tesseract_lang,
                                         tesseract_config,
                                         True,  # needs_ocr
-                                        ocr_languages  # pass languages for per-page detection
+                                        ocr_languages,  # languages for per-page detection
+                                        text  # native text layer, kept as fallback
                                     ))
                                 except Exception as page_error:
                                     # If we can't convert page to image, store empty page
@@ -457,6 +556,7 @@ class PDFFileReader(BaseReader):
                     doc.close()
                 
                 # ===== PARALLEL OCR PROCESSING =====
+                result["ocr_used"] = bool(page_data_list)
                 if page_data_list:
                     logger.info(f"Processing {len(page_data_list)} pages with OCR...")
                     

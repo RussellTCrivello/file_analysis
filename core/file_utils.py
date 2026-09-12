@@ -11,6 +11,16 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 
+#: Files at or above this size are not hashed during discovery. Discovery
+#: stays cheap; ``pipeline.storage_pipeline`` computes the real streamed
+#: SHA-256 exactly once when the file is stored.
+HASH_INLINE_MAX_BYTES = 100 * 1024 * 1024
+
+#: Value placed in ``Metadata['hash']`` when hashing was deliberately deferred.
+#: It is a sentinel, not a digest, and must never be persisted as an identity.
+HASH_DEFERRED_SENTINEL = "SKIPPED_LARGE_FILE"
+
+
 def format_file_size(size_bytes: Optional[int]) -> str:
     """
     Format file size in human-readable format.
@@ -122,14 +132,17 @@ def get_standardized_metadata(file_path: str) -> Optional[Dict[str, Any]]:
         file_hash = "N/A"
         if path.is_file() and is_readable:
             try:
-                if stats.st_size < 100 * 1024 * 1024:  # 100MB limit
+                if stats.st_size < HASH_INLINE_MAX_BYTES:
                     file_hash = calculate_file_hash(file_path)
                 else:
-                    # For large files, generate a deterministic hash from metadata
-                    # This avoids reading the entire file while still providing uniqueness
-                    import hashlib
-                    metadata_str = f"{str(path.absolute())}|{stats.st_size}|{stats.st_mtime}"
-                    file_hash = hashlib.sha256(metadata_str.encode('utf-8')).hexdigest()
+                    # HASH-01: never fabricate an identity. This used to be
+                    # sha256(f"{path}|{size}|{mtime}"), which is not a content
+                    # hash: two byte-identical large files at different paths
+                    # received different values, so deduplication failed and
+                    # both were stored. The sentinel below is what
+                    # pipeline.storage_pipeline already recognises as "compute
+                    # the real streamed hash yourself".
+                    file_hash = HASH_DEFERRED_SENTINEL
             except Exception:
                 file_hash = "ERROR"
         

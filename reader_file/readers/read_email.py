@@ -52,6 +52,110 @@ class EmailFileReader(BaseReader):
             '.pst'
         }
     
+    #: Email formats the detector can identify from bytes alone.
+    #: .msg is recognised as an OLE2 container holding a __substg1.0_ entry.
+    #: The text formats are included because a caller that has already
+    #: content-verified them must be believed.
+    CONTENT_IDENTIFIABLE = frozenset({'.msg', '.eml', '.mbox'})
+
+    #: What content detection reports when it has no idea. Not an
+    #: identification, so it must never trigger a rejection.
+    UNIDENTIFIED = frozenset({'.bin', '.ole', ''})
+
+    #: Header lines that reliably open an RFC822 message or an mbox record.
+    #: Neither format has magic bytes, so this is the only content signal that
+    #: exists for them.
+    RFC822_HEADERS = (
+        b'from:', b'received:', b'return-path:', b'mime-version:',
+        b'date:', b'subject:', b'message-id:', b'to:', b'delivered-to:',
+    )
+
+    #: OLE-based email formats with no format-specific signature. The detector
+    #: can confirm the container ('.ole') but cannot tell a PST from any other
+    #: OLE file, so the declared extension has to settle it.
+    OLE_BASED = frozenset({'.pst'})
+
+    #: Plain-text email formats. They have no magic bytes at all, so content
+    #: detection reports ('.bin', 'none') and the declared extension is the only
+    #: available signal.
+    TEXT_BASED = frozenset({'.eml', '.mbox'})
+
+    def _resolve_email_type(self, file_info: Dict[str, Any], file_path: str):
+        """Return (email_type, rejection_reason) for this file.
+
+        ``rejection_reason`` is a non-empty string when the content positively
+        identifies something that is not an email container at all - in which
+        case the declared extension must not be trusted, because handing a ZIP
+        to extract_msg produces a confusing parse error rather than the truth.
+        """
+        # Read the router's content-verified value directly rather than via
+        # self.effective_extension(), which falls back to the path's own suffix
+        # when detection produced nothing. Conflating the two made the content
+        # rule fire on the declared extension, so an .eml renamed to .msg was
+        # treated as content-verified MSG.
+        raw_detected = str((file_info or {}).get('effective_extension') or '').lower()
+        detected = raw_detected if raw_detected.startswith('.') else (
+            '.' + raw_detected if raw_detected else ''
+        )
+        declared = os.path.splitext(file_path)[1].lower()
+
+        # 1. Content wins outright when it names an email format.
+        if detected in self.CONTENT_IDENTIFIABLE:
+            return detected, None
+
+        # 2. An OLE container whose declared extension is a known OLE-based email
+        #    format. There is no stronger signature available for PST.
+        if detected == '.ole' and declared in self.OLE_BASED:
+            return declared, None
+
+        # 3. Content positively identifies something that is not an email
+        #    container. Reject rather than mis-parse: handing a ZIP to
+        #    extract_msg yields a confusing parse error instead of the truth.
+        #    '.bin'/'.ole' are excluded because they mean unidentified, not
+        #    identified-as-something-else.
+        if detected not in self.UNIDENTIFIED and detected != declared:
+            return declared, (
+                f"Content is {detected}, not an email container: {file_path}"
+            )
+
+        # 4. Plain-text formats have no magic bytes, so the declared extension
+        #    is the only signal the detector can offer.
+        if declared in self.TEXT_BASED:
+            return declared, None
+
+        # 5. No usable extension. Sniff the bytes: an RFC822 message or mbox
+        #    record under a wrong or missing extension is still an email, and
+        #    discarding it would drop real content.
+        sniffed = self._sniff_text_email(file_path)
+        if sniffed:
+            return sniffed, None
+
+        # 6. Fall back to the declared extension; the dispatcher rejects it if
+        #    it is not an email format at all.
+        return declared, None
+
+    def _sniff_text_email(self, file_path: str):
+        """Return '.mbox', '.eml' or None based on the leading bytes.
+
+        Bounded read: only the first kilobyte is examined, so a large file is
+        never fully loaded to answer this question.
+        """
+        try:
+            with open(file_path, 'rb') as handle:
+                head = handle.read(1024)
+        except OSError:
+            return None
+        if not head:
+            return None
+        # An mbox record begins with a "From " envelope line, which is distinct
+        # from the "From:" header of an RFC822 message.
+        if head.startswith(b'From '):
+            return '.mbox'
+        first_line = head.split(b'\n', 1)[0].strip().lower()
+        if first_line.startswith(self.RFC822_HEADERS) and b':' in first_line:
+            return '.eml'
+        return None
+
     def read_file(self, file_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Read email file and extract content with improved error handling
@@ -68,27 +172,45 @@ class EmailFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
         
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
-        
+
+        # DETECT-01 for email: dispatch on the content-verified type, not the
+        # filename. Previously this used file_lower.endswith(...), so a message
+        # renamed to .txt never reached this reader and a non-message renamed to
+        # .msg was handed to extract_msg. Measured with
+        # detect_file_type_with_confidence, the three signals differ per format:
+        #
+        #     .msg   -> ('.msg', 'strong')  OLE2 + the __substg1.0_ entry
+        #     .pst   -> ('.ole', 'strong')  OLE2, but no PST-specific signature
+        #     .eml   -> ('.bin', 'none')    plain text, no magic bytes
+        #     .mbox  -> ('.bin', 'none')    plain text, no magic bytes
+        #
+        # So no single rule covers all four: content wins where content exists,
+        # and the declared extension is the only signal for the text formats.
+        email_type, rejection = self._resolve_email_type(file_info, file_path)
+        if rejection:
+            return self.handle_read_error(
+                ValueError(rejection), file_path, "read_file"
+            )
+
         try:
             result = None
-            
-            if file_lower.endswith('.msg'):
+
+            if email_type == '.msg':
                 result = self.extract_msg(file_path)
                 if result and 'error' not in result:
                     result["email_type"] = "msg"
-                    
-            elif file_lower.endswith('.eml'):
+
+            elif email_type == '.eml':
                 result = self.extract_eml(file_path)
                 if result and 'error' not in result:
                     result["email_type"] = "eml"
-                
-            elif file_lower.endswith('.mbox'):
+
+            elif email_type == '.mbox':
                 result = self.extract_mbox(file_path)
                 if result and 'error' not in result:
                     result["email_type"] = "mbox"
-                    
-            elif file_lower.endswith('.pst'):
+
+            elif email_type == '.pst':
                 result = self.extract_pst_pypff(file_path)
                 if result and 'error' not in result:
                     result["email_type"] = "pst"
@@ -651,7 +773,17 @@ class EmailFileReader(BaseReader):
                 "messages": messages_data,
                 "extraction_path": extract_to,
                 "total_messages": len(messages_data),
-                "total_attachments": total_attachments
+                "total_attachments": total_attachments,
+                # EMAIL-02: the router decides whether to process attachments
+                # from `has_attachments`, and counts them from
+                # `attachment_count`. extract_eml returns both; extract_mbox
+                # returned neither, so the router saw has_attachments=False and
+                # skipped the whole attachment branch. Attachments were written
+                # to disk and reported in total_attachments, then never stored,
+                # indexed or linked to their message - a silent loss with no
+                # error anywhere. Emit the same contract as extract_eml.
+                "has_attachments": total_attachments > 0,
+                "attachment_count": total_attachments,
             }
             
         except Exception as e:

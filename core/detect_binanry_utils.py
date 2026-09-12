@@ -1,22 +1,91 @@
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
+
+# Confidence levels reported by :func:`detect_file_type_with_confidence`.
+#
+# ``strong`` - a magic-byte / container signature matched. Content evidence is
+#              authoritative and MAY override a disagreeing file extension.
+# ``weak``   - only a textual heuristic matched (``<?xml``, ``<html``, ``{``).
+#              Used to fill a gap when there is no usable extension, never to
+#              override one.
+# ``none``   - nothing matched; the caller must fall back to the extension.
+CONFIDENCE_STRONG = 'strong'
+CONFIDENCE_WEAK = 'weak'
+CONFIDENCE_NONE = 'none'
+
+# Default header size used when sniffing a file from disk. Large enough to
+# cover the deepest fixed-offset signature we test (ISO9660 at 0x8801) and
+# the OOXML/OLE container probes below, bounded so a huge file never forces a
+# full read into memory.
+SNIFF_HEADER_SIZE = 0x9000
 
 
-def detect_file_type(data: Union[bytes, bytearray, memoryview]) -> str:
+def read_file_header(path: str, size: int = SNIFF_HEADER_SIZE) -> bytes:
+    """Read at most ``size`` leading bytes of ``path``.
+
+    Binary-safe and streaming: a multi-gigabyte file costs one bounded read,
+    never a full load. Any filesystem failure (missing file, directory,
+    permission denied, I/O error, vanished mid-read) yields ``b''`` so callers
+    degrade to extension-based identification instead of raising.
+
+    Args:
+        path: Path to the file.
+        size: Maximum number of bytes to read.
+
+    Returns:
+        The leading bytes, or ``b''`` if nothing could be read.
+    """
+    try:
+        with open(path, 'rb') as handle:
+            return handle.read(size) or b''
+    except Exception:
+        return b''
+
+
+def sniff_file_type(path: str, size: int = SNIFF_HEADER_SIZE) -> Tuple[str, str]:
+    """Identify a file's type from its on-disk content.
+
+    Args:
+        path: Path to the file.
+        size: Maximum number of leading bytes to inspect.
+
+    Returns:
+        ``(extension, confidence)`` - see :func:`detect_file_type_with_confidence`.
+        An unreadable file returns ``('.bin', 'none')``.
+    """
+    header = read_file_header(path, size)
+    if not header:
+        return '.bin', CONFIDENCE_NONE
+    return detect_file_type_with_confidence(header)
+
+
+def detect_file_type_with_confidence(
+    data: Union[bytes, bytearray, memoryview]
+) -> Tuple[str, str]:
+    """Identify a byte string's type, reporting how much evidence backs it.
+
+    Args:
+        data: Leading bytes of a file.
+
+    Returns:
+        ``(extension, confidence)`` where confidence is one of
+        :data:`CONFIDENCE_STRONG`, :data:`CONFIDENCE_WEAK` or
+        :data:`CONFIDENCE_NONE`.
+    """
     if not data:
-        return '.bin'  
+        return '.bin', CONFIDENCE_NONE
     if isinstance(data, (bytearray, memoryview)):
-        data = bytes(data) 
-    if len(data) < 2 :
-        return '.bin'  
-    
+        data = bytes(data)
+    if len(data) < 2:
+        return '.bin', CONFIDENCE_NONE
+
     # Offset checks
     if len(data) > 132 and data[128:132] == b'DICM':
-        return '.dcm'
+        return '.dcm', CONFIDENCE_STRONG
     if len(data) > 262 and data[257:262] == b'ustar':
-        return '.tar'
+        return '.tar', CONFIDENCE_STRONG
     if len(data) > 0x8806 and (data[0x8001:0x8006] == b'CD001' or data[0x8801:0x8806] == b'CD001'):
-        return '.iso'
+        return '.iso', CONFIDENCE_STRONG
     
     # Signatures: (bytes, ext, len)
     sigs = [
@@ -39,49 +108,88 @@ def detect_file_type(data: Union[bytes, bytearray, memoryview]) -> str:
         if len(data) >= ml and data.startswith(sig):
             if sig == b'PK\x03\x04' and len(data) > 500:
                 s = data[:4096].decode('latin-1', errors='ignore').lower()
-                if 'word/' in s:
-                     return '.docx'
-                if 'xl/' in s or 'worksheets/' in s:
-                     return '.xlsx'
-                if 'ppt/' in s or 'slides/' in s:
-                     return '.pptx'
-                if 'epub' in s:
-                     return '.epub'
-                return '.zip'
+                # OOXML / EPUB containers are ZIPs; name them by payload so the
+                # router reaches the document reader, not the archive reader.
+                # `[Content_Types].xml` is always the first entry in an OOXML
+                # package, so requiring it keeps an ordinary ZIP that merely
+                # happens to contain a `word/` directory from being misread.
+                is_ooxml = '[content_types].xml' in s
+                if is_ooxml and 'word/' in s:
+                    return '.docx', CONFIDENCE_STRONG
+                if is_ooxml and ('xl/' in s or 'worksheets/' in s):
+                    return '.xlsx', CONFIDENCE_STRONG
+                if is_ooxml and ('ppt/' in s or 'slides/' in s):
+                    return '.pptx', CONFIDENCE_STRONG
+                # OpenDocument: the uncompressed `mimetype` member is stored
+                # first, so its media type is present in the header.
+                if 'opendocument.text' in s:
+                    return '.odt', CONFIDENCE_STRONG
+                if 'opendocument.spreadsheet' in s:
+                    return '.ods', CONFIDENCE_STRONG
+                if 'opendocument.presentation' in s:
+                    return '.odp', CONFIDENCE_STRONG
+                # EPUB stores `application/epub+zip` in its `mimetype` entry.
+                if 'epub+zip' in s:
+                    return '.epub', CONFIDENCE_STRONG
+                return '.zip', CONFIDENCE_STRONG
             elif sig == b'RIFF' and len(data) > 12:
                 t = data[8:12]
                 if t == b'WEBP':
-                     return '.webp'
+                    return '.webp', CONFIDENCE_STRONG
                 if t == b'WAVE':
-                     return '.wav'
+                    return '.wav', CONFIDENCE_STRONG
                 if t == b'AVI ':
-                     return '.avi'
+                    return '.avi', CONFIDENCE_STRONG
+                # Recognised container, unknown payload. Report the container
+                # rather than guessing '.webp', so the caller can fall back to
+                # the declared extension instead of mis-routing.
+                return '.riff', CONFIDENCE_STRONG
             elif sig == b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1' and len(data) > 512:
-                s = data[:8192].lower()
-                if b'worddocument' in s:
-                    return '.doc'
-                if b'workbook' in s:
-                    return '.xls'
-                if b'powerpoint' in s:
-                    return '.ppt'
-                if b'__substg1.0_' in s:
-                    return '.msg'
-                return '.ole'
-            return ext
-    
+                # OLE compound files store directory entry names as UTF-16LE,
+                # so an ASCII-only probe never matches. Check both encodings.
+                s = data[:8192]
+                s_lower = s.lower()
+                u16 = s.decode('utf-16-le', errors='ignore').lower()
+
+                def _has(name: str) -> bool:
+                    encoded = name.encode('utf-16-le')
+                    return (name.lower().encode() in s_lower
+                            or encoded in s
+                            or name.lower() in u16)
+
+                if _has('WordDocument'):
+                    return '.doc', CONFIDENCE_STRONG
+                if _has('Workbook'):
+                    return '.xls', CONFIDENCE_STRONG
+                if _has('PowerPoint'):
+                    return '.ppt', CONFIDENCE_STRONG
+                if _has('__substg1.0_'):
+                    return '.msg', CONFIDENCE_STRONG
+                return '.ole', CONFIDENCE_STRONG
+            return ext, CONFIDENCE_STRONG
+
     if len(data) > 10:
         try:
             t = data[:500].decode('utf-8', errors='ignore').lstrip().lower()
             if t.startswith('<?xml'):
-                return '.svg' if '<svg' in t else '.xml'
+                return ('.svg' if '<svg' in t else '.xml'), CONFIDENCE_WEAK
             if t.startswith('<!doctype html') or t.startswith('<html'):
-                return '.html'
+                return '.html', CONFIDENCE_WEAK
             if t.startswith('{') and '"' in t:
-                return '.json'
-        except Exception : 
+                return '.json', CONFIDENCE_WEAK
+        except Exception:
             pass
-    
-    return '.bin'
+
+    return '.bin', CONFIDENCE_NONE
+
+
+def detect_file_type(data: Union[bytes, bytearray, memoryview]) -> str:
+    """Return the detected extension for ``data`` (content-based).
+
+    Thin wrapper over :func:`detect_file_type_with_confidence` for callers that
+    only need the extension.
+    """
+    return detect_file_type_with_confidence(data)[0]
 
 
 

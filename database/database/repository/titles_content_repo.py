@@ -34,8 +34,14 @@ class TitlesContentRepository(BaseRepository):
         packed = pack_int_list(ids)
         compressed = zlib.compress(packed)
         try:
+            # PARENT-02: title_content_id was accepted and documented here but
+            # never reached the SQL, so every caller that supplied a parent had
+            # it silently discarded. The column and its self-referencing FK
+            # already exist in m0001, so this needs no schema change.
             last_id = self.execute(
-                TitleQueries.insert_title(), (compressed, title_status, path_id), True)
+                TitleQueries.insert_title(),
+                (compressed, title_status, title_content_id, path_id),
+                True)
             return last_id
         except Exception as e:
             # Re-raise exception instead of just printing - let transaction handler deal with it

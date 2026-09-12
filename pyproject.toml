@@ -41,7 +41,17 @@ office = [
     "odfpy>=1.4",
     "striprtf>=0.0.26",
 ]
-ocr = ["pytesseract>=0.3.10", "Pillow>=10.0"]
+ocr = [
+    "pytesseract>=0.3.10",
+    "Pillow>=10.0",
+    # Fallback engine used when the tesseract binary is not installed. It is
+    # pure-pip (bundled ONNX models), so OCR works on hosts with no system
+    # package manager access. Preferred engine remains tesseract: RapidOCR's
+    # bundled models are ch_PP-OCRv4 (Latin + Chinese) and cannot cover this
+    # project's declared heb/eng/ara defaults.
+    "rapidocr-onnxruntime>=1.4",
+    "opencv-python-headless>=4.9",
+]
 ebook = ["ebooklib>=0.18", "beautifulsoup4>=4.12", "mobi>=0.3"]
 audio = ["mutagen>=1.47"]
 media = ["moviepy>=1.0.3", "opencv-python-headless>=4.9"]

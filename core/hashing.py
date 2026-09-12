@@ -71,6 +71,31 @@ def hash_file(
         raise HashingError(f"Unable to hash file: {exc.__class__.__name__}") from exc
 
 
+#: Hex digest lengths for the supported algorithms. Used to reject values that
+#: are not digests at all (sentinels, error strings, fabricated identities).
+_DIGEST_LENGTHS = frozenset({32, 40, 64, 128})
+
+#: Values that mean "no identity was computed" rather than being an identity.
+NON_IDENTITY_VALUES = frozenset({
+    "", "n/a", "na", "error", "skipped_large_file", "none", "null", "unknown",
+})
+
+
+def is_valid_digest(value) -> bool:
+    """Return True only for a well-formed hex digest.
+
+    HASH-01: content identity must never be a sentinel, an error marker, or a
+    value fabricated from metadata. Callers that receive a hash from an
+    upstream producer must validate it before trusting it as an identity.
+    """
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip().lower()
+    if candidate in NON_IDENTITY_VALUES or len(candidate) not in _DIGEST_LENGTHS:
+        return False
+    return all(char in "0123456789abcdef" for char in candidate)
+
+
 def hash_bytes(data: bytes, algorithm: str = DEFAULT_ALGORITHM) -> str:
     """Hash an in-memory byte string (used for stored content streams)."""
     algorithm = _validate_algorithm(algorithm)

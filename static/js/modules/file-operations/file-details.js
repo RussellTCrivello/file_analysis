@@ -100,6 +100,103 @@ export function showFileDetails(fileId, fileName, fileList = null, fileIndex = -
 }
 
 /**
+ * Escape a value for use inside a double-quoted HTML attribute.
+ *
+ * escapeHtml() from core/utils.js escapes via textContent -> innerHTML, which
+ * handles & < > but NOT quotes, because a text node never contains them. That
+ * is correct for element content and unsafe for attribute values: a lineage
+ * name of `x" onmouseover="alert(1)` survives escapeHtml unchanged and breaks
+ * out of the attribute, giving stored XSS from an attacker-chosen filename
+ * inside an uploaded archive.
+ *
+ * Attribute context therefore needs its own escaper. Verified by
+ * tests/unit/test_frontend_lineage_escaping.py.
+ *
+ * @param {*} value - raw value, typically an untrusted filename
+ * @returns {string} value safe to place inside a double-quoted attribute
+ */
+export function escapeAttribute(value) {
+    if (value == null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * Render the parent/child lineage block for File Details.
+ *
+ * Every extracted object (archive member, attachment, embedded document, OCR
+ * derivative) is its own database row linked to its origin by parent_path_id.
+ * Without this the view shows an OCR page as though it were an unrelated
+ * top-level file, which is exactly the flattening the data model exists to
+ * prevent.
+ *
+ * Names come from untrusted input (filenames inside an archive can be
+ * attacker-chosen), so every value goes through escapeHtml and ids are emitted
+ * into data attributes rather than interpolated into a URL or handler.
+ *
+ * @param {object} file - the details payload
+ * @returns {string} HTML for the lineage block, or '' when there is nothing to show
+ */
+export function renderLineageSection(file) {
+    const lineage = file && file.lineage;
+    if (!lineage) return '';
+
+    const ancestors = Array.isArray(lineage.ancestors) ? lineage.ancestors : [];
+    const descendants = Array.isArray(lineage.descendants) ? lineage.descendants : [];
+    if (!ancestors.length && !descendants.length) return '';
+
+    const row = (item, depth, isChild) => {
+        const id = Number(item.id);
+        if (!Number.isInteger(id)) return '';
+        const indent = isChild ? (depth - 1) * 12 : 0;
+        // Two different contexts, two different escapers: the link text is
+        // element content, data-lineage-name is an attribute value.
+        const label = escapeHtml(String(item.name || `#${id}`));
+        const labelAttr = escapeAttribute(String(item.name || `#${id}`));
+        const arrow = isChild ? '\u21B3' : '\u2191';
+        return `
+            <div class="lineage-row" style="margin-left: ${indent}px;">
+                <span class="lineage-arrow">${arrow}</span>
+                <a href="#" class="lineage-link"
+                   data-lineage-id="${id}"
+                   data-lineage-name="${labelAttr}">${label}</a>
+            </div>`;
+    };
+
+    let html = '<div class="lineage-section">';
+    html += `<div class="lineage-title">${escapeHtml(translations.lineage || 'Contained In / Contains')}</div>`;
+
+    if (ancestors.length) {
+        html += `<div class="lineage-group">${escapeHtml(translations.containedIn || 'Contained in')}</div>`;
+        // Root first, so the chain reads top-down.
+        ancestors.forEach(a => { html += row(a, a.depth || 1, false); });
+    } else {
+        html += `<div class="lineage-group">${escapeHtml(translations.topLevelObject || 'Top-level object')}</div>`;
+    }
+
+    if (descendants.length) {
+        html += `<div class="lineage-group">${escapeHtml(
+            (translations.contains || 'Contains') + ` (${descendants.length})`
+        )}</div>`;
+        descendants.forEach(d => { html += row(d, d.depth || 1, true); });
+    }
+
+    if (Array.isArray(lineage.errors) && lineage.errors.length) {
+        html += `<div class="lineage-warning">${escapeHtml(
+            (translations.lineageUnavailable || 'Lineage partially unavailable') +
+            ': ' + lineage.errors.join(', ')
+        )}</div>`;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+/**
  * Load file details content into modal
  * @param {number} fileId - File ID
  * @param {string} fileName - File name
@@ -277,6 +374,42 @@ export async function loadFileDetailsContent(fileId, fileName) {
                 { label: translations.contentChunks || 'Content Chunks', value: (file.content_chunks || 0).toLocaleString() }
             ];
             
+            // Processing status: file_status says only whether text exists, so
+            // a corrupt file, a skipped icon and an unrecognised type all read
+            // 'Unread'. processing.status says which of those happened.
+            if (file.processing && file.processing.status) {
+                const p = file.processing;
+                let statusValue = p.status.replace(/_/g, ' ');
+                if (p.detail) statusValue += ` - ${p.detail}`;
+                metadataItems.push({
+                    label: translations.processingStatus || 'Processing Status',
+                    value: statusValue
+                });
+            }
+            
+            // Where this object came from, as recorded in the database.
+            if (file.hierarchy_path) {
+                metadataItems.push({
+                    label: translations.hierarchyPath || 'Origin',
+                    value: file.hierarchy_path
+                });
+            }
+            
+            // How the content was derived - e.g. OCR engine and confidence.
+            const prov = file.extraction_provenance;
+            if (prov && prov.ocr) {
+                const ocrBits = [];
+                if (ocrBits.push) {
+                    if (prov.ocr.engine) ocrBits.push(prov.ocr.engine);
+                    if (prov.ocr.confidence) ocrBits.push(`${Math.round(prov.ocr.confidence * 100)}% conf.`);
+                    if (prov.ocr.derived) ocrBits.push('derived');
+                }
+                metadataItems.push({
+                    label: translations.ocrProvenance || 'OCR Provenance',
+                    value: ocrBits.join(' / ') || 'OCR'
+                });
+            }
+            
             if (file.path) {
                 metadataItems.push({ label: translations.filePath || 'File Path', value: file.path });
             }
@@ -294,7 +427,22 @@ export async function loadFileDetailsContent(fileId, fileName) {
                 `;
             });
             
+            metadataHtml += renderLineageSection(file);
+            
             metadataSection.innerHTML = metadataHtml || `<div class="empty-state">${translations.noMetadataAvailable || 'No metadata available'}</div>`;
+            
+            // Wire the lineage links after the HTML is in the DOM. Delegated on
+            // the section so re-renders do not need re-binding.
+            metadataSection.querySelectorAll('.lineage-link').forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const id = parseInt(link.getAttribute('data-lineage-id'), 10);
+                    const name = link.getAttribute('data-lineage-name') || 'File';
+                    if (Number.isInteger(id) && window.fms?.fileOperations?.details?.showFileDetails) {
+                        window.fms.fileOperations.details.showFileDetails(id, name);
+                    }
+                });
+            });
         }
     } catch (error) {
         console.error('Error loading file details:', error);

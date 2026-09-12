@@ -54,17 +54,18 @@ class EbookFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
         
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
         
         try:
-            if file_lower.endswith('.epub'):
+            if ext == '.epub':
                 return self.read_epub_file(file_path)
-            elif file_lower.endswith(('.mobi', '.azw', '.azw3')):
+            elif ext in ('.mobi', '.azw', '.azw3'):
                 return self.read_mobi_file(file_path)
-            elif file_lower.endswith('.fb2'):
+            elif ext == '.fb2':
                 return self.read_fb2_file(file_path)
             else:
-                error_msg = f"Unsupported e-book format: {file_path}"
+                error_msg = f"Unsupported e-book format: {ext or file_path}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")

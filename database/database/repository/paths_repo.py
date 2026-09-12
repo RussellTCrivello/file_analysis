@@ -1,3 +1,5 @@
+import json
+
 from .best_repo import BaseRepository
 from datetime import date
 from ..queries.path_queries import FileQueries
@@ -14,9 +16,19 @@ class PathsRepository(BaseRepository):
         hash_id=None,
         file_date=None,
         date_creation=date.today(),
-        coordinates=""
+        coordinates="",
+        extraction_provenance=None,
+        processing_status="discovered",
+        status_detail=None,
+        attempts=0
     ):
-        """Insert a new file path and return its ID"""
+        """Insert a new file path and return its ID.
+
+        ``extraction_provenance`` is a JSON-serialisable mapping describing how
+        each extractor derived its data (engine, version, confidence, whether
+        the text is derived rather than authored). ``None`` means the file was
+        ingested before provenance was captured.
+        """
         params = (
             file_name,
             file_path,
@@ -27,12 +39,31 @@ class PathsRepository(BaseRepository):
             hash_id,
             date_creation,
             coordinates,
+            json.dumps(extraction_provenance) if extraction_provenance is not None else None,
+            processing_status,
+            status_detail,
+            attempts,
         )
         # Don't use commit=True in transaction context - let transaction manager handle commits
         # commit parameter is ignored when _connection is set (transaction context)
         return self.execute(
             FileQueries.insert_path(),
             params
+        )
+
+    def update_lineage(self, path_id, parent_path_id, hierarchy_path):
+        """Link an extracted child to its container (PARENT-01)."""
+        return self.execute(
+            FileQueries.update_lineage(),
+            (parent_path_id, hierarchy_path, path_id)
+        )
+
+    def get_lineage(self, path_id):
+        """(file_name, hierarchy_path) for a path, or None."""
+        return self.execute(
+            FileQueries.get_lineage(),
+            (path_id,),
+            fetchone=True
         )
 
     def get_file_by_id(self, path_id):

@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 import logging
 
 from Api.utils import get_processing_statistics, get_statistics
+from Api.services import lineage_service
 from core.errors import client_error
 from core.security.rate_limit import limiter
 from database import (
@@ -1550,7 +1551,11 @@ def register_api_routes(app):
                        p.file_status, p.file_date, p.date_creation, p.hash_id,
                        COALESCE(s.name, 'Unknown') as source_name, 
                        COALESCE(si.name, 'Unknown') as side_name, 
-                       COALESCE(h.hash, '') as hash
+                       COALESCE(h.hash, '') as hash,
+                       p.extraction_provenance, p.parent_path_id,
+                       p.hierarchy_path, p.processing_status, p.status_detail,
+                       p.attempts, p.status_updated_at, p.coordinates,
+                       p.error_message
                 FROM paths p
                 LEFT JOIN hashs h ON p.hash_id = h.id
                 LEFT JOIN sources s ON h.source_id = s.id
@@ -1668,6 +1673,38 @@ def register_api_routes(app):
             if not isinstance(categories_list, list):
                 categories_list = []
             
+            # Provenance, lineage and processing status (migration 0007 columns).
+            # Returned as one coherent block rather than scattered fields: the
+            # question File Details has to answer is "what is this object, where
+            # did each piece originate, how was it derived", and those answers
+            # are only meaningful together. Lineage is read from parent_path_id
+            # by lineage_service, never inferred from names or filesystem paths.
+            # Zip the row against an explicit column list rather than indexing
+            # it positionally: positional indexes silently go wrong when the
+            # SELECT changes, and the failure surfaces as an IndexError at
+            # request time instead of a name that does not exist.
+            row = dict(zip(
+                ("id", "name", "path", "size", "type", "file_status", "file_date",
+                 "date_creation", "hash_id", "source", "side", "hash",
+                 "extraction_provenance", "parent_path_id", "hierarchy_path",
+                 "processing_status", "status_detail", "attempts",
+                 "status_updated_at", "coordinates", "error_message"),
+                file_info,
+                # strict: a SELECT/column-list mismatch must raise here, loudly,
+                # not silently produce a short dict. Without it zip() truncates
+                # to the shorter side and the row loses fields unnoticed -
+                # which is precisely the positional-index bug this replaced.
+                strict=True,
+            ))
+            lineage = lineage_service.get_file_lineage(file_id)
+            provenance = lineage_service.normalise_provenance(
+                row["extraction_provenance"]
+            )
+            status_updated_at = (
+                row["status_updated_at"].isoformat()
+                if row["status_updated_at"] else None
+            )
+
             details = {
                 'id': file_info[0],
                 'name': file_info[1] or 'Unnamed File',
@@ -1687,7 +1724,19 @@ def register_api_routes(app):
                 'categories': categories_list,
                 'title': title_text,
                 'title_id': title_id,
-                'similar_titles': similar_titles
+                'similar_titles': similar_titles,
+                'extraction_provenance': provenance,
+                'parent_path_id': row['parent_path_id'],
+                'hierarchy_path': row['hierarchy_path'],
+                'processing': {
+                    'status': row['processing_status'] or 'unknown',
+                    'detail': row['status_detail'],
+                    'attempts': row['attempts'] or 0,
+                    'updated_at': status_updated_at,
+                },
+                'coordinates': row['coordinates'],
+                'error_message': row['error_message'],
+                'lineage': lineage
             }
             
             return jsonify({'success': True, 'details': details})

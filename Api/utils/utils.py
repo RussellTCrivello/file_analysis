@@ -961,12 +961,12 @@ def get_optimized_search_results(query, file_type=None, source_id=None, side_id=
                     SELECT 
                         SUM(
                             CASE 
-                                WHEN p.file_name ILIKE '%' || term || '%' THEN 2.0
+                                WHEN p.file_name ILIKE '%%' || term || '%%' THEN 2.0
                                 WHEN EXISTS (
                                     SELECT 1 FROM words_paths wp
                                     JOIN words w ON wp.word_id = w.id
                                     WHERE wp.path_id = p.id
-                                    AND w.word ILIKE '%' || term || '%'
+                                    AND w.word ILIKE '%%' || term || '%%'
                                 ) THEN 1.0
                                 ELSE 0.0
                             END

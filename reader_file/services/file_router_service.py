@@ -137,65 +137,65 @@ class FileRouterService:
             return None
         
         file_path = file_info.get('path')
-        extension = file_info.get('extension', '').lower()
-        
+        declared_extension = self.file_reader_service.normalize_extension(
+            file_info.get('extension')
+        )
+
         start_time = time.time()
-        
-        if not extension:
-            self.logger.warning(f"No extension found for: {file_path}")
-            
-            processing_time = time.time() - start_time
-            result = create_standardized_result(
+
+        # DETECT-01: identify the file from its CONTENT first and fall back to
+        # the declared extension. A missing or lying extension is no longer
+        # fatal - magic-byte inspection decides the processing path, so an
+        # extensionless ZIP is still extracted and a misnamed PDF still gets
+        # PDF treatment.
+        reader, detection = self.file_reader_service.resolve_reader_for_file(
+            file_path,
+            declared_extension
+        )
+        effective_extension = detection['effective_extension']
+
+        if detection['extension_mismatch']:
+            self.logger.warning(
+                "Extension/content mismatch for %s: %s",
                 file_path,
-                {"error": "No file extension found"},
-                processing_time
+                detection['detection_note']
             )
-            # Store even if no extension found
-            if store_result:
-                self._store_result_if_enabled(
-                    file_info,
-                    result,
-                    storage_source,
-                    storage_side,
-                    storage_pipeline
-                )
-            return result
-        
+
+        # Hand the verified type to the reader so its internal format dispatch
+        # uses content evidence rather than the filename.
+        routed_file_info = dict(file_info)
+        routed_file_info['effective_extension'] = effective_extension
+
         content_data = None
-        
+
         try:
-            # Use FileReaderService to get appropriate reader
-            reader = self.file_reader_service.get_reader_for_extension(extension)
-            
             if reader:
                 # Use reader to read file
                 content_data = print_execution_time(
                     f"Reading file: {os.path.basename(file_path)}",
                     reader.read_file,
-                    file_info
+                    routed_file_info
                 )
-                
+
                 # Handle special cases (archives, emails) that return extraction paths
                 if content_data and isinstance(content_data, dict):
                     extraction_path = content_data.get("extraction_path")
                     email_result = content_data
-                    
-                    # Handle archive extraction
-                    if extraction_path and extension in self._get_archive_extensions():
-                        content_data = self._process_extracted_files(
-                            extraction_path,
-                            'archive',
-                            file_path,
-                            collect,
-                            depth,
-                            use_parallel=True,
-                            storage_source=storage_source,
-                            storage_side=storage_side,
-                            storage_pipeline=storage_pipeline
-                        )
-                    
-                    # Handle email extraction
-                    elif extension in self._get_email_extensions():
+
+                    # EMBED-02: recursion is format-agnostic. A container is
+                    # anything whose reader materialised children into a
+                    # directory; the children then go through exactly the same
+                    # pipeline as a top-level file. This used to be gated on
+                    # `reader is archive_reader`, so embedded Office images - and
+                    # anything a future reader materialises - were never
+                    # processed as objects at all.
+                    #
+                    # Email is checked first because it is the one container with
+                    # an ordering constraint: its message row must exist BEFORE
+                    # its attachments so each attachment can be linked to it. It
+                    # still delegates to the same _process_extracted_files, so
+                    # this is an ordering difference, not a second pipeline.
+                    if reader is self.file_reader_service.email_reader:
                         content_data = self._process_email_result(
                             email_result,
                             file_path,
@@ -205,12 +205,49 @@ class FileRouterService:
                             storage_side=storage_side,
                             storage_pipeline=storage_pipeline
                         )
+
+                    elif extraction_path:
+                        # The gate is format-agnostic - any reader that
+                        # materialised children into a directory gets them run
+                        # through the ordinary pipeline - but the reported key is
+                        # not arbitrary. _process_extracted_files names its
+                        # summary f"{extraction_type}_info", and archive_info is
+                        # the established contract surfaced by ARCHIVE-01 and
+                        # asserted by the suite, so archives keep it. Other
+                        # containers report the identically shaped
+                        # embedded_info, which is what they actually are.
+                        extraction_type = (
+                            'archive'
+                            if reader is self.file_reader_service.archive_reader
+                            else 'embedded'
+                        )
+                        extraction_result = self._process_extracted_files(
+                            extraction_path,
+                            extraction_type,
+                            file_path,
+                            collect,
+                            depth,
+                            use_parallel=True,
+                            storage_source=storage_source,
+                            storage_side=storage_side,
+                            storage_pipeline=storage_pipeline
+                        )
+                        # MERGE, do not replace. A container such as a DOCX has
+                        # content of its own - paragraphs, tables, text - that
+                        # must survive alongside its children. Assigning the
+                        # extraction result over content_data would have silently
+                        # discarded the document body. Archives have no body, so
+                        # the merge is a no-op for them.
+                        content_data = {**content_data, **extraction_result}
             else:
                 # Unrecognized file type
                 processing_time = time.time() - start_time
                 result = create_standardized_result(
                     file_path,
-                    {"error": f"Unsupported file type: {extension}"},
+                    {
+                        "error": f"Unsupported file type: {effective_extension or 'unknown'}",
+                        "type_detection": detection
+                    },
                     processing_time
                 )
                 # Store even if file type is unsupported
@@ -254,7 +291,12 @@ class FileRouterService:
         
         processing_time = time.time() - start_time
         result = create_standardized_result(file_path, content_data, processing_time)
-        
+
+        # Provenance: keep a record of HOW the file was identified so the
+        # decision survives into storage and is visible during review.
+        if isinstance(result.get('Content'), dict):
+            result['Content'].setdefault('type_detection', detection)
+
         # Calculate and display file processing metrics
         calculate_file_processing_metrics(file_info, result)
         
@@ -790,6 +832,9 @@ class FileRouterService:
         }
         
         # STEP 1: SAVE ALL MESSAGES TO DATABASE FIRST
+        # Hoisted above the try: STEP 2 needs it to link attachments to the
+        # message row, and a failure to store must not leave it undefined.
+        message_path_id = None
         if message_content and storage_pipeline and storage_source and storage_side:
             try:
                 import os
@@ -852,6 +897,30 @@ class FileRouterService:
             )
             
             final_result["attachments"] = attachments_result
+
+            # EMAIL-01: persist the message -> attachment relationship.
+            #
+            # STEP 1 already stored the message and produced message_path_id,
+            # so the parent row exists before its children are processed - the
+            # ideal ordering. Nothing used it, so every attachment was stored as
+            # an unrelated top-level file and the original message could not be
+            # recovered from the database. Reuses the same linker archives use,
+            # which walks extracted_files and writes parent_path_id and
+            # hierarchy_path together; no parallel implementation.
+            if message_path_id and storage_pipeline:
+                try:
+                    linked = storage_pipeline._link_extracted_children(
+                        attachments_result, message_path_id
+                    )
+                    self.logger.info(
+                        f"\u2192 Linked {linked} attachment(s) to message "
+                        f"path_id={message_path_id}"
+                    )
+                except Exception as link_exc:
+                    self.logger.warning(
+                        f"\u26a0 Could not link attachments to message "
+                        f"path_id={message_path_id}: {link_exc}"
+                    )
         else:
             final_result["attachments"] = {
                 "email_attachment_info": {

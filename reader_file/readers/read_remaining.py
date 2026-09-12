@@ -76,29 +76,30 @@ class RemainingFileReader(BaseReader):
             return self.create_error_result(error_msg or "Invalid file info", file_info.get("path", "unknown"))
 
         file_path = str(file_info.get("path"))
-        file_lower = file_path.lower()
+        # DETECT-01: dispatch on the content-verified type, not the filename.
+        ext = self.effective_extension(file_info)
 
         try:
-            if file_lower.endswith('.json'):
+            if ext == '.json':
                 return self.read_json_file(file_path)
-            elif file_lower.endswith('.xml'):
+            elif ext == '.xml':
                 return self.read_xml_file(file_path)
-            elif file_lower.endswith('.rtf'):
+            elif ext == '.rtf':
                 return self.read_rtf_file(file_path)
-            elif file_lower.endswith('.yaml') or file_lower.endswith('.yml'):
+            elif ext in ('.yaml', '.yml'):
                 return self.read_yaml_file(file_path)
-            elif file_lower.endswith('.html') or file_lower.endswith('.htm'):
+            elif ext in ('.html', '.htm'):
                 return self.read_html_file(file_path)
-            elif file_lower.endswith('.ics'):
+            elif ext == '.ics':
                 return self.read_ics_file(file_path)
-            elif file_lower.endswith('.bin'):
+            elif ext == '.bin':
                 return self.read_binary_file(file_path)
-            elif file_lower.endswith(tuple(self.get_supported_extensions() | {'.bin'})):
+            elif ext in (self.get_supported_extensions() | {'.bin'}):
                 # READER-02: every other advertised text format is genuinely
                 # supported through the encoding-aware text reader.
                 return self.read_text_file(file_path)
             else:
-                error_msg = f"Unsupported file type: {Path(file_path).suffix}"
+                error_msg = f"Unsupported file type: {ext or Path(file_path).suffix}"
                 return self.handle_read_error(ValueError(error_msg), file_path, "read_file")
         except Exception as e:
             return self.handle_read_error(e, file_path, "read_file")

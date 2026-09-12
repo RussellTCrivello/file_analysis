@@ -437,7 +437,11 @@ class ContentDBService:
         file_status: str,
         file_date: date,
         hash_id: int,
-        coordinates: Optional[str] = None
+        coordinates: Optional[str] = None,
+        extraction_provenance: Optional[dict] = None,
+        processing_status: str = "discovered",
+        status_detail: Optional[str] = None,
+        attempts: int = 0
     ) -> int:
         # Note: Parameter order matches the params tuple in insert_info_paths, not the method signature
         # params tuple order: file_name, file_path, file_size, file_type, file_status, file_date, hash_id, date_creation, coordinates
@@ -447,7 +451,11 @@ class ContentDBService:
             hash_id=hash_id,
             file_date=file_date,
             date_creation=date.today(),
-            coordinates=coordinates or ""
+            coordinates=coordinates or "",
+            extraction_provenance=extraction_provenance,
+            processing_status=processing_status,
+            status_detail=status_detail,
+            attempts=attempts
         )
     
     def get_path_id_by_hash_id(self, hash_id: int) -> Optional[int]:
@@ -1237,7 +1245,11 @@ class ContentDBService:
         content_words: List[str],
         title_words: Optional[List[str]] = None,
         coordinates: Optional[str] = None,
-        content_date: Optional[date] = None
+        content_date: Optional[date] = None,
+        extraction_provenance: Optional[dict] = None,
+        processing_status: str = "discovered",
+        status_detail: Optional[str] = None,
+        attempts: int = 0
     ) -> Dict[str, any]:
         """
         Process a complete document with all steps in a single transaction.
@@ -1266,6 +1278,10 @@ class ContentDBService:
             - file_status is 'Read' if file contains content, otherwise 'Unread'
             - coordinates stores any GPS coordinates in images or elsewhere
             - content_date stores a date mentioned in the content itself. If no date is mentioned, it will be empty (None).
+            - extraction_provenance records how each extractor derived its data
+              (engine, version, confidence, derived flag). Stored as JSONB in
+              paths.extraction_provenance so recognised text is never
+              indistinguishable from authored text.
         """
         result = {
             'success': False,
@@ -1421,7 +1437,11 @@ class ContentDBService:
                     path_id = self.create_path(
                         file_name, file_path, file_size, file_type,
                         file_status, file_date, hash_id,
-                        coordinates=coordinates
+                        coordinates=coordinates,
+                        extraction_provenance=extraction_provenance,
+                        processing_status=processing_status,
+                        status_detail=status_detail,
+                        attempts=attempts
                     )
                     # Normalize path_id
                     if path_id:
