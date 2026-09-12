@@ -38,6 +38,57 @@ class OfficeFileReader(BaseReader):
     - Proper resource management
     """
     
+    def _embedded_extraction_dir(self, source_path):
+        """The directory where this document's embedded objects are materialised.
+
+        Computed once per source document and cached, because
+        get_extraction_name_file allocates a NEW numbered folder whenever the
+        name already exists - calling it per image would scatter one document's
+        embedded objects across image-count directories.
+        """
+        cached = getattr(self, '_embedded_dir_cache', None)
+        if cached and cached[0] == source_path:
+            return cached[1]
+        from core.path_utils import get_extraction_name_file
+
+        extract_dir = get_extraction_name_file(source_path, '')
+        os.makedirs(extract_dir, exist_ok=True)
+        self._embedded_dir_cache = (source_path, extract_dir)
+        return extract_dir
+
+    def _materialise_embedded_image(self, image_bytes, image_name, source_path,
+                                    result=None):
+        """Write one embedded image to disk so it can become a child object.
+
+        Returns the written path.
+
+        EMBED-02: each embedded image used to be written to a
+        NamedTemporaryFile and unlinked straight after OCR, so the bytes never
+        survived long enough to be an object in their own right. Their text was
+        folded into the parent document and the image itself was discarded - no
+        row, no hash, no parent, no hierarchy. Writing into the same kind of
+        directory that archives and email attachments use lets the router run
+        the image through the ordinary child pipeline instead.
+
+        The name goes through the same Windows-safe component normalisation
+        used for archive members: package part names are attacker-influenced and
+        must not become reserved device names or over-long components.
+        """
+        from core.archive_safety import windows_safe_component
+
+        extract_dir = self._embedded_extraction_dir(source_path)
+        safe_name = windows_safe_component(os.path.basename(image_name)) or 'embedded_image'
+        destination = os.path.join(extract_dir, safe_name)
+        with open(destination, 'wb') as handle:
+            handle.write(image_bytes)
+        # Stamp the result so the router knows this document has materialised
+        # children to recurse into. Callers that build their result elsewhere
+        # (extract_images_from_pptx returns a bare list) pass None and stamp it
+        # themselves once the list is attached.
+        if result is not None:
+            result["extraction_path"] = extract_dir
+        return destination
+
     def _image_reader(self):
         """A cached ImageFileReader used to OCR embedded images.
 
@@ -275,23 +326,19 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                # Add name field to match expected format
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        result["extracted_images"].append(ocr_result)
-                            finally:
-                                # Clean up temp file
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception:
-                                    pass
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath, result
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    result["extracted_images"].append(ocr_result)
                         except Exception as e:
                             logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
@@ -582,23 +629,19 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                # Add name field to match expected format
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        result["extracted_images"].append(ocr_result)
-                            finally:
-                                # Clean up temp file
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception as cleanup_error:
-                                    logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath, result
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    result["extracted_images"].append(ocr_result)
                         except Exception as e:
                             logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
@@ -764,21 +807,22 @@ class OfficeFileReader(BaseReader):
                         # Try to perform OCR if function is available
                         try:
                             
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        extracted_images.append(ocr_result)
-                            finally:
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception:
-                                    pass
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            # This helper returns a bare list rather than a
+                            # result dict, so nothing is stamped here; the caller
+                            # records extraction_path once the list is attached.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    extracted_images.append(ocr_result)
                         except ImportError:
                             # OCR not available, just record image info
                             extracted_images.append({
@@ -1106,6 +1150,10 @@ class OfficeFileReader(BaseReader):
             # Extract and OCR images from the PPTX archive (with error handling)
             try:
                 result["extracted_images"] = self.extract_images_from_pptx(filepath)
+                if result["extracted_images"]:
+                    # The images were materialised during extraction; publish the
+                    # directory so the router processes them as child objects.
+                    result["extraction_path"] = self._embedded_extraction_dir(filepath)
             except Exception as img_error:
                 logger.warning(f"Failed to extract images from PPTX: {img_error}. Continuing without images.")
                 result["extracted_images"] = []
@@ -1283,23 +1331,19 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                # Add name field to match expected format
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        result["extracted_images"].append(ocr_result)
-                            finally:
-                                # Clean up temp file
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception as cleanup_error:
-                                    logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath, result
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    result["extracted_images"].append(ocr_result)
                         except Exception as e:
                             logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
@@ -1382,23 +1426,19 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                # Add name field to match expected format
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        result["extracted_images"].append(ocr_result)
-                            finally:
-                                # Clean up temp file
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception as cleanup_error:
-                                    logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath, result
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    result["extracted_images"].append(ocr_result)
                         except Exception as e:
                             logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue
@@ -1545,23 +1585,19 @@ class OfficeFileReader(BaseReader):
                             image_name = os.path.basename(image_file)
                             
                             # Process image with OCR using existing function
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(image_name)[1]) as tmp_file:
-                                tmp_file.write(image_bytes)
-                                tmp_path = tmp_file.name
-                            
-                            try:
-                                ocr_result = self._ocr_embedded_image(tmp_path)
-                                # Add name field to match expected format
-                                if ocr_result:
-                                    ocr_result["name"] = image_name
-                                    if ocr_result.get("text") or ocr_result.get("error"):
-                                        result["extracted_images"].append(ocr_result)
-                            finally:
-                                # Clean up temp file
-                                try:
-                                    os.unlink(tmp_path)
-                                except Exception as cleanup_error:
-                                    logger.debug(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+                            # Materialise the embedded image into the document's
+                            # extraction directory, then OCR it in place. Writing
+                            # it out - rather than to a temp file that is unlinked
+                            # immediately - is what lets the router treat the image
+                            # as a child object with its own row, hash and lineage.
+                            tmp_path = self._materialise_embedded_image(
+                                image_bytes, image_name, filepath, result
+                            )
+                            ocr_result = self._ocr_embedded_image(tmp_path)
+                            if ocr_result:
+                                ocr_result["name"] = image_name
+                                if ocr_result.get("text") or ocr_result.get("error"):
+                                    result["extracted_images"].append(ocr_result)
                         except Exception as e:
                             logger.warning(f"Failed to process embedded image {image_file}: {e}")
                             continue

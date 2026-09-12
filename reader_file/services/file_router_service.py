@@ -182,24 +182,20 @@ class FileRouterService:
                     extraction_path = content_data.get("extraction_path")
                     email_result = content_data
 
-                    # Handle archive extraction. Keyed on the resolved reader
-                    # rather than an extension set, so compound extensions
-                    # (.tar.gz) and content-detected archives both recurse.
-                    if extraction_path and reader is self.file_reader_service.archive_reader:
-                        content_data = self._process_extracted_files(
-                            extraction_path,
-                            'archive',
-                            file_path,
-                            collect,
-                            depth,
-                            use_parallel=True,
-                            storage_source=storage_source,
-                            storage_side=storage_side,
-                            storage_pipeline=storage_pipeline
-                        )
-
-                    # Handle email extraction
-                    elif reader is self.file_reader_service.email_reader:
+                    # EMBED-02: recursion is format-agnostic. A container is
+                    # anything whose reader materialised children into a
+                    # directory; the children then go through exactly the same
+                    # pipeline as a top-level file. This used to be gated on
+                    # `reader is archive_reader`, so embedded Office images - and
+                    # anything a future reader materialises - were never
+                    # processed as objects at all.
+                    #
+                    # Email is checked first because it is the one container with
+                    # an ordering constraint: its message row must exist BEFORE
+                    # its attachments so each attachment can be linked to it. It
+                    # still delegates to the same _process_extracted_files, so
+                    # this is an ordering difference, not a second pipeline.
+                    if reader is self.file_reader_service.email_reader:
                         content_data = self._process_email_result(
                             email_result,
                             file_path,
@@ -209,6 +205,40 @@ class FileRouterService:
                             storage_side=storage_side,
                             storage_pipeline=storage_pipeline
                         )
+
+                    elif extraction_path:
+                        # The gate is format-agnostic - any reader that
+                        # materialised children into a directory gets them run
+                        # through the ordinary pipeline - but the reported key is
+                        # not arbitrary. _process_extracted_files names its
+                        # summary f"{extraction_type}_info", and archive_info is
+                        # the established contract surfaced by ARCHIVE-01 and
+                        # asserted by the suite, so archives keep it. Other
+                        # containers report the identically shaped
+                        # embedded_info, which is what they actually are.
+                        extraction_type = (
+                            'archive'
+                            if reader is self.file_reader_service.archive_reader
+                            else 'embedded'
+                        )
+                        extraction_result = self._process_extracted_files(
+                            extraction_path,
+                            extraction_type,
+                            file_path,
+                            collect,
+                            depth,
+                            use_parallel=True,
+                            storage_source=storage_source,
+                            storage_side=storage_side,
+                            storage_pipeline=storage_pipeline
+                        )
+                        # MERGE, do not replace. A container such as a DOCX has
+                        # content of its own - paragraphs, tables, text - that
+                        # must survive alongside its children. Assigning the
+                        # extraction result over content_data would have silently
+                        # discarded the document body. Archives have no body, so
+                        # the merge is a no-op for them.
+                        content_data = {**content_data, **extraction_result}
             else:
                 # Unrecognized file type
                 processing_time = time.time() - start_time

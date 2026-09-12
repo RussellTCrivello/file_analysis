@@ -198,22 +198,66 @@ def test_xlsx_embedded_image_is_extracted(reader, tmp_path, png_file):
     assert "EMBEDOCR" in (images[0].get("text") or "").replace("\n", " ")
 
 
-# ------------------------------------------------- documented limitation
-def test_embedded_images_are_not_yet_separate_objects(reader, docx_with_image):
-    """EMBED-02, recorded rather than papered over.
+# ---------------------------------------------------- child-object contract
+def test_reader_publishes_extraction_path_so_the_router_can_recurse(reader, docx_with_image):
+    """EMBED-02: the reader now hands the router a directory to descend into.
 
-    The image is extracted and OCR'd, but the reader returns it inside
-    extracted_images - not as extracted_files with an extraction_path. So the
-    router never treats it as a child: it gets no paths row, no hash, no
-    parent_path_id and no hierarchy_path, and its text is folded into the parent
-    document. It is searchable, but only attributed to the DOCX.
-
-    Asserted here so the limitation is visible and so a change in either
-    direction shows up as a decision rather than a drift.
+    Before this the image was extracted and OCR'd but returned only inside
+    extracted_images, so it never became an object - no paths row, no hash, no
+    parent_path_id, no hierarchy_path. The reader cannot create those rows
+    itself; it publishes extraction_path and the ordinary pipeline does the rest.
+    tests/integration/test_universal_recursion.py proves the other end.
     """
     result = reader.read_file({"path": docx_with_image, "extension": ".docx"})
     assert result.get("extracted_images"), "precondition: image was extracted"
-    assert result.get("extracted_files") in (None, []), (
-        "embedded images now enter the child pipeline; update this test and the "
-        "EMBED-02 note"
-    )
+    extraction_path = result.get("extraction_path")
+    assert extraction_path, f"router would have nothing to recurse into: {sorted(result)}"
+    assert Path(extraction_path).is_dir(), extraction_path
+    children = sorted(c.name for c in Path(extraction_path).iterdir())
+    assert children, f"extraction_path {extraction_path} is empty"
+    assert children == ["image1.png"], children
+
+
+def test_pptx_publishes_extraction_path_without_a_result_dict(reader, tmp_path, png_file):
+    """The PPTX helper returns a bare list, so it has no result dict to stamp.
+
+    Regression: the shared helper referenced `result` unconditionally and raised
+    NameError inside the site's except handler, which logged "Failed to process
+    embedded image ppt/media/image1.png" and dropped the image entirely.
+    """
+    pptx = pytest.importorskip("pptx")
+    util = pytest.importorskip("pptx.util")
+    path = tmp_path / "deck2.pptx"
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    slide.shapes.add_picture(png_file, util.Inches(1), util.Inches(1),
+                             width=util.Inches(4))
+    prs.save(str(path))
+    result = reader.read_file({"path": str(path), "extension": ".pptx"})
+    assert result.get("error") is None, result.get("error")
+    assert result.get("extracted_images"), sorted(result)
+    extraction_path = result.get("extraction_path")
+    assert extraction_path, f"PPTX never published a child directory: {sorted(result)}"
+    assert sorted(c.name for c in Path(extraction_path).iterdir()), extraction_path
+
+
+def test_extraction_dir_is_cached_not_reallocated(reader, docx_with_image):
+    """get_extraction_name_file mints a NEW numbered folder if the name exists.
+
+    Calling it per child would scatter the images across image1, image2, ... and
+    the router would descend into only the last one.
+    """
+    first = reader._embedded_extraction_dir(docx_with_image)
+    second = reader._embedded_extraction_dir(docx_with_image)
+    assert first == second, (first, second)
+
+
+def test_windows_safe_component_is_applied_to_embedded_names(reader, tmp_path):
+    """A part named for a Windows reserved device must not poison extraction."""
+    dest = reader._materialise_embedded_image(b"\x89PNG\r\n", "media/CON.png",
+                                              str(tmp_path / "src.docx"))
+    # windows_safe_component neutralises a reserved device name by prefixing it,
+    # so the leaf is _CON.png - no longer a reserved name on Windows.
+    assert Path(dest).name == "_CON.png", dest
+    assert Path(dest).name != "CON.png", dest
+    assert Path(dest).exists(), dest
