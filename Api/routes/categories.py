@@ -6,7 +6,7 @@ from flask import redirect, url_for, request, jsonify, render_template, flash
 from Api.utils import (
     execute_query, get_categories_with_stats, get_category,
     get_words_by_category, get_word_id, insert_word, insert_category,
-    list_categories
+    list_categories, invalidate_query_cache
 )
 import logging
 from core.errors import client_error, client_safe_message
@@ -145,6 +145,7 @@ def register_categories_routes(app):
             category_id = insert_category(word_id)
             
             if category_id:
+                invalidate_query_cache()
                 logger.info(f"Created category: {category_name} (ID: {category_id})")
                 return jsonify({'success': True, 'category_id': category_id, 'message': 'Category added successfully'})
             else:
@@ -212,6 +213,7 @@ def register_categories_routes(app):
             """, (word_id, category_id), fetch="one")
             
             if result:
+                invalidate_query_cache()
                 logger.info(f"Removed word {word_id} from category {category_id}")
                 return jsonify({'success': True, 'message': 'Word removed from category successfully'})
             else:
@@ -257,6 +259,7 @@ def register_categories_routes(app):
             """, (word_id, category_id), fetch="one")
             
             if result:
+                invalidate_query_cache()
                 logger.info(f"Created words_categorys entry: word_id={word_id}, category_id={category_id}")
                 return jsonify({
                     'success': True, 
@@ -293,6 +296,7 @@ def register_categories_routes(app):
                 DELETE FROM categorys WHERE id = %s
             """, (category_id,), fetch=False)
             
+            invalidate_query_cache()
             logger.info(f"Deleted category {category_id}")
             return jsonify({'success': True, 'message': 'Category deleted successfully'})
         except Exception as e:

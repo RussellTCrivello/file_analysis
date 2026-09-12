@@ -10,6 +10,7 @@ from Api.utils import (
     get_keywords_with_usage, get_word_id,
     get_query_cache, get_words_for_dropdown,
     get_categories_for_dropdown, get_keyword_stats, get_email_words,
+    invalidate_query_cache,
     get_email_domains, delete_keyword, keyword_exists, db_delete_keyword,
     get_email_words_all
 )
@@ -256,6 +257,7 @@ def register_keywords_routes(app):
                 words_count = 0
                 keywords_count = 0
                 error_messages = []
+                created_keyword_ids = []
                 
                 # Get category operations instance
                 category_ops = get_category_operations()
@@ -300,6 +302,8 @@ def register_keywords_routes(app):
                                     logger.info(f"Added single word '{term.strip()}' to words_categorys (word_id: {result['id']})")
                                 elif result['type'] == 'keyword':
                                     keywords_count += 1
+                                    if result.get('id'):
+                                        created_keyword_ids.append(result['id'])
                                     logger.info(f"Added multi-word phrase '{term.strip()}' to keywords (keyword_id: {result['id']})")
                             else:
                                 error_messages.append(f"'{term.strip()}': {result['message']}")
@@ -312,6 +316,14 @@ def register_keywords_routes(app):
                           request.headers.get('X-Requested-With') == 'XMLHttpRequest'
                 
                 if success_count > 0:
+                    # A keyword added after ingestion must be matched against
+                    # existing files now, not only on the next import.
+                    try:
+                        if created_keyword_ids:
+                            category_ops.db_service.refresh_keyword_associations(created_keyword_ids)
+                    except Exception as refresh_error:
+                        logger.warning("Keyword created but existing-file association refresh failed: %s", refresh_error)
+                    invalidate_query_cache()
                     try:
                         cache = get_query_cache()
                         # Clear all keyword-related cache entries
@@ -819,6 +831,14 @@ def register_keywords_routes(app):
             category_id = data.get('category_id')
             new_text = data.get('text', '').strip()
             
+            # Remove stale matches only after the request has been validated
+            # enough to represent a real update. The refresh below repopulates
+            # only true matches.
+            if not (word_ids and isinstance(word_ids, list) and len(word_ids) > 0) and not new_text and category_id is None:
+                return jsonify({'success': False, 'error': 'Either word_ids or text is required'}), 400
+            execute_query("DELETE FROM keywords_paths WHERE keyword_id = %s", (keyword_id,), fetch=None)
+            invalidate_query_cache()
+
             # If word_ids provided, use them directly
             if word_ids and isinstance(word_ids, list) and len(word_ids) > 0:
                 keyword_blob = pack_int_list(word_ids)
@@ -878,6 +898,12 @@ def register_keywords_routes(app):
                 else:
                     return jsonify({'success': False, 'error': 'Either word_ids or text is required'}), 400
             
+            try:
+                from database.services.contents_db_service import ContentDBService
+                ContentDBService().refresh_keyword_associations([keyword_id])
+            except Exception as refresh_error:
+                logger.warning("Keyword updated but association refresh failed: %s", refresh_error)
+            invalidate_query_cache()
             return jsonify({'success': True, 'message': 'Keyword updated successfully'})
         except Exception as e:
             logger.error(f"Error updating keyword {keyword_id}: {e}")

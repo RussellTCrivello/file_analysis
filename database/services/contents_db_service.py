@@ -23,7 +23,7 @@ from database.database.repository.hashs_repo import HashsRepository
 from database.database.repository.titles_content_repo import TitlesContentRepository
 from database.database.repository.punctuation_repo import PunctuationRepository
 from database.database.repository.alerts_repo import AlertsRepository
-from core.serialization import pack_int_list
+from core.serialization import pack_int_list, unpack_int_list
 
 
 class ContentDBService:
@@ -1187,6 +1187,78 @@ class ContentDBService:
         except Exception as e:
             print(f"Error processing keywords for path: {e}")
             return False
+
+    def refresh_keyword_associations(self, keyword_ids=None) -> Dict[str, int]:
+        """Reconcile keyword-to-file links after keyword definitions change.
+
+        Keyword links were historically created only while a file was ingested,
+        so adding a keyword later left existing files invisible to that keyword.
+        Rebuild only the affected keywords and candidate paths immediately.
+        """
+        try:
+            if keyword_ids:
+                keyword_rows = []
+                for keyword_id in keyword_ids:
+                    row = self.keywords_repo.execute(
+                        "SELECT id, keyword FROM keywords WHERE id = %s",
+                        (int(keyword_id),), fetchone=True,
+                    )
+                    if row:
+                        keyword_rows.append(row)
+            else:
+                keyword_rows = self.keywords_repo.execute(
+                    "SELECT id, keyword FROM keywords", None, fetchall=True
+                )
+
+            decoded = {}
+            candidate_words = set()
+            for keyword_id, blob in keyword_rows or []:
+                try:
+                    pattern = unpack_int_list(blob) if blob else []
+                except Exception:
+                    pattern = []
+                if pattern:
+                    decoded[int(keyword_id)] = pattern
+                    candidate_words.update(pattern)
+            if not decoded:
+                return {"paths_checked": 0, "associations_added": 0}
+
+            # Only paths containing at least one term can match. This avoids
+            # rescanning every document when a keyword is added.
+            placeholders = ",".join(["%s"] * len(candidate_words))
+            candidate_rows = self.words_paths_repo.execute(
+                f"SELECT DISTINCT path_id FROM words_paths WHERE word_id IN ({placeholders})",
+                tuple(candidate_words), fetchall=True,
+            )
+            added = 0
+            checked = 0
+            for (path_id,) in candidate_rows or []:
+                positions = self.words_paths_repo.get_word_positions_by_path(path_id)
+                if not positions:
+                    continue
+                max_position = max((max(v) for v in positions.values() if v), default=-1)
+                sequence = [None] * (max_position + 1)
+                for word_id, indexes in positions.items():
+                    for index in indexes:
+                        if 0 <= index < len(sequence):
+                            sequence[index] = word_id
+                matches = {}
+                for keyword_id, pattern in decoded.items():
+                    length = len(pattern)
+                    count = sum(
+                        1 for i in range(len(sequence) - length + 1)
+                        if sequence[i:i + length] == pattern
+                    )
+                    if count:
+                        matches[keyword_id] = count
+                if matches:
+                    self.keywords_paths_repo.bulk_insert_keywords_paths(path_id, matches)
+                    added += len(matches)
+                checked += 1
+            return {"paths_checked": checked, "associations_added": added}
+        except Exception:
+            logger.exception("Failed to refresh keyword associations")
+            raise
 
     # ============================================================
     # TITLE CONTENT OPERATIONS
